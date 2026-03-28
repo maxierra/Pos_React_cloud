@@ -6,18 +6,18 @@ import { useEffect, useState } from "react";
 export function DateSelector() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentDate = searchParams.get("date") || "";
-  
+  const currentDate = searchParams?.get("date") ?? "";
+
   const [date, setDate] = useState(currentDate);
 
   useEffect(() => {
-    setDate(searchParams.get("date") || "");
+    setDate(searchParams?.get("date") ?? "");
   }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setDate(newDate);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     if (newDate) {
       params.set("date", newDate);
     } else {

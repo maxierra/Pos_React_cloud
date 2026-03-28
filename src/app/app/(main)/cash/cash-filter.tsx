@@ -16,7 +16,11 @@ type Props = {
 export function CashFilter({ ledgerRows, turns }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [date, setDate] = React.useState(searchParams.get("date") || "");
+  const [date, setDate] = React.useState(() => searchParams?.get("date") ?? "");
+
+  React.useEffect(() => {
+    setDate(searchParams?.get("date") ?? "");
+  }, [searchParams]);
 
   const fmtDateTime = React.useMemo(
     () =>
@@ -84,7 +88,7 @@ export function CashFilter({ ledgerRows, turns }: Props) {
   const onDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setDate(newDate);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     if (newDate) {
       params.set("date", newDate);
     } else {

@@ -102,7 +102,7 @@ export function SubscriptionClient({
   }, [mpAlias]);
 
   React.useEffect(() => {
-    const mp = searchParams.get("mp");
+    const mp = searchParams?.get("mp");
     if (mp === "success") {
       toast.success("Pago recibido", {
         description: "Si no se actualiza solo, esperá unos segundos o actualizá la página.",

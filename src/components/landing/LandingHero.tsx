@@ -50,12 +50,11 @@ export function LandingHero() {
       <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
         <motion.div
           variants={container}
-          initial="hidden"
+          initial={false}
           animate="show"
-          viewport={{ once: true }}
           className="text-center lg:text-left"
         >
-          <motion.div variants={item} className="flex justify-center lg:justify-start">
+          <motion.div variants={item} initial={false} className="flex justify-center lg:justify-start">
             <span className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-white/20 bg-white/[0.07] px-4 py-1.5 text-[0.8125rem] font-semibold leading-snug text-cyan-100 shadow-[0_0_40px_-8px_rgba(34,211,238,0.45)] backdrop-blur-md sm:text-sm">
               <span className="absolute inset-0 -translate-x-full animate-[posShimmer_2.5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/12 to-transparent" />
               <Sparkles className="relative size-3.5 text-cyan-300" />
@@ -65,6 +64,7 @@ export function LandingHero() {
 
           <motion.h1
             variants={item}
+            initial={false}
             className="mx-auto mt-5 max-w-4xl text-balance font-serif font-bold tracking-tight text-white lg:mx-0 lg:max-w-none"
           >
             <span className="block text-[1.75rem] leading-[1.12] sm:text-4xl sm:leading-tight md:text-[2.5rem] md:leading-[1.1] lg:text-5xl lg:leading-[1.08] xl:text-6xl xl:leading-[1.05]">
@@ -77,6 +77,7 @@ export function LandingHero() {
 
           <motion.p
             variants={item}
+            initial={false}
             className="mx-auto mt-5 max-w-2xl text-[1.0625rem] leading-relaxed text-white/85 md:text-lg md:leading-relaxed lg:mx-0 lg:mt-6"
           >
             Stock, caja, tickets e informes en un solo sistema. Más abajo, una{" "}
@@ -86,6 +87,7 @@ export function LandingHero() {
 
           <motion.div
             variants={item}
+            initial={false}
             className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4 lg:justify-start"
           >
             <Link
@@ -106,6 +108,7 @@ export function LandingHero() {
 
           <motion.div
             variants={item}
+            initial={false}
             className="mt-10 flex flex-wrap items-center justify-center gap-2 md:gap-3 lg:justify-start"
           >
             {pills.map(({ icon: Icon, label }) => (
@@ -121,6 +124,7 @@ export function LandingHero() {
 
           <motion.div
             variants={item}
+            initial={false}
             className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-x-8 gap-y-3 border-y border-white/10 py-6 text-sm text-white/55 lg:mx-0 lg:justify-start"
           >
             <span className="inline-flex items-center gap-2">
@@ -132,12 +136,7 @@ export function LandingHero() {
           </motion.div>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none"
-        >
+        <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 -z-10 scale-110 rounded-3xl bg-gradient-to-br from-fuchsia-500/20 via-violet-500/15 to-cyan-500/20 blur-3xl"
@@ -152,7 +151,7 @@ export function LandingHero() {
               placeholder="blur"
             />
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,12 @@
 import * as React from "react";
 import { Toaster } from "sonner";
 
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
+
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster richColors theme={theme} />;
+}
 
 export function Providers({
   children,
@@ -13,7 +18,7 @@ export function Providers({
   return (
     <ThemeProvider>
       {children}
-      <Toaster richColors theme="dark" />
+      <ThemedToaster />
     </ThemeProvider>
   );
 }

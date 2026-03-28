@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 
 import { Banknote, CreditCard, Landmark } from "lucide-react";
 
@@ -192,7 +193,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
             <div className="text-sm text-muted-foreground">{sales.length} ventas</div>
           </div>
           <div className="flex-1">
-            <SalesFilter sales={sales} />
+            <Suspense fallback={<div className="h-10 max-w-md animate-pulse rounded-xl bg-muted/40" aria-hidden />}>
+              <SalesFilter sales={sales} />
+            </Suspense>
           </div>
         </div>
 
