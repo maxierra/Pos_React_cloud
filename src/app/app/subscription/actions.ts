@@ -10,6 +10,7 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 
 
 
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { createClient } from "@/lib/supabase/server";
 
 
@@ -105,26 +106,6 @@ export async function getAllPlansConfig() {
   ]);
 
   return { monthly, semester, annual };
-
-}
-
-
-
-function getAppBaseUrl() {
-
-  const a = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
-
-  if (a) return a;
-
-  const b = (process.env.APP_BASE_URL ?? "").trim().replace(/\/$/, "");
-
-  if (b) return b;
-
-  const vercel = (process.env.VERCEL_URL ?? "").trim();
-
-  if (vercel) return `https://${vercel}`;
-
-  return "http://localhost:3000";
 
 }
 
@@ -252,11 +233,18 @@ export async function startMercadoPagoCheckout(planKey: PlanKey = "monthly"): Pr
     return { checkoutUrl };
 
   } catch (e) {
+    console.error("[mercadopago] preference.create failed:", e);
 
-    const msg = e instanceof Error ? e.message : "Error al crear el checkout.";
+    const msg =
+      e instanceof Error
+        ? e.message
+        : typeof e === "object" && e !== null && "message" in e && typeof (e as { message: unknown }).message === "string"
+          ? (e as { message: string }).message
+          : String(e);
 
-    return { error: msg };
-
+    return {
+      error: msg && msg !== "[object Object]" ? msg : "Error al crear el checkout.",
+    };
   }
 
 }

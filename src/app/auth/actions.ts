@@ -4,24 +4,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { createClient } from "@/lib/supabase/server";
 
 function getRedirectPath(redirectTo: string | null | undefined) {
   if (!redirectTo) return "/app";
   if (!redirectTo.startsWith("/")) return "/app";
   return redirectTo;
-}
-
-function getAppBaseUrl() {
-  const fromEnv = (process.env.APP_BASE_URL ?? "").trim();
-  if (fromEnv) return fromEnv.replace(/\/+$/, "");
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
-  if (appUrl) return appUrl.replace(/\/+$/, "");
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
-  if (siteUrl) return siteUrl.replace(/\/+$/, "");
-  const vercelUrl = (process.env.VERCEL_URL ?? "").trim();
-  if (vercelUrl) return `https://${vercelUrl.replace(/\/+$/, "")}`;
-  return "http://localhost:3000";
 }
 
 async function syncActiveBusinessCookie(supabase: Awaited<ReturnType<typeof createClient>>, cookieStore: Awaited<ReturnType<typeof cookies>>) {
