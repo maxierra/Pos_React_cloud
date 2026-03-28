@@ -39,11 +39,11 @@ export function AnimatedSearchInput({
   return (
     <div className="relative">
       <Search
-        className={cn("pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2", chrome.muted)}
+        className={cn("pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 sm:left-3 sm:size-4", chrome.muted)}
       />
       <div
         className={cn(
-          "h-11 rounded-xl border pl-10 pr-3 text-sm",
+          "h-9 rounded-lg border pl-9 pr-2 text-xs sm:h-11 sm:rounded-xl sm:pl-10 sm:pr-3 sm:text-sm",
           chrome.searchField
         )}
       >

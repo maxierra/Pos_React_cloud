@@ -377,25 +377,25 @@ export function LivePosDemo() {
   return (
     <section
       className={cn(
-        "rounded-3xl p-4 shadow-sm transition-[background-color,border-color,box-shadow] duration-500 md:p-6",
+        "max-md:rounded-2xl max-md:shadow-md rounded-3xl p-3 shadow-sm transition-[background-color,border-color,box-shadow] duration-500 sm:p-4 md:p-6 md:shadow-sm",
         chrome.shell
       )}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <div
               className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] uppercase tracking-wide",
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] uppercase tracking-wide sm:gap-2 sm:px-3 sm:py-1 sm:text-[11px]",
                 chrome.demoBadge
               )}
             >
-              <Sparkles className="size-3.5" />
+              <Sparkles className="size-3 sm:size-3.5" />
               Demo en vivo
             </div>
             <span
               className={cn(
-                "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                "rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide sm:px-2.5 sm:text-[10px]",
                 demoSkin === "light"
                   ? "border-sky-400/50 bg-sky-100 text-sky-900"
                   : "border-fuchsia-500/35 bg-fuchsia-950/40 text-fuchsia-200"
@@ -404,7 +404,7 @@ export function LivePosDemo() {
               {demoSkin === "light" ? "Secuencia clara" : "Secuencia oscura"}
             </span>
           </div>
-          <h3 className={cn("mt-2 text-2xl font-semibold tracking-tight", chrome.h3)}>
+          <h3 className={cn("mt-1.5 text-base font-semibold tracking-tight sm:mt-2 sm:text-xl md:text-2xl", chrome.h3)}>
             Secuencia automatica del sistema POS
           </h3>
         </div>
@@ -414,14 +414,14 @@ export function LivePosDemo() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className={cn("rounded-xl border px-3 py-2 text-xs", chrome.statusBox)}
+            className={cn("w-full max-w-full rounded-xl border px-2.5 py-1.5 text-[11px] sm:w-auto sm:max-w-md sm:px-3 sm:py-2 sm:text-xs", chrome.statusBox)}
           >
             {status}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+      <div className="mb-3 grid grid-cols-3 gap-1.5 sm:mb-4 sm:gap-2">
         {[
           { id: "load", label: "1. Carga de productos" },
           { id: "sales", label: "2. Pantalla de ventas" },
@@ -430,11 +430,11 @@ export function LivePosDemo() {
           <div
             key={item.id}
             className={cn(
-              "rounded-xl border px-3 py-2 text-xs transition",
+              "rounded-lg border px-1.5 py-1.5 text-[10px] transition sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs",
               phase === item.id ? chrome.stepOn : chrome.stepOff
             )}
           >
-            {item.label}
+            <span className="block leading-tight sm:inline">{item.label}</span>
           </div>
         ))}
       </div>
@@ -446,16 +446,16 @@ export function LivePosDemo() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className={cn("rounded-2xl border p-4", chrome.panel)}
+            className={cn("rounded-xl border p-3 sm:rounded-2xl sm:p-4", chrome.panel)}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <div>
+            <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <div className={cn("text-sm font-semibold tracking-tight", chrome.h3)}>Productos</div>
-                <div className={cn("text-xs", chrome.muted)}>Alta, edición y control de stock.</div>
+                <div className={cn("text-[11px] sm:text-xs", chrome.muted)}>Alta, edición y control de stock.</div>
               </div>
               <div
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs",
+                  "inline-flex w-fit items-center gap-1 rounded-lg border px-2 py-1 text-[11px] sm:rounded-xl sm:px-2.5 sm:py-1.5 sm:text-xs",
                   chrome.panelAlt
                 )}
               >
@@ -464,8 +464,8 @@ export function LivePosDemo() {
               </div>
             </div>
 
-            <div className={cn("overflow-hidden rounded-xl border", chrome.tableShell)}>
-              <table className="w-full text-sm">
+            <div className={cn("overflow-x-auto rounded-lg border sm:overflow-hidden sm:rounded-xl", chrome.tableShell)}>
+              <table className="w-full min-w-[480px] text-xs sm:min-w-0 sm:text-sm">
                 <thead>
                   <tr className={cn("border-b", chrome.tableHead)}>
                     <th className="px-3 py-2 text-left font-medium">Producto</th>
@@ -533,7 +533,7 @@ export function LivePosDemo() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="relative grid gap-4 xl:grid-cols-[1.2fr_0.9fr]"
+            className="relative grid gap-3 lg:grid-cols-[1fr_0.95fr] lg:gap-4"
           >
             <FakePOS
               products={PRODUCTS}
@@ -550,8 +550,8 @@ export function LivePosDemo() {
                 salePulseKey={pulseKey}
                 chrome={chrome}
               />
-              <div className={cn("rounded-2xl border p-4", chrome.paySidePanel)}>
-                <div className="mb-2 inline-flex items-center gap-2 text-sm font-semibold">
+              <div className={cn("rounded-xl border p-3 sm:rounded-2xl sm:p-4", chrome.paySidePanel)}>
+                <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold sm:text-sm">
                   <CreditCard className={cn("size-4", chrome.accent)} />
                   <span className={chrome.h3}>Simulación de cobro</span>
                 </div>
@@ -731,7 +731,7 @@ export function LivePosDemo() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid gap-4"
+            className="grid gap-3 sm:gap-4"
           >
             <FakeDashboard sales={sales} chrome={chrome} />
           </motion.div>

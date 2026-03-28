@@ -28,9 +28,9 @@ function methodLabel(method: Props["paymentMethod"]) {
 
 export function FakeCart({ lines, total, paymentMethod, salePulseKey, chrome }: Props) {
   return (
-    <div className={cn("rounded-2xl border p-4", chrome.cartCard)}>
-      <div className="mb-3 flex items-center justify-between">
-        <div className="inline-flex items-center gap-2 text-sm font-semibold">
+    <div className={cn("rounded-xl border p-3 sm:rounded-2xl sm:p-4", chrome.cartCard)}>
+      <div className="mb-2 flex items-center justify-between sm:mb-3">
+        <div className="inline-flex items-center gap-1.5 text-xs font-semibold sm:gap-2 sm:text-sm">
           <ShoppingCart className={cn("size-4", chrome.accent)} />
           <span className={chrome.h3}>Carrito activo</span>
         </div>

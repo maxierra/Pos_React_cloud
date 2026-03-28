@@ -22,33 +22,65 @@ export default async function Home({ searchParams }: Props) {
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[radial-gradient(circle_at_top_right,rgba(236,72,153,0.28),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.24),transparent_36%),linear-gradient(135deg,#070b1a_0%,#0f172a_40%,#1e1b4b_100%)] text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-black/35 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="size-2 rounded-full bg-fuchsia-400 shadow-[0_0_18px_rgba(244,114,182,0.9)]" />
-            <span className="text-sm font-semibold tracking-tight text-white">POS SaaS</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <nav className="mr-4 hidden flex-wrap items-center justify-end gap-x-5 gap-y-2 text-[13px] md:flex lg:gap-x-6 lg:text-sm">
-              <a href="#demo" className="font-medium text-white/70 transition hover:text-white">Demo</a>
-              <a href="#features" className="font-medium text-white/70 transition hover:text-white">Funciones</a>
-              <a href="#combos" className="font-medium text-white/70 transition hover:text-white">Combos</a>
-              <a href="#nosotros" className="font-medium text-white/70 transition hover:text-white">Nosotros</a>
-              <a href="#tutoriales" className="font-medium text-white/70 transition hover:text-white">Tutoriales</a>
-              <a href="#contacto" className="font-medium text-white/70 transition hover:text-white">Contacto</a>
-              <a href="#planes" className="font-medium text-white/70 transition hover:text-white">Planes</a>
-            </nav>
-            <ThemeToggle />
-            <Link
-              href="/auth/login"
-              className="animate-pulse-glow inline-flex h-8 items-center justify-center rounded-lg border-0 bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-4 text-[0.8rem] font-bold text-white transition-all hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4">
+          <div className="flex flex-col gap-0 md:flex-row md:items-center md:justify-between md:gap-4 md:py-3">
+            <div className="flex items-center justify-between gap-3 py-2.5 md:py-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="size-2 shrink-0 rounded-full bg-fuchsia-400 shadow-[0_0_18px_rgba(244,114,182,0.9)]" />
+                <span className="truncate text-sm font-semibold tracking-tight text-white">POS SaaS</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 md:hidden">
+                <ThemeToggle />
+                <Link
+                  href="/auth/login"
+                  className="animate-pulse-glow inline-flex h-8 items-center justify-center rounded-lg border-0 bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-3 text-[0.75rem] font-bold text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all active:scale-95"
+                >
+                  Ingresar
+                </Link>
+              </div>
+            </div>
+
+            <nav
+              className="-mx-3 flex gap-x-4 gap-y-1 overflow-x-auto border-t border-white/10 px-3 py-2.5 text-[13px] [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-x-5 md:mx-0 md:flex-1 md:flex-wrap md:justify-center md:overflow-visible md:border-t-0 md:px-0 md:py-0 lg:justify-end [&::-webkit-scrollbar]:hidden"
+              aria-label="Secciones"
             >
-              Ingresar
-            </Link>
+              <a href="#demo" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Demo
+              </a>
+              <a href="#features" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Funciones
+              </a>
+              <a href="#combos" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Combos
+              </a>
+              <a href="#nosotros" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Nosotros
+              </a>
+              <a href="#tutoriales" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Tutoriales
+              </a>
+              <a href="#contacto" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Contacto
+              </a>
+              <a href="#planes" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Planes
+              </a>
+            </nav>
+
+            <div className="hidden items-center gap-2 md:flex">
+              <ThemeToggle />
+              <Link
+                href="/auth/login"
+                className="animate-pulse-glow inline-flex h-8 items-center justify-center rounded-lg border-0 bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-4 text-[0.8rem] font-bold text-white transition-all hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+              >
+                Ingresar
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-6 sm:px-4 sm:py-10">
         {sp.missingSupabase ? (
           <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/15 p-4 text-sm text-amber-100">
             Falta configurar Supabase. Podés ver la landing, pero <span className="text-white">/app</span> y autenticación no funcionarán hasta completar <code>.env.local</code>.
