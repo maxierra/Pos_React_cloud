@@ -1,0 +1,176 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { createMonitoredAction } from "@/lib/action-wrapper";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { emailIsPlatformAdmin } from "@/lib/platform-admin";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function billingDays(): number {
+  const d = Number(
+    process.env.MANUAL_SUBSCRIPTION_PERIOD_DAYS ?? process.env.MERCADOPAGO_BILLING_PERIOD_DAYS ?? 30
+  );
+  return Number.isFinite(d) && d > 0 ? Math.floor(d) : 30;
+}
+
+async function getSessionAdminEmail(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const email = user?.email ?? null;
+  if (!email || !emailIsPlatformAdmin(email)) return null;
+  return email;
+}
+
+export type AdminActivateResult =
+  | { error: "forbidden" | "invalid_uuid" | "not_found" | "config"; message?: string }
+  | { ok: true; current_period_end: string };
+
+async function adminActivateSubscriptionImpl(businessId: string): Promise<AdminActivateResult> {
+  const adminEmail = await getSessionAdminEmail();
+  if (!adminEmail) return { error: "forbidden" };
+
+  const id = businessId.trim();
+  if (!UUID_RE.test(id)) return { error: "invalid_uuid" };
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: "config", message: "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor." };
+  }
+
+  const { data: biz, error: bErr } = await admin.from("businesses").select("id").eq("id", id).maybeSingle();
+  if (bErr) return { error: "config", message: bErr.message };
+  if (!biz) return { error: "not_found" };
+
+  const days = billingDays();
+  const now = new Date();
+  const end = new Date(now.getTime());
+  end.setUTCDate(end.getUTCDate() + days);
+
+  const payload = {
+    status: "active" as const,
+    current_period_start: now.toISOString(),
+    current_period_end: end.toISOString(),
+    provider: "manual_transfer",
+    updated_at: now.toISOString(),
+  };
+
+  const { data: existing } = await admin.from("subscriptions").select("id").eq("business_id", id).maybeSingle();
+
+  let subId: string;
+
+  if (existing?.id) {
+    const { data: upd, error: uErr } = await admin
+      .from("subscriptions")
+      .update(payload)
+      .eq("business_id", id)
+      .select("id")
+      .single();
+    if (uErr || !upd) return { error: "config", message: uErr?.message ?? "No se pudo actualizar la suscripción." };
+    subId = upd.id;
+  } else {
+    const { data: ins, error: iErr } = await admin
+      .from("subscriptions")
+      .insert({
+        business_id: id,
+        plan_id: "standard",
+        ...payload,
+      })
+      .select("id")
+      .single();
+    if (iErr || !ins) return { error: "config", message: iErr?.message ?? "No se pudo crear la suscripción." };
+    subId = ins.id;
+  }
+
+  const amount = Number.parseFloat(process.env.MERCADOPAGO_PLAN_MONTHLY_AMOUNT ?? "0");
+  const currency = (process.env.MERCADOPAGO_PLAN_CURRENCY ?? "ARS").trim().toUpperCase() || "ARS";
+  const paymentRow = {
+    business_id: id,
+    subscription_id: subId,
+    provider: "manual_transfer",
+    provider_payment_id: `admin_manual_${Date.now()}`,
+    amount: Number.isFinite(amount) ? amount : 0,
+    currency,
+    status: "approved",
+    raw: { source: "admin_panel", admin_email: adminEmail, activated_at: now.toISOString() },
+  };
+
+  const { error: pErr } = await admin.from("payments").insert(paymentRow);
+  if (pErr && process.env.NODE_ENV === "development") {
+    console.warn("[adminActivateSubscription] payments insert:", pErr.message);
+  }
+
+  revalidatePath("/app/admin");
+  revalidatePath("/app/subscription");
+  revalidatePath("/app");
+
+  return { ok: true, current_period_end: end.toISOString() };
+}
+
+export type AdminDeactivateResult =
+  | { error: "forbidden" | "invalid_uuid" | "not_found" | "config"; message?: string }
+  | { ok: true };
+
+/**
+ * Corta el acceso al POS (middleware + layout). No borra datos del negocio.
+ * Estado `canceled` + provider `admin_suspended` para distinguir en el panel.
+ */
+async function adminDeactivateSubscriptionImpl(businessId: string): Promise<AdminDeactivateResult> {
+  const adminEmail = await getSessionAdminEmail();
+  if (!adminEmail) return { error: "forbidden" };
+
+  const id = businessId.trim();
+  if (!UUID_RE.test(id)) return { error: "invalid_uuid" };
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: "config", message: "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor." };
+  }
+
+  const { data: biz, error: bErr } = await admin.from("businesses").select("id").eq("id", id).maybeSingle();
+  if (bErr) return { error: "config", message: bErr.message };
+  if (!biz) return { error: "not_found" };
+
+  const { data: existing } = await admin.from("subscriptions").select("id").eq("business_id", id).maybeSingle();
+  if (!existing?.id) {
+    return { error: "not_found", message: "Este negocio no tiene fila de suscripción." };
+  }
+
+  const now = new Date().toISOString();
+  const { error: uErr } = await admin
+    .from("subscriptions")
+    .update({
+      status: "canceled",
+      current_period_start: now,
+      current_period_end: now,
+      provider: "admin_suspended",
+      updated_at: now,
+    })
+    .eq("business_id", id);
+
+  if (uErr) return { error: "config", message: uErr.message };
+
+  revalidatePath("/app/admin");
+  revalidatePath("/app/subscription");
+  revalidatePath("/app");
+
+  return { ok: true };
+}
+
+export const adminActivateSubscription = createMonitoredAction(
+  adminActivateSubscriptionImpl,
+  "admin/activateSubscription",
+);
+export const adminDeactivateSubscription = createMonitoredAction(
+  adminDeactivateSubscriptionImpl,
+  "admin/deactivateSubscription",
+);

@@ -1,0 +1,169 @@
+"use client";
+
+export type PosBusinessInfo = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  cuit: string | null;
+  ticket_header: string | null;
+  ticket_footer: string | null;
+} | null;
+
+export type TicketItem = {
+  name: string;
+  quantity: number;
+  unit_price: number;
+};
+
+export type TicketData = {
+  business: PosBusinessInfo;
+  saleId?: string;
+  movementId?: string;
+  items?: TicketItem[];
+  total: number;
+  paymentMethod?: string;
+  cashReceived?: number;
+  reason?: string;
+  notes?: string;
+  kind: "sale" | "manual" | "opening" | "void" | "closure";
+  created_at?: string;
+  closureData?: {
+    openedAt: string;
+    closedAt: string;
+    methods: {
+      key: string;
+      label: string;
+      expected: number;
+      counted: number;
+      difference: number;
+    }[];
+  };
+};
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function getPaymentMethodLabel(method: string) {
+  if (method === "cash") return "Efectivo";
+  if (method === "card") return "Tarjeta";
+  if (method === "transfer") return "Transferencia";
+  if (method === "mercadopago") return "Mercado Pago";
+  if (method === "mixed") return "Mixto";
+  return method;
+}
+
+export function generateTicketHtml(data: TicketData) {
+  const { business, items, total, saleId, movementId, paymentMethod, cashReceived, reason, notes, kind, created_at, closureData } = data;
+  const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
+  
+  let rows = "";
+  if (items && items.length > 0) {
+    rows = items
+      .map((it) => {
+        const subtotal = Math.round((it.quantity * it.unit_price + Number.EPSILON) * 100) / 100;
+        return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:2px;">
+          <span>${escapeHtml(it.name)} x${it.quantity}</span>
+          <span>$${subtotal.toFixed(2)}</span>
+        </div>`;
+      })
+      .join("");
+  }
+
+  const change = cashReceived ? Math.max(0, cashReceived - total) : 0;
+  const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
+  const idValue = (saleId || movementId || "").slice(0, 8);
+
+  return `<!doctype html><html><head><meta charset="utf-8" /><title>Ticket</title></head>
+  <body style="font-family:monospace;padding:16px;max-width:300px;margin:auto;color:#000;background:#fff;">
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-weight:bold;font-size:16px">${escapeHtml(business?.name ?? "Mi Negocio")}</div>
+      ${business?.address ? `<div style="font-size:11px">${escapeHtml(business.address)}</div>` : ""}
+      ${business?.phone ? `<div style="font-size:11px">Tel: ${escapeHtml(business.phone)}</div>` : ""}
+      ${business?.cuit ? `<div style="font-size:11px">CUIT: ${escapeHtml(business.cuit)}</div>` : ""}
+      ${business?.ticket_header ? `<div style="margin-top:6px;font-size:11px">${escapeHtml(business.ticket_header)}</div>` : ""}
+    </div>
+    <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+    <div style="font-size:11px;display:flex;justify-content:space-between"><span>${idLabel}:</span><span>#${escapeHtml(idValue)}</span></div>
+    <div style="font-size:11px;display:flex;justify-content:space-between"><span>Fecha:</span><span>${escapeHtml(printedAt)}</span></div>
+    
+    ${kind === "closure" && closureData ? `
+      <div style="font-size:11px;display:flex;justify-content:space-between"><span>Apertura:</span><span>${escapeHtml(new Date(closureData.openedAt).toLocaleString("es-AR"))}</span></div>
+      <div style="font-size:11px;display:flex;justify-content:space-between"><span>Cierre:</span><span>${escapeHtml(new Date(closureData.closedAt).toLocaleString("es-AR"))}</span></div>
+    ` : ""}
+    <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+    
+    ${kind === "manual" || kind === "opening" || kind === "void" ? `
+      <div style="font-size:12px;margin-bottom:10px;">
+        <div style="font-weight:bold;margin-bottom:4px;">MOTIVO:</div>
+        <div>${escapeHtml(reason || "Movimiento manual")}</div>
+        ${notes ? `<div style="margin-top:6px;font-style:italic;">Nota: ${escapeHtml(notes)}</div>` : ""}
+      </div>
+    ` : ""}
+
+    ${rows}
+    
+    ${kind === "closure" && closureData ? `
+      <div style="font-weight:bold;font-size:12px;margin:10px 0 5px 0;text-align:center;">RESUMEN DE CAJA</div>
+      <table style="width:100%;font-size:11px;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid #000;">
+            <th style="text-align:left;padding:2px 0;">Medio</th>
+            <th style="text-align:right;">Esp.</th>
+            <th style="text-align:right;">Cont.</th>
+            <th style="text-align:right;">Dif.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${closureData.methods.map(m => `
+            <tr>
+              <td style="padding:2px 0;">${escapeHtml(m.label)}</td>
+              <td style="text-align:right;">$${m.expected.toFixed(0)}</td>
+              <td style="text-align:right;">$${m.counted.toFixed(0)}</td>
+              <td style="text-align:right;${Math.abs(m.difference) > 0.1 ? 'color:red;' : ''}">$${m.difference.toFixed(0)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+      <div style="font-size:11px;margin-top:5px;">
+        <div style="font-weight:bold;">NOTAS:</div>
+        <div>${escapeHtml(notes || "Sin observaciones")}</div>
+      </div>
+    ` : `
+      <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+      <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOTAL</span><span>$${total.toFixed(2)}</span></div>
+      ${paymentMethod ? `<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px;"><span>Pago</span><span>${getPaymentMethodLabel(paymentMethod)}</span></div>` : ""}
+      ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Recibido</span><span>$${cashReceived.toFixed(2)}</span></div>` : ""}
+      ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Vuelto</span><span>$${change.toFixed(2)}</span></div>` : ""}
+    `}
+    
+    ${business?.ticket_footer ? `<div style="margin-top:15px;text-align:center;font-size:11px;">${escapeHtml(business.ticket_footer)}</div>` : ""}
+    <div style="margin-top:20px;text-align:center;font-size:10px;opacity:0.7;">${kind === "closure" ? "Fin de turno" : "Gracias por su compra"}</div>
+  </body></html>`;
+}
+
+export function printTicket(data: TicketData) {
+  if (typeof window === "undefined") return;
+  const html = generateTicketHtml(data);
+  const popup = window.open("", "_blank", "width=420,height=720");
+  if (!popup) {
+    alert("Por favor permite los popups para imprimir el ticket.");
+    return;
+  }
+
+  popup.document.write(html);
+  popup.document.close();
+  popup.focus();
+  
+  // Wait for content to load before printing
+  setTimeout(() => {
+    popup.print();
+    popup.close();
+  }, 250);
+}

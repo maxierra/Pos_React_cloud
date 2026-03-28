@@ -1,0 +1,14 @@
+name: Daily Report Cron
+
+on:
+  schedule:
+    - cron: '26 15 * * *'  # 12:26 Argentina = 15:26 UTC
+  workflow_dispatch:      # Permitir ejecución manual
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily report cron
+        run: |
+          curl "https://tu-dominio.com/api/cron/daily-reports?key=8f2c9a6e4d1b7c3f5a9e2d8c6b4f1a7e3c9d2f6b8a1e4c7d9f2a6b3c5d8e1f0a"

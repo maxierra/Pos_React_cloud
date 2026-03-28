@@ -1,0 +1,288 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+
+import {
+  BarChart3,
+  Boxes,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  LayoutDashboard,
+  Package,
+  Receipt,
+  Settings,
+  Shield,
+  ShoppingCart,
+  Wallet,
+} from "lucide-react";
+
+import femaleAvatar from "@/female.png";
+import maleAvatar from "@/men.png";
+
+import { signOut } from "@/app/auth/actions";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { TrialCountdown } from "@/components/trial-countdown";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/app", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart },
+  { href: "/app/inventory", label: "Inventario", icon: Boxes },
+  { href: "/app/products", label: "Productos", icon: Package },
+  { href: "/app/sales", label: "Ventas", icon: Receipt },
+  { href: "/app/cash", label: "Caja", icon: Wallet },
+  { href: "/app/reports", label: "Reportes", icon: BarChart3 },
+  { href: "/app/subscription", label: "Suscripción", icon: CreditCard },
+  { href: "/app/settings", label: "Configuración", icon: Settings },
+];
+
+type Props = {
+  children: React.ReactNode;
+  business: {
+    id: string | null;
+    name: string | null;
+  };
+  user: {
+    email: string | null;
+    avatar?: string | null;
+  };
+  cash: {
+    open: boolean;
+  };
+  access?: {
+    role: string | null;
+    permissions: Record<string, any> | null;
+  };
+  plan?: {
+    label: string;
+    /** ISO end of trial; muestra contador en sidebar */
+    trialEndsAt?: string | null;
+  };
+};
+
+function ShortcutBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-lg border border-[var(--pos-border)] bg-[var(--pos-surface)] px-2 py-1 text-[11px] font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function userAvatarSrc(avatar?: string | null) {
+  if (avatar === "female") return femaleAvatar;
+  if (avatar === "male") return maleAvatar;
+  return null;
+}
+
+function userInitials(email: string | null) {
+  const base = (email ?? "").trim();
+  if (!base) return "U";
+  const name = base.split("@")[0] ?? base;
+  const parts = name.split(/[._\-\s]+/).filter(Boolean);
+  const letters = parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .filter(Boolean);
+  return letters.join("") || name.slice(0, 2).toUpperCase();
+}
+
+
+
+export function AppShell({ children, business, user, cash, access, plan }: Props) {
+  const pathname = usePathname();
+
+  const [collapsed, setCollapsed] = React.useState(false);
+
+  const navItems = React.useMemo(() => {
+    const base = NAV_ITEMS;
+    const role = access?.role ?? null;
+    if (role === "owner") return base;
+
+    const p = (access?.permissions ?? {}) as any;
+    const can = (key: string) => Boolean(p?.[key]);
+    const canPos = Boolean(p?.pos ?? p?.sales);
+
+    return base.filter((item) => {
+      if (item.href === "/app") return can("dashboard");
+      if (item.href === "/app/subscription") return can("subscription");
+
+      if (item.href.startsWith("/app/pos")) return canPos;
+      if (item.href.startsWith("/app/inventory")) return can("inventory");
+      if (item.href.startsWith("/app/sales")) return can("sales");
+      if (item.href.startsWith("/app/cash")) return can("cash");
+      if (item.href.startsWith("/app/products")) return can("products");
+      if (item.href.startsWith("/app/reports")) return can("reports");
+      if (item.href.startsWith("/app/settings")) return can("settings");
+
+      return true;
+    });
+  }, [access?.role, access?.permissions]);
+
+  React.useEffect(() => {
+    const saved = window.localStorage.getItem("app_sidebar_collapsed");
+    setCollapsed(saved === "1");
+  }, []);
+
+  React.useEffect(() => {
+    window.localStorage.setItem("app_sidebar_collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  const businessLabel = business.name ?? (business.id ? `${business.id.slice(0, 8)}…` : "Sin negocio");
+
+  return (
+    <div className="min-h-dvh w-full bg-[var(--pos-bg)]">
+      <div className="flex min-h-dvh w-full gap-4 px-2 py-4 md:px-3">
+        <aside
+          className={cn(
+            "sticky top-4 hidden h-[calc(100dvh-2rem)] shrink-0 flex-col rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-sm md:flex",
+            collapsed ? "w-20" : "w-72"
+          )}
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--pos-border)] p-4">
+            <Link href="/app" className="flex min-w-0 items-center gap-3">
+              <span className="inline-flex size-10 items-center justify-center rounded-2xl bg-[var(--pos-accent)] text-black shadow-[0_0_0_1px_var(--pos-glow)]">
+                <ShoppingCart className="size-5" />
+              </span>
+              {collapsed ? null : (
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold tracking-tight">{businessLabel}</div>
+                  <div className="truncate text-xs text-muted-foreground">POS SaaS</div>
+                </div>
+              )}
+            </Link>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+            >
+              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            </Button>
+          </div>
+
+          <div className={cn("flex-1 p-2", collapsed ? "" : "p-3")}>
+            <nav className="grid gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href || (item.href !== "/app" && pathname.startsWith(item.href));
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+                      "text-muted-foreground hover:bg-[var(--pos-surface-2)] hover:text-foreground",
+                      active ? "bg-[var(--pos-surface-2)] text-foreground" : "",
+                      collapsed ? "justify-center" : ""
+                    )}
+                  >
+                    {active ? (
+                      <span className="absolute left-0 top-2 h-[calc(100%-16px)] w-1 rounded-r bg-[var(--pos-accent)]" />
+                    ) : null}
+                    <Icon className={cn("size-4", active ? "text-[var(--pos-accent)]" : "")} />
+                    {collapsed ? null : <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="border-t border-[var(--pos-border)] p-4">
+            <div className={cn("flex items-center gap-3", collapsed ? "justify-center" : "")}
+            >
+              <span className="inline-flex size-10 items-center justify-center overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] text-sm font-semibold text-muted-foreground">
+                {userAvatarSrc(user.avatar) ? (
+                  <Image
+                    src={userAvatarSrc(user.avatar)!}
+                    alt="avatar"
+                    width={40}
+                    height={40}
+                    className="size-10 object-cover"
+                    priority
+                  />
+                ) : (
+                  userInitials(user.email)
+                )}
+              </span>
+              {collapsed ? null : (
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{user.email ?? "Usuario"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Plan: {plan?.label ?? "—"}
+                    {plan?.trialEndsAt ? (
+                      <>
+                        {" "}
+                        · demo{" "}
+                        <TrialCountdown endsAt={plan.trialEndsAt} variant="compact" className="inline text-xs" />
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <header className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] px-4 py-3 shadow-sm">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="truncate text-sm font-semibold tracking-tight">{businessLabel}</div>
+                {business.id ? (
+                  <span className="rounded-lg border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                    {business.id.slice(0, 8)}…
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "relative inline-flex size-2 rounded-full",
+                      cash.open ? "bg-emerald-400" : "bg-destructive"
+                    )}
+                  >
+                    {cash.open ? (
+                      <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/40" />
+                    ) : null}
+                  </span>
+                  {cash.open ? "Caja abierta" : "Caja cerrada"}
+                </span>
+                <span className="hidden md:inline-flex items-center gap-2">
+                  <ShortcutBadge>F2</ShortcutBadge>
+                  <ShortcutBadge>F4</ShortcutBadge>
+                  <ShortcutBadge>ESC</ShortcutBadge>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <form action={signOut}>
+                <Button type="submit" variant="outline" size="sm">
+                  Salir
+                </Button>
+              </form>
+            </div>
+          </header>
+
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
+      </div>
+    </div>
+  );
+}
