@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { createFixedExpense, deleteFixedExpense, updateFixedExpense } from "@/app/app/(main)/reports/actions";
+import { ReportsExportButton } from "@/app/app/(main)/reports/reports-export-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -254,6 +255,33 @@ export default async function ReportsPage({
   const netGaugeRaw = Math.max(0, Math.min(100, netMarginPct * 100));
   const netGauge = Math.round(netGaugeRaw * 10) / 10;
 
+  const exportPayload = {
+    monthKey: selectedMonth,
+    periodTitle: periodLabel(selectedMonth),
+    days,
+    paidSalesCount: paidSales.length,
+    revenue,
+    cogs,
+    grossProfit,
+    grossMarginPct,
+    fixedExpensesTotal,
+    netProfit,
+    netMarginPct,
+    netGauge,
+    sales: paidSales.map((s) => ({
+      id: s.id,
+      total: toNum(s.total),
+      created_at: s.created_at,
+    })),
+    fixedExpenses: fixedExpenses.map((e) => ({
+      name: e.name,
+      amount: toNum(e.amount),
+      frequencyLabel: translateFrequency(e.frequency),
+      category: e.category ?? "",
+      periodAmount: fixedExpenseForPeriod(e, days),
+    })),
+  };
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10">
       <div className="flex items-center justify-between gap-3">
@@ -263,13 +291,21 @@ export default async function ReportsPage({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground capitalize">{periodLabel(selectedMonth)}</div>
-        <form method="get" className="flex items-center gap-2">
-          <Label htmlFor="month" className="text-xs text-muted-foreground">Mes</Label>
-          <Input id="month" name="month" type="month" defaultValue={selectedMonth} className="h-9 w-44" />
-          <button className="h-9 rounded-lg border px-3 text-sm">Ver</button>
-        </form>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ReportsExportButton data={exportPayload} />
+            <span className="max-w-[220px] text-xs text-muted-foreground">
+              Excel con estilo: resumen del mes, ventas cobradas y gastos fijos (según el mes elegido).
+            </span>
+          </div>
+          <form method="get" className="flex items-center gap-2">
+            <Label htmlFor="month" className="text-xs text-muted-foreground">Mes</Label>
+            <Input id="month" name="month" type="month" defaultValue={selectedMonth} className="h-9 w-44" />
+            <button className="h-9 rounded-lg border px-3 text-sm">Ver</button>
+          </form>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">

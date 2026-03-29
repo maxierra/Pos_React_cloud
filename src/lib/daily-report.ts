@@ -2,6 +2,90 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const AR_TZ = "America/Argentina/Buenos_Aires";
+/** Productos con vencimiento en los próximos N días (incluye ya vencidos). */
+const EXPIRING_WINDOW_DAYS = 30;
+const MAX_INVENTORY_ALERT_ROWS = 25;
+/** Anulaciones de venta + ediciones de producto (precio, costo o stock) del día */
+const MAX_STAFF_ACTIVITY_ROWS = 40;
+
+function formatTimeAr(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: AR_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function actorFromActivityMetadata(meta: unknown): string {
+  if (!meta || typeof meta !== "object") return "—";
+  const m = meta as Record<string, unknown>;
+  const a = typeof m.actor_email === "string" && m.actor_email.trim() ? m.actor_email.trim() : "";
+  const c = typeof m.cashier_email === "string" && m.cashier_email.trim() ? m.cashier_email.trim() : "";
+  return a || c || "—";
+}
+
+/** Solo cambios de precio, costo o stock (no solo nombre/activo). */
+function productUpdateRelevantForReport(summary: string) {
+  return /\b(Precio|Costo|Stock)\b/i.test(summary);
+}
+
+type ProductInvRow = {
+  name: string;
+  sold_by_weight: boolean;
+  stock: number | string | null;
+  stock_decimal: number | string | null;
+  low_stock_threshold: number | string | null;
+  low_stock_threshold_decimal: number | string | null;
+  expires_at: string | null;
+  active: boolean | null;
+};
+
+function toNum(v: number | string | null | undefined) {
+  const n = typeof v === "number" ? v : Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toBuenosAiresYmd(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: AR_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/** Días desde hoy (reportDate) hasta la fecha de vencimiento; negativo = vencido. */
+function daysUntilExpiryFromReportDate(expiresIso: string, reportDateYmd: string): number | null {
+  const expYmd = toBuenosAiresYmd(expiresIso);
+  if (!expYmd) return null;
+  const [ty, tm, td] = reportDateYmd.split("-").map(Number);
+  const [ey, em, ed] = expYmd.split("-").map(Number);
+  if (!ty || !tm || !td || !ey || !em || !ed) return null;
+  const t0 = Date.UTC(ty, tm - 1, td);
+  const t1 = Date.UTC(ey, em - 1, ed);
+  return Math.round((t1 - t0) / 86400000);
+}
+
+function isLowStockRow(p: ProductInvRow) {
+  if (p.sold_by_weight) {
+    return toNum(p.stock_decimal) <= toNum(p.low_stock_threshold_decimal);
+  }
+  return toNum(p.stock) <= toNum(p.low_stock_threshold);
+}
+
+function stockSummaryLine(p: ProductInvRow) {
+  if (p.sold_by_weight) {
+    return `${toNum(p.stock_decimal)} kg · mín ${toNum(p.low_stock_threshold_decimal)} kg`;
+  }
+  return `${Math.trunc(toNum(p.stock))} u · mín ${Math.trunc(toNum(p.low_stock_threshold))} u`;
+}
+
 export async function generateDailyReport(businessId: string, date: string) {
   const admin = createAdminClient();
   
@@ -52,6 +136,57 @@ export async function generateDailyReport(businessId: string, date: string) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
+  const { data: productsInv } = await admin
+    .from("products")
+    .select(
+      "name,sold_by_weight,stock,stock_decimal,low_stock_threshold,low_stock_threshold_decimal,expires_at,active"
+    )
+    .eq("business_id", businessId)
+    .eq("active", true);
+
+  const activeProducts = (productsInv ?? []) as ProductInvRow[];
+
+  const lowStockProducts = activeProducts
+    .filter(isLowStockRow)
+    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .slice(0, MAX_INVENTORY_ALERT_ROWS)
+    .map((p) => ({
+      name: p.name,
+      detail: stockSummaryLine(p),
+    }));
+
+  type ExpiringRow = { name: string; expiresOn: string; daysLeft: number; expired: boolean };
+  const expiringRaw: ExpiringRow[] = [];
+  for (const p of activeProducts) {
+    if (!p.expires_at) continue;
+    const d = daysUntilExpiryFromReportDate(p.expires_at, date);
+    if (d == null) continue;
+    if (d > EXPIRING_WINDOW_DAYS) continue;
+    const expYmd = toBuenosAiresYmd(p.expires_at);
+    expiringRaw.push({
+      name: p.name,
+      expiresOn: expYmd ?? p.expires_at,
+      daysLeft: d,
+      expired: d < 0,
+    });
+  }
+  expiringRaw.sort((a, b) => {
+    if (a.expired !== b.expired) return a.expired ? -1 : 1;
+    return a.daysLeft - b.daysLeft || a.name.localeCompare(b.name, "es");
+  });
+  const expiringProducts = expiringRaw.slice(0, MAX_INVENTORY_ALERT_ROWS).map((r) => ({
+    name: r.name,
+    expiresOn: r.expiresOn,
+    daysLeft: r.daysLeft,
+    expired: r.expired,
+    detail:
+      r.expired
+        ? `Vencido (${Math.abs(r.daysLeft)} días)`
+        : r.daysLeft === 0
+          ? "Vence hoy"
+          : `En ${r.daysLeft} día${r.daysLeft === 1 ? "" : "s"}`,
+  }));
+
   const { data: cashRegisters } = await admin
     .from("cash_registers")
     .select("id, opened_at, closed_at, opening_amount, closing_amount, expected_totals, closing_totals, difference_totals, notes")
@@ -87,6 +222,43 @@ export async function generateDailyReport(businessId: string, date: string) {
   const reportStatus = hasOpenRegister ? "partial" : "final";
   const reportStatusLabel = hasOpenRegister ? "Parcial (caja abierta)" : "Final (caja cerrada)";
 
+  const { data: rawActivity, error: activityError } = await admin
+    .from("business_activity_events")
+    .select("kind,summary,metadata,created_at,user_id")
+    .eq("business_id", businessId)
+    .in("kind", ["sale_void", "product_update"])
+    .gte("created_at", startOfDay)
+    .lte("created_at", endOfDay)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (activityError) {
+    console.warn("[daily-report] business_activity_events:", activityError.message);
+  }
+
+  const activityRows = (!activityError ? rawActivity ?? [] : []) as {
+    kind: string;
+    summary: string;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+    user_id: string | null;
+  }[];
+
+  const filteredActivity = activityRows.filter((row) => {
+    if (row.kind === "sale_void") return true;
+    if (row.kind === "product_update") return productUpdateRelevantForReport(row.summary);
+    return false;
+  });
+
+  const staffActivityTruncated = filteredActivity.length > MAX_STAFF_ACTIVITY_ROWS;
+  const activityFetchCapped = activityRows.length >= 200;
+  const staffActivity = filteredActivity.slice(0, MAX_STAFF_ACTIVITY_ROWS).map((row) => ({
+    kindLabel: row.kind === "sale_void" ? "Anuló venta" : "Cambio en producto",
+    summary: row.summary,
+    actor: actorFromActivityMetadata(row.metadata),
+    timeAr: formatTimeAr(row.created_at),
+  }));
+
   return {
     businessName: business?.name ?? "Negocio",
     businessEmail: "",
@@ -102,7 +274,28 @@ export async function generateDailyReport(businessId: string, date: string) {
     hasOpenRegister,
     reportStatus,
     reportStatusLabel,
+    lowStockProducts,
+    expiringProducts,
+    inventoryAlertMeta: {
+      expiringWithinDays: EXPIRING_WINDOW_DAYS,
+      maxRows: MAX_INVENTORY_ALERT_ROWS,
+    },
+    staffActivity,
+    staffActivityMeta: {
+      maxRows: MAX_STAFF_ACTIVITY_ROWS,
+      truncated: staffActivityTruncated,
+      fetchCapped: activityFetchCapped,
+      loadError: Boolean(activityError),
+    },
   };
+}
+
+function escHtml(s: string) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export async function sendDailyReportEmail(email: string, report: Awaited<ReturnType<typeof generateDailyReport>>) {
@@ -118,6 +311,40 @@ export async function sendDailyReportEmail(email: string, report: Awaited<Return
   const topProductsText = report.topProducts
     .map((p, i) => `  ${i + 1}. ${p.name}: ${p.quantity} unidades - $${p.total.toLocaleString("es-AR")}`)
     .join("\n");
+
+  const lowStockText =
+    report.lowStockProducts.length > 0
+      ? report.lowStockProducts.map((p) => `  - ${p.name}: ${p.detail}`).join("\n")
+      : "  (ninguno)";
+  const expiringText =
+    report.expiringProducts.length > 0
+      ? report.expiringProducts
+          .map((p) => `  - ${p.name}: vence ${p.expiresOn} · ${p.detail}`)
+          .join("\n")
+      : "  (ninguno)";
+
+  const invMeta = report.inventoryAlertMeta ?? {
+    expiringWithinDays: EXPIRING_WINDOW_DAYS,
+    maxRows: MAX_INVENTORY_ALERT_ROWS,
+  };
+  const lowStockTrunc = report.lowStockProducts.length >= invMeta.maxRows;
+  const expiringTrunc = report.expiringProducts.length >= invMeta.maxRows;
+
+  const staffActivity = report.staffActivity ?? [];
+  const staffMeta = report.staffActivityMeta ?? {
+    maxRows: MAX_STAFF_ACTIVITY_ROWS,
+    truncated: false,
+    fetchCapped: false,
+    loadError: false,
+  };
+  const staffActivityPlain =
+    staffActivity.length > 0
+      ? staffActivity
+          .map((e) => `  [${e.timeAr}] ${e.kindLabel} · ${e.actor}\n     ${e.summary}`)
+          .join("\n")
+      : staffMeta.loadError
+        ? "  (no se pudo cargar el registro de actividad; revisá migraciones o permisos en Supabase)"
+        : "  (sin anulaciones ni cambios de precio/stock/costo registrados este día)";
 
   const maxProduct = report.topProducts.length > 0 ? Math.max(...report.topProducts.map((p) => p.total)) : 1;
   const maxPaymentMethod = paymentMethodsData.length > 0 ? Math.max(...paymentMethodsData.map(([, amount]) => amount)) : 1;
@@ -302,6 +529,106 @@ export async function sendDailyReportEmail(email: string, report: Awaited<Return
           </tr>
 
           <tr>
+            <td style="padding:18px 24px 0 24px;">
+              <div style="font-size:18px;font-weight:800;color:#0f172a;">Equipo · acciones del día</div>
+              <div style="margin-top:6px;font-size:12px;color:#64748b;line-height:1.45;">
+                Anulaciones de venta y cambios en productos que afectan <strong>precio</strong>, <strong>costo</strong> o <strong>stock</strong> (según el registro de actividad). Máx. ${staffMeta.maxRows} eventos.
+              </div>
+              <div style="margin-top:10px;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#f8fafc;">
+                ${
+                  staffActivity.length > 0
+                    ? staffActivity
+                        .map(
+                          (e, i, arr) => `
+                <div style="margin-bottom:${i < arr.length - 1 ? "12px" : "0"};padding-bottom:${i < arr.length - 1 ? "12px" : "0"};border-bottom:${i < arr.length - 1 ? "1px solid #e2e8f0" : "none"};">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="font-size:12px;color:#64748b;">${escHtml(e.timeAr)}</td>
+                      <td align="right" style="font-size:12px;font-weight:700;color:${e.kindLabel === "Anuló venta" ? "#b91c1c" : "#0f766e"};">${escHtml(e.kindLabel)}</td>
+                    </tr>
+                  </table>
+                  <div style="margin-top:4px;font-size:13px;color:#0f172a;font-weight:600;">${escHtml(e.actor)}</div>
+                  <div style="margin-top:4px;font-size:13px;color:#334155;line-height:1.45;">${escHtml(e.summary)}</div>
+                </div>
+                `
+                        )
+                        .join("")
+                    : `<div style="font-size:13px;color:#64748b;">${
+                        staffMeta.loadError
+                          ? "No se pudo leer el registro de actividad (tabla o permisos). El resto del reporte se envió igual."
+                          : "No hubo anulaciones ni cambios de precio/stock/costo registrados en esta fecha (o la auditoría aún no está activa en tu proyecto)."
+                      }</div>`
+                }
+                ${
+                  staffMeta.truncated
+                    ? `<div style="margin-top:10px;font-size:11px;color:#64748b;">Mostrando hasta ${staffMeta.maxRows} eventos del día. Revisá <strong>Empleados</strong> para el historial completo.</div>`
+                    : ""
+                }
+                ${
+                  staffMeta.fetchCapped
+                    ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">La consulta está acotada: si hubo mucha actividad, pueden faltar eventos. Revisá <strong>Empleados</strong>.</div>`
+                    : ""
+                }
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 24px 0 24px;">
+              <div style="font-size:18px;font-weight:800;color:#0f172a;">Inventario · alertas</div>
+              <div style="margin-top:6px;font-size:12px;color:#64748b;line-height:1.45;">
+                Stock igual o por debajo del mínimo configurado; y vencimientos en los próximos ${invMeta.expiringWithinDays} días (incluye ya vencidos). Máx. ${invMeta.maxRows} ítems por lista.
+              </div>
+
+              <div style="margin-top:14px;font-size:14px;font-weight:800;color:#92400e;">Poco stock</div>
+              <div style="margin-top:8px;border:1px solid #fde68a;border-radius:12px;padding:12px;background:#fffbeb;">
+                ${
+                  report.lowStockProducts.length > 0
+                    ? report.lowStockProducts
+                        .map(
+                          (p, i, arr) => `
+                <div style="margin-bottom:${i < arr.length - 1 ? "10px" : "0"};padding-bottom:${i < arr.length - 1 ? "10px" : "0"};border-bottom:${i < arr.length - 1 ? "1px solid #fcd34d" : "none"};">
+                  <div style="font-size:14px;color:#78350f;font-weight:700;">${escHtml(p.name)}</div>
+                  <div style="margin-top:4px;font-size:12px;color:#a16207;">${escHtml(p.detail)}</div>
+                </div>
+                `
+                        )
+                        .join("")
+                    : `<div style="font-size:13px;color:#a16207;">No hay productos activos bajo el mínimo.</div>`
+                }
+                ${
+                  lowStockTrunc
+                    ? `<div style="margin-top:8px;font-size:11px;color:#92400e;">Mostrando los primeros ${invMeta.maxRows}. Revisá Inventario en el sistema para el listado completo.</div>`
+                    : ""
+                }
+              </div>
+
+              <div style="margin-top:16px;font-size:14px;font-weight:800;color:#9a3412;">Por vencer / vencidos</div>
+              <div style="margin-top:8px;border:1px solid #fecaca;border-radius:12px;padding:12px;background:#fef2f2;">
+                ${
+                  report.expiringProducts.length > 0
+                    ? report.expiringProducts
+                        .map(
+                          (p, i, arr) => `
+                <div style="margin-bottom:${i < arr.length - 1 ? "10px" : "0"};padding-bottom:${i < arr.length - 1 ? "10px" : "0"};border-bottom:${i < arr.length - 1 ? "1px solid #fecaca" : "none"};">
+                  <div style="font-size:14px;color:${p.expired ? "#991b1b" : "#9a3412"};font-weight:700;">${escHtml(p.name)}</div>
+                  <div style="margin-top:4px;font-size:12px;color:#b45309;">Vence: ${escHtml(p.expiresOn)} · ${escHtml(p.detail)}</div>
+                </div>
+                `
+                        )
+                        .join("")
+                    : `<div style="font-size:13px;color:#b45309;">No hay vencimientos en la ventana de ${invMeta.expiringWithinDays} días.</div>`
+                }
+                ${
+                  expiringTrunc
+                    ? `<div style="margin-top:8px;font-size:11px;color:#991b1b;">Mostrando los primeros ${invMeta.maxRows}. Revisá Inventario para más.</div>`
+                    : ""
+                }
+              </div>
+            </td>
+          </tr>
+
+          <tr>
             <td style="padding:18px 24px 20px 24px;">
               <div style="font-size:18px;font-weight:800;color:#0f172a;">Top productos</div>
               <div style="margin-top:10px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#ffffff;">
@@ -371,6 +698,21 @@ Efectivo en caja: $${report.totalCashInDrawer}
 Esperado: $${report.totalExpectedCash}
 Diferencia: ${report.totalDifference >= 0 ? "+" : ""}$${report.totalDifference}
 ${closuresText}
+
+👤 EQUIPO · ACCIONES DEL DÍA
+━━━━━━━━━━━━
+(anulaciones de venta y cambios de precio/costo/stock en productos)
+${staffActivityPlain}${
+    staffMeta.truncated ? `\n  …máx. ${staffMeta.maxRows} en el mail; ver Empleados en el sistema.` : ""
+  }${staffMeta.fetchCapped ? `\n  (Consulta acotada: puede haber más eventos en el día; ver Empleados.)` : ""}
+
+📦 INVENTARIO (alertas)
+━━━━━━━━━━━━
+Poco stock (≤ mínimo):
+${lowStockText}${lowStockTrunc ? `\n  …máx. ${invMeta.maxRows} en el mail; ver Inventario en el sistema.` : ""}
+
+Por vencer / vencidos (próx. ${invMeta.expiringWithinDays} días):
+${expiringText}${expiringTrunc ? `\n  …máx. ${invMeta.maxRows} en el mail; ver Inventario en el sistema.` : ""}
 
 🏆 TOP 5 PRODUCTOS
 ━━━━━━━━━━━━
