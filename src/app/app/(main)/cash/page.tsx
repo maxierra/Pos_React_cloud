@@ -5,6 +5,7 @@ import { CashPageClient } from "@/app/app/(main)/cash/cash-page-client";
 import { CashFilter } from "@/app/app/(main)/cash/cash-filter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { effectiveSalePaymentMethod } from "@/lib/sale-payment-method-display";
 
 type CashRegisterRow = {
   id: string;
@@ -341,7 +342,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
             created_at: s.created_at,
             kind: "sale" as const,
             movement_type: "in" as const,
-            method: s.payment_method,
+            method: effectiveSalePaymentMethod(s.payment_method, s.payment_details),
             amount: total,
             reason: `Venta #${saleIdShort}`,
             items: sItems,
@@ -377,7 +378,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
             created_at: s.created_at,
             kind: "void" as const,
             movement_type: "out" as const,
-            method: s.payment_method,
+            method: effectiveSalePaymentMethod(s.payment_method, s.payment_details),
             amount: toNum(s.total),
             reason: `Venta #${saleIdShort} eliminada`,
             items: sItems,

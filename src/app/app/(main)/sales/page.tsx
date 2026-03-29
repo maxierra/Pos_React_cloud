@@ -2,12 +2,13 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 
-import { Banknote, CreditCard, Landmark } from "lucide-react";
+import { Banknote, CreditCard, Landmark, Wallet } from "lucide-react";
 
 import { SalesRowActions } from "@/app/app/(main)/sales/sales-row-actions";
 import { SalesFilter } from "@/app/app/(main)/sales/sales-filter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { effectiveSalePaymentMethod } from "@/lib/sale-payment-method-display";
 
 type SaleRow = {
   id: string;
@@ -43,6 +44,7 @@ function getSplitDetails(details: unknown): Array<{ method: string; amount: numb
 function MethodBadgeIcon({ method }: { method: string }) {
   if (method === "cash") return <Banknote className="size-3.5" />;
   if (method === "card") return <CreditCard className="size-3.5" />;
+  if (method === "mercadopago") return <Wallet className="size-3.5" />;
   return <Landmark className="size-3.5" />;
 }
 
@@ -127,7 +129,7 @@ function methodBadgeClass(method: string) {
     case "transfer":
       return "border-violet-500/30 bg-violet-500/10 text-violet-400";
     case "mercadopago":
-      return "border-violet-500/30 bg-violet-500/10 text-violet-400";
+      return "border-sky-500/30 bg-sky-500/10 text-sky-400";
     case "mixed":
       return "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-400";
     default:
@@ -177,7 +179,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   const { data } = await query.order("created_at", { ascending: false }).limit(filterDate ? 1000 : 100);
 
   const sales = (data ?? []) as SaleRow[];
-  const rows = expandSalesRows(sales);
+  const salesNormalized = sales.map((s) => ({
+    ...s,
+    payment_method: effectiveSalePaymentMethod(s.payment_method, s.payment_details),
+  }));
+  const rows = expandSalesRows(salesNormalized);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
@@ -194,7 +200,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
           </div>
           <div className="flex-1">
             <Suspense fallback={<div className="h-10 max-w-md animate-pulse rounded-xl bg-muted/40" aria-hidden />}>
-              <SalesFilter sales={sales} />
+              <SalesFilter sales={salesNormalized} />
             </Suspense>
           </div>
         </div>
@@ -226,10 +232,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                       : s.payment_method === "card"
                         ? "Tarjeta"
                         : s.payment_method === "mercadopago"
-                          ? "Transferencia"
+                          ? "Mercado Pago"
                           : s.payment_method === "transfer"
                             ? "Transferencia"
-                          : s.payment_method;
+                            : s.payment_method;
 
                   const statusLabel =
                     s.status === "paid" ? "Pagada" : s.status === "voided" ? "Anulada" : s.status;
