@@ -1,4 +1,4 @@
-export type PosPaymentMethodCode = "cash" | "card" | "transfer" | "mercadopago";
+export type PosPaymentMethodCode = "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente";
 
 export type BusinessPaymentMethodRow = {
   id: string;
@@ -23,6 +23,7 @@ export const PAYMENT_METHOD_ICON_OPTIONS: { value: string; label: string }[] = [
   { value: "bitcoin", label: "Crypto" },
   { value: "gift", label: "Regalo / cupón" },
   { value: "building-2", label: "Edificio" },
+  { value: "notebook-pen", label: "Cuenta / nota" },
 ];
 
 export const DEFAULT_PAYMENT_LABELS: Record<PosPaymentMethodCode, string> = {
@@ -30,6 +31,7 @@ export const DEFAULT_PAYMENT_LABELS: Record<PosPaymentMethodCode, string> = {
   card: "Tarjeta",
   transfer: "Transferencia",
   mercadopago: "Mercado Pago",
+  cuenta_corriente: "Cuenta corriente",
 };
 
 export function sortPaymentMethods<T extends { sort_order: number; method_code: string }>(rows: T[]): T[] {
@@ -56,6 +58,8 @@ export function methodButtonClass(method: PosPaymentMethodCode, selected: boolea
       return `${base} bg-violet-400 text-black hover:bg-violet-400/90`;
     case "mercadopago":
       return `${base} bg-sky-400 text-black hover:bg-sky-400/90`;
+    case "cuenta_corriente":
+      return `${base} bg-slate-500 text-white hover:bg-slate-500/90`;
     default:
       return base;
   }

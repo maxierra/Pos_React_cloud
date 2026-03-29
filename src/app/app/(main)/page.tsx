@@ -137,41 +137,47 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
   const trendStart = new Date(todayStart);
   trendStart.setDate(trendStart.getDate() - 6);
 
-  const [{ data: todaySalesData }, { data: trendSalesData }, { data: todayItemsData }, { data: productsData }, { data: openRegisterData }] =
+  const [{ data: todaySalesData }, { data: trendSalesData }, { data: todayItemsData }, { data: productsData }, { data: openRegisterData }, { data: capTodayData }] =
     await Promise.all([
-      supabase
-        .from("sales")
-        .select("id,total,payment_method,payment_details,status,created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", tomorrow.toISOString()),
-      supabase
-        .from("sales")
-        .select("id,total,payment_method,payment_details,status,created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", trendStart.toISOString())
-        .lt("created_at", tomorrow.toISOString()),
-      supabase
-        .from("sale_items")
-        .select("id,sale_id,name,quantity,total,unit_price,product_id,created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", tomorrow.toISOString()),
-      supabase
-        .from("products")
-        .select("id,name,stock,stock_decimal,sold_by_weight,low_stock_threshold,low_stock_threshold_decimal,active")
-        .eq("business_id", businessId)
-        .eq("active", true)
-        .limit(300),
-      supabase
-        .from("cash_registers")
-        .select("id,opened_at,opening_amount,closed_at")
-        .eq("business_id", businessId)
-        .is("closed_at", null)
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    supabase
+      .from("sales")
+      .select("id,total,payment_method,payment_details,status,created_at")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", tomorrow.toISOString()),
+    supabase
+      .from("sales")
+      .select("id,total,payment_method,payment_details,status,created_at")
+      .eq("business_id", businessId)
+      .gte("created_at", trendStart.toISOString())
+      .lt("created_at", tomorrow.toISOString()),
+    supabase
+      .from("sale_items")
+      .select("id,sale_id,name,quantity,total,unit_price,product_id,created_at")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", tomorrow.toISOString()),
+    supabase
+      .from("products")
+      .select("id,name,stock,stock_decimal,sold_by_weight,low_stock_threshold,low_stock_threshold_decimal,active")
+      .eq("business_id", businessId)
+      .eq("active", true)
+      .limit(300),
+    supabase
+      .from("cash_registers")
+      .select("id,opened_at,opening_amount,closed_at")
+      .eq("business_id", businessId)
+      .is("closed_at", null)
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("customer_account_payments")
+      .select("amount")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", tomorrow.toISOString()),
+  ]);
 
   const todaySales = ((todaySalesData ?? []) as SaleRow[]).filter((s) => s.status === "paid");
   const trendSales = (trendSalesData ?? []) as SaleRow[];
@@ -189,6 +195,11 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
 
   const methodsToday: MethodTotals = { cash: 0, card: 0, transfer: 0, mercadopago: 0 };
   for (const s of todaySales) addSaleToMethodTotals(s, methodsToday);
+
+  const cobrosDeudaHoy = (capTodayData ?? []).reduce(
+    (acc, r) => acc + toNum((r as { amount: number | string | null }).amount),
+    0
+  );
 
   const salesByDay = new Map<string, number>();
   for (let i = 0; i < 7; i++) {
@@ -237,7 +248,7 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
   let cashExpected = 0;
   let registerMethodTotals: MethodTotals = { cash: 0, card: 0, transfer: 0, mercadopago: 0 };
   if (openRegister) {
-    const [{ data: registerSalesData }, { data: registerMovementsData }] = await Promise.all([
+    const [{ data: registerSalesData }, { data: registerMovementsData }, { data: registerCapData }] = await Promise.all([
       supabase
         .from("sales")
         .select("id,total,payment_method,payment_details,status,created_at")
@@ -248,6 +259,11 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         .select("id,movement_type,payment_method,amount")
         .eq("business_id", businessId)
         .eq("cash_register_id", openRegister.id),
+      supabase
+        .from("customer_account_payments")
+        .select("amount,payment_method")
+        .eq("business_id", businessId)
+        .eq("cash_register_id", openRegister.id),
     ]);
     const registerSales = (registerSalesData ?? []) as SaleRow[];
     const registerMovements = (registerMovementsData ?? []) as CashMovementRow[];
@@ -256,8 +272,26 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
       const sign = m.movement_type === "in" ? 1 : -1;
       registerMethodTotals[m.payment_method] += sign * toNum(m.amount);
     }
+    for (const p of registerCapData ?? []) {
+      const row = p as { payment_method: string; amount: number | string | null };
+      const m = String(row.payment_method ?? "");
+      if (m in registerMethodTotals) {
+        (registerMethodTotals as Record<string, number>)[m] += toNum(row.amount);
+      }
+    }
     cashExpected = toNum(openRegister.opening_amount) + registerMethodTotals.cash;
   }
+
+  /** Colores de barra (evita negro si --primary es oscuro). */
+  const trendBarPalette = [
+    "from-emerald-500 to-teal-400",
+    "from-sky-500 to-cyan-400",
+    "from-violet-500 to-fuchsia-400",
+    "from-amber-500 to-orange-400",
+    "from-rose-500 to-pink-400",
+    "from-indigo-500 to-blue-400",
+    "from-emerald-600 to-lime-400",
+  ] as const;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10">
@@ -271,12 +305,38 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         <DateSelector />
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-          <div className="inline-flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
-            <TrendingUp className="size-4" /> Ventas de hoy
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            <TrendingUp className="size-4" /> Ventas del día
           </div>
-          <div className="mt-2 text-3xl font-semibold text-emerald-700 dark:text-emerald-300">{moneyAr(todayRevenue)}</div>
+          <div className="mt-2 text-3xl font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{moneyAr(todayRevenue)}</div>
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Total facturado en tickets del día (incluye ventas en cuenta corriente).</p>
+        </div>
+        <div
+          className={
+            "rounded-xl border p-5 " +
+            (cobrosDeudaHoy > 0.01
+              ? "border-violet-500/25 bg-violet-500/[0.07]"
+              : "border-border bg-muted/20")
+          }
+        >
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
+            <Wallet className="size-4 text-violet-600 dark:text-violet-400" /> Cobrado hoy (cuenta corriente)
+          </div>
+          <div
+            className={
+              "mt-2 text-3xl font-semibold tabular-nums " +
+              (cobrosDeudaHoy > 0.01 ? "text-violet-800 dark:text-violet-200" : "text-muted-foreground")
+            }
+          >
+            {moneyAr(cobrosDeudaHoy)}
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            {cobrosDeudaHoy > 0.01
+              ? "Suma de cobros de deuda registrados hoy (ingresa por el medio elegido)."
+              : "Hoy no registraste cobros de deuda de clientes."}
+          </p>
         </div>
         <div className="rounded-xl border bg-card p-5">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -299,7 +359,7 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         </div>
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
           <div className="inline-flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-            <Wallet className="size-4" /> Caja actual
+            <Banknote className="size-4" /> Caja actual
           </div>
           <div className="mt-2 text-3xl font-semibold text-amber-700 dark:text-amber-300">{moneyAr(cashExpected)}</div>
           <div className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/80">
@@ -315,13 +375,17 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
             <div className="text-xs text-muted-foreground">Tendencia diaria</div>
           </div>
           <div className="grid grid-cols-7 items-end gap-2">
-            {trendPoints.map((p) => {
+            {trendPoints.map((p, i) => {
               const h = Math.max(8, Math.round((p.total / trendMax) * 160));
+              const grad = trendBarPalette[i % trendBarPalette.length];
               return (
                 <div key={p.date} className="flex flex-col items-center gap-1">
                   <div className="text-[10px] text-muted-foreground">{moneyAr(p.total)}</div>
-                  <div className="w-full rounded-md bg-primary/10 px-1">
-                    <div className="mx-auto w-full rounded-sm bg-primary" style={{ height: `${h}px` }} />
+                  <div className="w-full rounded-md bg-gradient-to-b from-slate-200/50 to-transparent px-1 dark:from-slate-700/40">
+                    <div
+                      className={`mx-auto w-[85%] max-w-full rounded-md bg-gradient-to-t ${grad} shadow-sm ring-1 ring-black/5 dark:ring-white/10`}
+                      style={{ height: `${h}px`, minHeight: "8px" }}
+                    />
                   </div>
                   <div className="text-[10px] text-muted-foreground">{fmtDateShort(p.date)}</div>
                 </div>
@@ -331,18 +395,28 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         </div>
 
         <div className="rounded-xl border bg-card p-5">
-          <div className="mb-3 text-sm font-medium">Métodos de pago hoy</div>
+          <div className="mb-1 text-sm font-medium">Medios de pago (ventas del POS)</div>
+          <p className="mb-3 text-[11px] text-muted-foreground">Solo lo cobrado en caja con efectivo, tarjeta, transferencia o Mercado Pago.</p>
           <div className="grid gap-2 text-sm">
             <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-3 py-2">
-              <span className="inline-flex items-center gap-1.5"><Banknote className="size-3.5" />Efectivo</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Banknote className="size-3.5" />
+                Efectivo
+              </span>
               <span className="font-semibold">{moneyAr(methodsToday.cash)}</span>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-[var(--pos-amber)]/10 px-3 py-2">
-              <span className="inline-flex items-center gap-1.5"><CreditCard className="size-3.5" />Tarjeta</span>
+              <span className="inline-flex items-center gap-1.5">
+                <CreditCard className="size-3.5" />
+                Tarjeta
+              </span>
               <span className="font-semibold">{moneyAr(methodsToday.card)}</span>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-violet-500/10 px-3 py-2">
-              <span className="inline-flex items-center gap-1.5"><Landmark className="size-3.5" />Transferencia</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Landmark className="size-3.5" />
+                Transferencia
+              </span>
               <span className="font-semibold">{moneyAr(methodsToday.transfer)}</span>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-sky-500/10 px-3 py-2">

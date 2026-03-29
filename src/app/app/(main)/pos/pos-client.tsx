@@ -19,6 +19,17 @@ import { printTicket, type TicketItem } from "@/lib/ticket-utils";
 
 export { type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 
+export type PosCustomerCredit = {
+  id: string;
+  name: string;
+  /** Límite máximo de deuda permitido. */
+  credit_limit: number;
+  /** Deuda actual (compras CC − cobros). */
+  balance: number;
+  /** Saldo disponible para nuevas compras a cuenta: límite − deuda. */
+  available_to_spend: number;
+};
+
 type PosBusinessInfo = {
   name: string;
   address: string | null;
@@ -33,12 +44,15 @@ export function PosClient({
   business,
   cashOpen = false,
   paymentMethodConfig,
+  posCustomers = [],
   mercadoPagoQrReady = false,
 }: {
   products: PosProduct[];
   business: PosBusinessInfo;
   cashOpen?: boolean;
   paymentMethodConfig: BusinessPaymentMethodRow[];
+  /** Lista para ventas en cuenta corriente (incluye límite y saldo disponible). */
+  posCustomers?: PosCustomerCredit[];
   mercadoPagoQrReady?: boolean;
 }) {
   const router = useRouter();
@@ -159,10 +173,13 @@ export function PosClient({
 
   const onConfirmPayment = React.useCallback(
     (p: {
-      payment_method: "cash" | "card" | "mercadopago" | "transfer" | "mixed";
-      payment_details?: { split: Array<{ method: "cash" | "card" | "mercadopago" | "transfer"; amount: number }> };
+      payment_method: "cash" | "card" | "mercadopago" | "transfer" | "cuenta_corriente" | "mixed";
+      payment_details?: {
+        split: Array<{ method: "cash" | "card" | "mercadopago" | "transfer" | "cuenta_corriente"; amount: number }>;
+      };
       cash_received?: number;
       print_ticket?: boolean;
+      customer_id?: string | null;
     }) => {
       if (cart.items.length === 0) return;
 
@@ -181,6 +198,7 @@ export function PosClient({
               payment_method: p.payment_method,
               payment_details: paymentDetailsWithCash,
               cash_received: p.cash_received,
+              customer_id: p.customer_id ?? null,
               items: cart.items.map((it) => ({
                 product_id: it.product_id,
                 name: it.name,
@@ -299,6 +317,7 @@ export function PosClient({
         pending={pending}
         defaultMethod={defaultPaymentMethod}
         paymentMethodConfig={paymentMethodConfig}
+        customers={posCustomers}
         mercadoPagoQrReady={mercadoPagoQrReady}
         onClose={closePayment}
         onConfirm={onConfirmPayment}

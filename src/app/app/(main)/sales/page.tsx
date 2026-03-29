@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 
-import { Banknote, CreditCard, Landmark, Wallet } from "lucide-react";
+import { Banknote, CreditCard, Landmark, NotebookPen, Wallet } from "lucide-react";
 
 import { SalesRowActions } from "@/app/app/(main)/sales/sales-row-actions";
 import { SalesFilter } from "@/app/app/(main)/sales/sales-filter";
@@ -45,6 +45,7 @@ function MethodBadgeIcon({ method }: { method: string }) {
   if (method === "cash") return <Banknote className="size-3.5" />;
   if (method === "card") return <CreditCard className="size-3.5" />;
   if (method === "mercadopago") return <Wallet className="size-3.5" />;
+  if (method === "cuenta_corriente") return <NotebookPen className="size-3.5" />;
   return <Landmark className="size-3.5" />;
 }
 
@@ -130,6 +131,8 @@ function methodBadgeClass(method: string) {
       return "border-violet-500/30 bg-violet-500/10 text-violet-400";
     case "mercadopago":
       return "border-sky-500/30 bg-sky-500/10 text-sky-400";
+    case "cuenta_corriente":
+      return "border-slate-500/30 bg-slate-500/10 text-slate-300";
     case "mixed":
       return "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-400";
     default:
@@ -235,7 +238,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                           ? "Mercado Pago"
                           : s.payment_method === "transfer"
                             ? "Transferencia"
-                            : s.payment_method;
+                            : s.payment_method === "cuenta_corriente"
+                              ? "Cuenta corriente"
+                              : s.payment_method;
 
                   const statusLabel =
                     s.status === "paid" ? "Pagada" : s.status === "voided" ? "Anulada" : s.status;

@@ -58,6 +58,7 @@ export function getPaymentMethodLabel(method: string, custom?: Record<string, st
   if (method === "card") return "Tarjeta";
   if (method === "transfer") return "Transferencia";
   if (method === "mercadopago") return "Mercado Pago";
+  if (method === "cuenta_corriente") return "Cuenta corriente";
   return method;
 }
 

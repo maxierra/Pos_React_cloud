@@ -188,6 +188,161 @@ export interface Database {
           updated_at?: string
         }
       }
+      business_activity_events: {
+        Row: {
+          id: string
+          business_id: string
+          user_id: string | null
+          kind: string
+          summary: string
+          metadata: Json
+          entity_type: string | null
+          entity_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          user_id?: string | null
+          kind: string
+          summary: string
+          metadata?: Json
+          entity_type?: string | null
+          entity_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          user_id?: string | null
+          kind?: string
+          summary?: string
+          metadata?: Json
+          entity_type?: string | null
+          entity_id?: string | null
+          created_at?: string
+        }
+      }
+      business_suppliers: {
+        Row: {
+          id: string
+          business_id: string
+          name: string
+          phone: string | null
+          email: string | null
+          address: string | null
+          tax_id: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          name: string
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          tax_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          name?: string
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          tax_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      supplier_orders: {
+        Row: {
+          id: string
+          business_id: string
+          supplier_id: string
+          status: string
+          order_date: string
+          expected_date: string | null
+          notes: string | null
+          received_at: string | null
+          invoice_number: string | null
+          invoice_total: number | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          supplier_id: string
+          status?: string
+          order_date?: string
+          expected_date?: string | null
+          notes?: string | null
+          received_at?: string | null
+          invoice_number?: string | null
+          invoice_total?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          supplier_id?: string
+          status?: string
+          order_date?: string
+          expected_date?: string | null
+          notes?: string | null
+          received_at?: string | null
+          invoice_number?: string | null
+          invoice_total?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      supplier_order_items: {
+        Row: {
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          quantity_received: number
+          unit_cost: number | null
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          quantity_received?: number
+          unit_cost?: number | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          quantity_received?: number
+          unit_cost?: number | null
+        }
+      }
       sales: {
         Row: {
           id: string

@@ -104,18 +104,18 @@ async function updateProductImpl(formData: FormData) {
   const soldByWeight = String(formData.get("sold_by_weight") ?? "off") === "on";
 
   const supabase = await createClient();
-  const { data: existing, error: exErr } = await supabase
+  const { data: beforeRow, error: exErr } = await supabase
     .from("products")
-    .select("stock,stock_decimal,low_stock_threshold,low_stock_threshold_decimal,scale_code")
+    .select("*")
     .eq("id", id)
     .eq("business_id", businessId)
     .single();
 
-  if (exErr || !existing) {
+  if (exErr || !beforeRow) {
     throw new Error(exErr?.message ?? "product_not_found");
   }
 
-  const ex = existing as {
+  const ex = beforeRow as {
     stock: number;
     stock_decimal: number | string;
     low_stock_threshold: number;
@@ -157,7 +157,7 @@ async function updateProductImpl(formData: FormData) {
     ? String(formData.get("scale_code") ?? "").trim() || null
     : ex.scale_code;
 
-  const { error } = await supabase
+  const { data: afterRow, error } = await supabase
     .from("products")
     .update({
       name,
@@ -176,14 +176,26 @@ async function updateProductImpl(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .select("*")
+    .single();
 
   if (error) {
     throw new Error(error.message);
   }
 
+  const { error: activityErr } = await supabase.rpc("record_product_change_activity", {
+    p_product_id: id,
+    p_before: beforeRow as Record<string, unknown>,
+    p_after: (afterRow ?? beforeRow) as Record<string, unknown>,
+  });
+  if (activityErr) {
+    console.warn("[updateProduct] record_product_change_activity:", activityErr.message);
+  }
+
   revalidatePath("/app/products");
   revalidatePath(`/app/products/${id}`);
+  revalidatePath("/app/empleados");
 }
 
 export const createProduct = createMonitoredAction(createProductImpl, "products/createProduct");

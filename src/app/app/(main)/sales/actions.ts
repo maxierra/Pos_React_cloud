@@ -28,10 +28,18 @@ async function voidSaleImpl(formData: FormData) {
     throw new Error(error.message);
   }
 
+  const { error: voidLogErr } = await supabase.rpc("ensure_sale_void_activity_event", {
+    p_sale_id: saleId,
+  });
+  if (voidLogErr) {
+    console.warn("[voidSale] ensure_sale_void_activity_event:", voidLogErr.message);
+  }
+
   revalidatePath("/app/sales");
   revalidatePath(`/app/sales/${saleId}`);
   revalidatePath("/app/products");
   revalidatePath("/app/pos");
+  revalidatePath("/app/empleados");
 }
 
 export const voidSale = createMonitoredAction(voidSaleImpl, "sales/voidSale");

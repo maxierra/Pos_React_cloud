@@ -54,6 +54,8 @@ export function CashFilter({ ledgerRows, turns }: Props) {
         return "Transferencia";
       case "mercadopago":
         return "Mercado Pago";
+      case "cuenta_corriente":
+        return "Cuenta corriente";
       default:
         return String(m ?? "");
     }
@@ -69,6 +71,10 @@ export function CashFilter({ ledgerRows, turns }: Props) {
         return "Apertura";
       case "closing":
         return "Cierre";
+      case "cc_sale":
+        return "Venta cuenta corriente";
+      case "cc_payment":
+        return "Cobro deuda";
       default:
         return String(k ?? "");
     }
@@ -80,6 +86,8 @@ export function CashFilter({ ledgerRows, turns }: Props) {
         return "Ingreso";
       case "out":
         return "Egreso";
+      case "neutral":
+        return "Pendiente (sin ingreso)";
       default:
         return String(m ?? "");
     }

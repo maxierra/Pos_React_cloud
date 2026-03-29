@@ -71,7 +71,8 @@ export function ProductForm({ title, description, defaults, action }: Props) {
     return formatNumberLoose(round2(((initialPrice - initialCost) / initialCost) * 100));
   });
   const [priceInput, setPriceInput] = React.useState<string>(formatNumberLoose(initialPrice));
-  const [lastEdited, setLastEdited] = React.useState<"margin" | "price">("margin");
+  /** En alta, el margen puede arrastrar el precio. En edición, el precio guardado manda (si no, al redondear el % y volver a aplicar costo×(1+margen) se desfasa, ej. 3500 → 3500.1). */
+  const [lastEdited, setLastEdited] = React.useState<"margin" | "price">(() => (defaults?.id ? "price" : "margin"));
 
   const [preloadLoading, setPreloadLoading] = React.useState(false);
   const [preload, setPreload] = React.useState<

@@ -29,9 +29,11 @@ import femaleAvatar from "@/female.png";
 import maleAvatar from "@/men.png";
 
 import { signOut } from "@/app/auth/actions";
+import { ActivitySessionPing } from "@/components/activity-session-ping";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TrialCountdown } from "@/components/trial-countdown";
 import { Button } from "@/components/ui/button";
+import { memberCanAccessAppPath } from "@/lib/employee-permissions";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -156,30 +158,8 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
   const navItems = React.useMemo(() => {
     const base = NAV_ITEMS;
     const role = access?.role ?? null;
-    if (role === "owner") return base;
-
-    const p = (access?.permissions ?? {}) as any;
-    const can = (key: string) => Boolean(p?.[key]);
-    const canPos = Boolean(p?.pos ?? p?.sales);
-
-    return base.filter((item) => {
-      if (item.href === "/app") return can("dashboard");
-      if (item.href === "/app/subscription") return can("subscription");
-
-      if (item.href.startsWith("/app/pos")) return canPos;
-      if (item.href.startsWith("/app/inventory")) return can("inventory");
-      if (item.href.startsWith("/app/sales")) return can("sales");
-      if (item.href.startsWith("/app/cash")) return can("cash");
-      if (item.href.startsWith("/app/products")) return can("products");
-      if (item.href.startsWith("/app/clientes")) return can("products");
-      if (item.href.startsWith("/app/proveedores")) return can("products");
-      if (item.href.startsWith("/app/empleados")) return can("products");
-      if (item.href.startsWith("/app/etiquetas")) return can("products");
-      if (item.href.startsWith("/app/reports")) return can("reports");
-      if (item.href.startsWith("/app/settings")) return can("settings");
-
-      return true;
-    });
+    const perms = (access?.permissions ?? {}) as Record<string, unknown>;
+    return base.filter((item) => memberCanAccessAppPath(item.href, role, perms));
   }, [access?.role, access?.permissions]);
 
   React.useEffect(() => {
@@ -213,6 +193,7 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
 
   return (
     <div className="min-h-dvh w-full bg-[var(--pos-bg)]">
+      <ActivitySessionPing businessId={business.id} />
       {mobileNavOpen ? (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { getAppBaseUrl } from "@/lib/app-base-url";
+import { firstAllowedMemberPath } from "@/lib/employee-permissions";
 import { createClient } from "@/lib/supabase/server";
 
 function getRedirectPath(redirectTo: string | null | undefined) {
@@ -169,15 +170,8 @@ async function signInImpl(formData: FormData) {
     const p = (businessMembership.permissions ?? {}) as Record<string, unknown>;
     
     if (role !== "owner" && !(p.dashboard ?? false)) {
-      let firstAllowed = "/auth/login";
-      if (p.pos ?? p.sales) firstAllowed = "/app/pos";
-      else if (p.inventory) firstAllowed = "/app/inventory";
-      else if (p.cash) firstAllowed = "/app/cash";
-      else if (p.products) firstAllowed = "/app/products";
-      else if (p.reports) firstAllowed = "/app/reports";
-      else if (p.settings) firstAllowed = "/app/settings";
-      else if (p.subscription) firstAllowed = "/app/subscription";
-      redirect(firstAllowed);
+      const first = firstAllowedMemberPath(p as Record<string, unknown>);
+      redirect(first ?? "/auth/login");
     }
   }
 
@@ -282,9 +276,16 @@ async function signOutImpl() {
     if (!hasSupabaseEnv) {
       redirect("/auth/login");
     }
-    const supabase = await createClient();
-    await supabase.auth.signOut();
     const cookieStore = await cookies();
+    const businessId = cookieStore.get("active_business_id")?.value;
+    const supabase = await createClient();
+    if (businessId) {
+      const { error: endErr } = await supabase.rpc("record_session_end", { p_business_id: businessId });
+      if (endErr && process.env.NODE_ENV === "development") {
+        console.warn("[signOut] record_session_end:", endErr.message);
+      }
+    }
+    await supabase.auth.signOut();
     cookieStore.set("active_business_id", "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
   }
   redirect("/auth/login");

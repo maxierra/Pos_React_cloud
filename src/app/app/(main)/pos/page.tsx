@@ -5,7 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import { createClient } from "@/lib/supabase/server";
 
-import { PosClient, type PosProduct } from "@/app/app/(main)/pos/pos-client";
+import { PosClient, type PosCustomerCredit, type PosProduct } from "@/app/app/(main)/pos/pos-client";
+
+function toNum(v: unknown) {
+  const n = typeof v === "number" ? v : Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
 
 export default async function PosPage() {
   const cookieStore = await cookies();
@@ -88,6 +93,49 @@ export default async function PosPage() {
 
   const paymentMethodConfig = (pmRows ?? []) as BusinessPaymentMethodRow[];
 
+  const [{ data: customerRows }, { data: ccSales }, { data: capPayments }] = await Promise.all([
+    supabase
+      .from("business_customers")
+      .select("id,name,credit_limit")
+      .eq("business_id", businessId)
+      .order("name", { ascending: true }),
+    supabase
+      .from("sales")
+      .select("customer_id,total")
+      .eq("business_id", businessId)
+      .eq("payment_method", "cuenta_corriente")
+      .eq("status", "paid")
+      .not("customer_id", "is", null),
+    supabase.from("customer_account_payments").select("customer_id,amount").eq("business_id", businessId),
+  ]);
+
+  const charges = new Map<string, number>();
+  for (const s of ccSales ?? []) {
+    const id = String((s as { customer_id: string | null }).customer_id ?? "");
+    if (!id) continue;
+    charges.set(id, (charges.get(id) ?? 0) + toNum((s as { total: unknown }).total));
+  }
+  const pays = new Map<string, number>();
+  for (const p of capPayments ?? []) {
+    const id = String((p as { customer_id: string }).customer_id ?? "");
+    if (!id) continue;
+    pays.set(id, (pays.get(id) ?? 0) + toNum((p as { amount: unknown }).amount));
+  }
+
+  const posCustomers: PosCustomerCredit[] = ((customerRows ?? []) as Record<string, unknown>[]).map((c) => {
+    const id = String(c.id ?? "");
+    const creditLimit = toNum(c.credit_limit);
+    const balance = Math.round(((charges.get(id) ?? 0) - (pays.get(id) ?? 0) + Number.EPSILON) * 100) / 100;
+    const available = Math.max(0, Math.round((creditLimit - balance + Number.EPSILON) * 100) / 100);
+    return {
+      id,
+      name: String(c.name ?? ""),
+      credit_limit: creditLimit,
+      balance,
+      available_to_spend: available,
+    };
+  });
+
   const { data: mpQrReady, error: mpRpcErr } = await supabase.rpc("business_mercadopago_qr_ready", {
     p_business_id: businessId,
   });
@@ -99,6 +147,7 @@ export default async function PosPage() {
       business={business}
       cashOpen={cashOpen}
       paymentMethodConfig={paymentMethodConfig}
+      posCustomers={posCustomers}
       mercadoPagoQrReady={mercadoPagoQrReady}
     />
   );

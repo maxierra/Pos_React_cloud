@@ -46,6 +46,14 @@ type MethodTotals = {
   mercadopago: number;
 };
 
+type CustomerPaymentRow = {
+  id: string;
+  amount: number | string;
+  payment_method: string;
+  created_at: string;
+  notes: string | null;
+};
+
 function toNum(value: number | string | null | undefined) {
   const n = typeof value === "number" ? value : Number(value ?? 0);
   return Number.isFinite(n) ? n : 0;
@@ -90,6 +98,31 @@ function expandSaleTotalsByMethod(sales: SaleRow[]) {
     }
     if (s.payment_method in totals) {
       (totals as any)[s.payment_method] += total;
+    }
+  }
+  return totals;
+}
+
+function sumCuentaCorrienteSales(sales: SaleRow[]) {
+  let t = 0;
+  for (const s of sales) {
+    if (s.status !== "paid") continue;
+    if (s.payment_method === "cuenta_corriente") t += toNum(s.total);
+  }
+  return t;
+}
+
+function customerPaymentTotalsByMethod(rows: CustomerPaymentRow[]): MethodTotals {
+  const totals: MethodTotals = {
+    cash: 0,
+    card: 0,
+    transfer: 0,
+    mercadopago: 0,
+  };
+  for (const r of rows) {
+    const m = String(r.payment_method ?? "");
+    if (m in totals) {
+      (totals as Record<string, number>)[m] += toNum(r.amount);
     }
   }
   return totals;
@@ -190,9 +223,10 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
 
   let sales: SaleRow[] = [];
   let movements: CashMovementRow[] = [];
+  let customerPayments: CustomerPaymentRow[] = [];
 
   if (openRegister && !filterDate) {
-    const [{ data: salesData }, { data: movementsData }] = await Promise.all([
+    const [{ data: salesData }, { data: movementsData }, { data: capData }] = await Promise.all([
       supabase
         .from("sales")
         .select("id,total,payment_method,payment_details,status,created_at")
@@ -205,11 +239,18 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
         .eq("business_id", businessId)
         .eq("cash_register_id", openRegister.id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("customer_account_payments")
+        .select("id,amount,payment_method,created_at,notes")
+        .eq("business_id", businessId)
+        .eq("cash_register_id", openRegister.id)
+        .order("created_at", { ascending: false }),
     ]);
     sales = (salesData ?? []) as SaleRow[];
     movements = (movementsData ?? []) as CashMovementRow[];
+    customerPayments = (capData ?? []) as CustomerPaymentRow[];
   } else {
-    const [{ data: salesData }, { data: movementsData }] = await Promise.all([
+    const [{ data: salesData }, { data: movementsData }, { data: capData }] = await Promise.all([
       supabase
         .from("sales")
         .select("id,total,payment_method,payment_details,status,created_at")
@@ -224,9 +265,17 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
         .gte("created_at", todayStart.toISOString())
         .lt("created_at", todayEnd.toISOString())
         .order("created_at", { ascending: false }),
+      supabase
+        .from("customer_account_payments")
+        .select("id,amount,payment_method,created_at,notes")
+        .eq("business_id", businessId)
+        .gte("created_at", todayStart.toISOString())
+        .lt("created_at", todayEnd.toISOString())
+        .order("created_at", { ascending: false }),
     ]);
     sales = (salesData ?? []) as SaleRow[];
     movements = (movementsData ?? []) as CashMovementRow[];
+    customerPayments = (capData ?? []) as CustomerPaymentRow[];
   }
 
   const [{ data: businessData }, { data: turnsData }] = await Promise.all([
@@ -248,6 +297,8 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
 
   const soldByMethod = expandSaleTotalsByMethod(sales);
   const movementNetByMethod = movementTotalsByMethod(movements);
+  const cobrosCuentaByMethod = customerPaymentTotalsByMethod(customerPayments);
+  const pendienteCuentaCorriente = sumCuentaCorrienteSales(sales);
   const openingAmount = toNum(openRegister?.opening_amount);
   const soldTotal = soldByMethod.cash + soldByMethod.card + soldByMethod.transfer + soldByMethod.mercadopago;
 
@@ -258,12 +309,12 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
     .filter((m) => m.movement_type === "out")
     .reduce((acc, m) => acc + toNum(m.amount), 0);
 
-  const expectedCash = openingAmount + soldByMethod.cash + movementNetByMethod.cash;
+  const expectedCash = openingAmount + soldByMethod.cash + movementNetByMethod.cash + cobrosCuentaByMethod.cash;
   const expectedByMethod: MethodTotals = {
     cash: expectedCash,
-    card: soldByMethod.card + movementNetByMethod.card,
-    transfer: soldByMethod.transfer + movementNetByMethod.transfer,
-    mercadopago: soldByMethod.mercadopago + movementNetByMethod.mercadopago,
+    card: soldByMethod.card + movementNetByMethod.card + cobrosCuentaByMethod.card,
+    transfer: soldByMethod.transfer + movementNetByMethod.transfer + cobrosCuentaByMethod.transfer,
+    mercadopago: soldByMethod.mercadopago + movementNetByMethod.mercadopago + cobrosCuentaByMethod.mercadopago,
   };
   const registerTitle = openRegister ? "Caja abierta" : "Caja cerrada";
   const registerDescription = openRegister
@@ -298,7 +349,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
         ]
       : []),
     ...(sales
-      .filter((s) => s.status === "paid")
+      .filter((s) => s.status === "paid" && s.payment_method !== "cuenta_corriente")
       .flatMap((s) => {
         const total = toNum(s.total);
         const saleIdShort = s.id.slice(0, 8);
@@ -350,6 +401,36 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
           },
         ] as any[];
       })),
+    ...(sales
+      .filter((s) => s.status === "paid" && s.payment_method === "cuenta_corriente")
+      .map((s) => {
+        const total = toNum(s.total);
+        const saleIdShort = s.id.slice(0, 8);
+        const sItems = itemsBySale.get(s.id) || [];
+        return {
+          id: `${s.id}-cc`,
+          sale_id: s.id,
+          created_at: s.created_at,
+          kind: "cc_sale" as const,
+          movement_type: "neutral" as const,
+          method: "cuenta_corriente",
+          amount: total,
+          reason: `Venta #${saleIdShort} · Sin ingreso (cuenta corriente)`,
+          notes: "",
+          items: sItems,
+        };
+      })),
+    ...customerPayments.map((p) => ({
+      id: p.id,
+      created_at: p.created_at,
+      kind: "cc_payment" as const,
+      movement_type: "in" as const,
+      method: String(p.payment_method),
+      amount: toNum(p.amount),
+      reason: "Cobro de deuda (cuenta corriente)",
+      notes: p.notes || "",
+      items: [] as any[],
+    })),
     ...sales
       .filter((s) => s.status === "voided")
       .flatMap((s) => {
@@ -399,7 +480,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   ].sort((a: any, b: any) => (a.created_at < b.created_at ? 1 : -1));
 
   const turnIds = turns.map((t) => t.id);
-  const [{ data: turnSalesData }, { data: turnMovementsData }] = turnIds.length
+  const [{ data: turnSalesData }, { data: turnMovementsData }, { data: turnCapData }] = turnIds.length
     ? await Promise.all([
         supabase
           .from("sales")
@@ -411,8 +492,13 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
           .select("cash_register_id,movement_type,payment_method,amount")
           .eq("business_id", businessId)
           .in("cash_register_id", turnIds),
+        supabase
+          .from("customer_account_payments")
+          .select("cash_register_id,amount,payment_method")
+          .eq("business_id", businessId)
+          .in("cash_register_id", turnIds),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const historyMap = new Map<
     string,
@@ -445,6 +531,15 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
     turn.soldByMethod.card += partTotals.card;
     turn.soldByMethod.transfer += partTotals.transfer;
     turn.soldByMethod.mercadopago += partTotals.mercadopago;
+  }
+
+  for (const p of (turnCapData ?? []) as Array<any>) {
+    const turn = historyMap.get(String(p.cash_register_id ?? ""));
+    if (!turn) continue;
+    const m = String(p.payment_method ?? "") as keyof MethodTotals;
+    if (m in turn.soldByMethod) {
+      turn.soldByMethod[m] += toNum(p.amount);
+    }
   }
 
   for (const m of (turnMovementsData ?? []) as Array<any>) {
@@ -514,6 +609,8 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
       registerDescription={registerDescription}
       openingAmount={openingAmount}
       expectedByMethod={expectedByMethod}
+      cobrosCuentaByMethod={cobrosCuentaByMethod}
+      pendienteCuentaCorriente={pendienteCuentaCorriente}
       ledgerRows={ledgerRows as any}
       historyTurns={historyTurns}
       business={business}

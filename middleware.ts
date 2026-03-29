@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { firstAllowedMemberPath, memberCanAccessAppPath } from "@/lib/employee-permissions";
 import { updateSession } from "@/lib/supabase/middleware";
 import { businessHasAppAccess, type SubscriptionRow } from "@/lib/subscription";
 
@@ -156,56 +157,23 @@ export async function middleware(request: NextRequest) {
 
         const role = String((mem as any)?.role ?? "member");
         if (role !== "owner") {
-          const p = ((mem as any)?.permissions ?? {}) as any;
-          const can = (key: string) => Boolean(p?.[key]);
-          const canPos = Boolean(p?.pos ?? p?.sales);
+          const p = ((mem as any)?.permissions ?? {}) as Record<string, unknown>;
 
-          // Si entra a /app (dashboard) y no tiene permiso, mandarlo a la primera sección permitida.
-          if (pathname === "/app" && !can("dashboard")) {
-            const firstAllowed =
-              (canPos && "/app/pos") ||
-              (can("inventory") && "/app/inventory") ||
-              (can("cash") && "/app/cash") ||
-              (can("products") && "/app/products") ||
-              (can("reports") && "/app/reports") ||
-              (can("settings") && "/app/settings") ||
-              (can("subscription") && "/app/subscription") ||
-              "/auth/login";
-
+          if (pathname === "/app" && !Boolean((p as any).dashboard)) {
+            const first = firstAllowedMemberPath(p);
             const url = request.nextUrl.clone();
-            url.pathname = firstAllowed;
+            url.pathname = first ?? "/auth/login";
             url.search = "";
+            if (!first) {
+              url.searchParams.set("error", "sin_permisos");
+            }
             return NextResponse.redirect(url);
           }
 
-          let required: string | null = null;
-          if (pathname === "/app") required = "dashboard";
-          else if (pathname.startsWith("/app/subscription")) required = "subscription";
-          else if (pathname.startsWith("/app/pos")) required = "pos";
-          else if (pathname.startsWith("/app/inventory")) required = "inventory";
-          else if (pathname.startsWith("/app/sales")) required = "sales";
-          else if (pathname.startsWith("/app/cash")) required = "cash";
-          else if (pathname.startsWith("/app/products")) required = "products";
-          else if (pathname.startsWith("/app/clientes")) required = "products";
-          else if (pathname.startsWith("/app/proveedores")) required = "products";
-          else if (pathname.startsWith("/app/empleados")) required = "products";
-          else if (pathname.startsWith("/app/etiquetas")) required = "products";
-          else if (pathname.startsWith("/app/reports")) required = "reports";
-          else if (pathname.startsWith("/app/settings")) required = "settings";
-
-          if (required === "pos") {
-            if (!canPos) {
-              const url = request.nextUrl.clone();
-              url.pathname = "/app";
-              url.searchParams.set("forbidden", "1");
-              url.searchParams.set("section", required);
-              return NextResponse.redirect(url);
-            }
-          } else if (required && !can(required)) {
+          if (!memberCanAccessAppPath(pathname, role, p)) {
             const url = request.nextUrl.clone();
             url.pathname = "/app";
             url.searchParams.set("forbidden", "1");
-            url.searchParams.set("section", required);
             return NextResponse.redirect(url);
           }
         }

@@ -2,7 +2,20 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Banknote, CheckCircle2, Clock3, CreditCard, Landmark, Plus, Wallet, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Banknote,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Landmark,
+  NotebookPen,
+  Plus,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { closeCashRegisterAction, createCashMovementAction, openCashRegisterAction } from "@/app/app/(main)/cash/actions";
@@ -31,8 +44,8 @@ type LedgerRow = {
   id: string;
   created_at: string;
   sale_id?: string;
-  kind: "sale" | "manual" | "void" | "opening";
-  movement_type: "in" | "out";
+  kind: "sale" | "manual" | "void" | "opening" | "cc_sale" | "cc_payment";
+  movement_type: "in" | "out" | "neutral";
   method: string;
   amount: number;
   reason: string;
@@ -53,6 +66,10 @@ type Props = {
   registerDescription: string;
   openingAmount: number;
   expectedByMethod: MethodTotals;
+  /** Cobros de deuda de cuenta corriente registrados en el período, por medio (sí ingresan al cierre). */
+  cobrosCuentaByMethod: MethodTotals;
+  /** Ventas en cuenta corriente del turno (sin ingreso físico en ese concepto). */
+  pendienteCuentaCorriente: number;
   ledgerRows: LedgerRow[];
   historyTurns: Array<{
     id: string;
@@ -96,12 +113,15 @@ function methodLabel(method: string) {
   if (method === "card") return "Tarjeta";
   if (method === "transfer") return "Transferencia";
   if (method === "mercadopago") return "Mercado Pago";
+  if (method === "cuenta_corriente") return "Cuenta corriente";
   return method;
 }
 
 function methodIcon(method: string) {
   if (method === "cash") return <Banknote className="size-3.5" />;
   if (method === "card") return <CreditCard className="size-3.5" />;
+  if (method === "mercadopago") return <Wallet className="size-3.5" />;
+  if (method === "cuenta_corriente") return <NotebookPen className="size-3.5" />;
   return <Landmark className="size-3.5" />;
 }
 
@@ -272,6 +292,8 @@ export function CashPageClient({
   registerDescription,
   openingAmount,
   expectedByMethod,
+  cobrosCuentaByMethod,
+  pendienteCuentaCorriente,
   ledgerRows,
   historyTurns,
   business,
@@ -315,6 +337,22 @@ export function CashPageClient({
     Math.abs(differences.transfer) > 0.009 ||
     Math.abs(differences.mercadopago) > 0.009;
 
+  const cobrosTotal =
+    cobrosCuentaByMethod.cash +
+    cobrosCuentaByMethod.card +
+    cobrosCuentaByMethod.transfer +
+    cobrosCuentaByMethod.mercadopago;
+
+  function netInChannel(m: keyof MethodTotals) {
+    return soldByMethod[m] + movementNetByMethod[m] + cobrosCuentaByMethod[m];
+  }
+
+  const totalNetDistribucion =
+    netInChannel("cash") +
+    netInChannel("card") +
+    netInChannel("transfer") +
+    netInChannel("mercadopago");
+
    return (
     <div className="w-full">
       <div className="flex items-center justify-end gap-3 mb-6">
@@ -343,12 +381,25 @@ export function CashPageClient({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card className="relative overflow-hidden border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(16,185,129,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.15)]">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-emerald-500/10 blur-2xl" />
           <CardHeader className="pb-2">
-            <CardDescription className="text-emerald-700/80 dark:text-emerald-400 font-medium tracking-wide uppercase text-[10px]">Vendido hoy/turno</CardDescription>
+            <CardDescription className="text-emerald-700/80 dark:text-emerald-400 font-medium tracking-wide uppercase text-[10px]">
+              Ventas cobradas
+            </CardDescription>
             <CardTitle className="text-emerald-700 dark:text-emerald-300 text-2xl font-bold tracking-tight">{moneyAr(soldTotal)}</CardTitle>
+            <p className="pt-1 text-[10px] leading-tight text-muted-foreground">POS: efectivo, tarjeta, etc. (sin ventas solo en CC)</p>
+          </CardHeader>
+        </Card>
+        <Card className="relative overflow-hidden border-violet-500/30 bg-gradient-to-br from-violet-500/15 via-violet-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(139,92,246,0.12)] transition-all hover:shadow-[0_0_25px_-5px_rgba(139,92,246,0.18)]">
+          <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-violet-500/10 blur-2xl" />
+          <CardHeader className="pb-2">
+            <CardDescription className="text-violet-700/80 dark:text-violet-400 font-medium tracking-wide uppercase text-[10px]">
+              Cobros de deuda (CC)
+            </CardDescription>
+            <CardTitle className="text-violet-700 dark:text-violet-300 text-2xl font-bold tracking-tight">{moneyAr(cobrosTotal)}</CardTitle>
+            <p className="pt-1 text-[10px] leading-tight text-muted-foreground">Dinero que entró al cobrar deudas; suma al medio elegido</p>
           </CardHeader>
         </Card>
         <Card className="relative overflow-hidden border-sky-500/30 bg-gradient-to-br from-sky-500/15 via-sky-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(14,165,233,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(14,165,233,0.15)]">
@@ -373,6 +424,19 @@ export function CashPageClient({
           </CardHeader>
         </Card>
       </div>
+
+      {pendienteCuentaCorriente > 0.01 ? (
+        <div className="mt-4 rounded-xl border border-slate-500/30 bg-slate-500/5 px-4 py-3 text-sm">
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            Pendiente de cobro (ventas en cuenta corriente en este período):{" "}
+          </span>
+          <span className="tabular-nums font-semibold">{moneyAr(pendienteCuentaCorriente)}</span>
+          <span className="text-muted-foreground">
+            {" "}
+            — no ingresa como efectivo hasta que el cliente pague; los cobros de deuda sí suman al medio elegido.
+          </span>
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2 relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background/50 to-background/80 backdrop-blur-sm">
@@ -403,43 +467,23 @@ export function CashPageClient({
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Distribución por medio</div>
-                        <div className="mt-1 text-xs text-muted-foreground">Ventas + movimientos manuales</div>
+                        <div className="mt-1 text-xs text-muted-foreground">Ventas + movimientos + cobros de deuda CC</div>
                       </div>
                       <div className="text-right">
                         <div className="text-[11px] text-muted-foreground">Total neto</div>
-                        <div className="text-sm font-semibold text-foreground">
-                          {moneyAr(
-                            soldByMethod.cash +
-                              soldByMethod.card +
-                              soldByMethod.transfer +
-                              soldByMethod.mercadopago +
-                              movementNetByMethod.cash +
-                              movementNetByMethod.card +
-                              movementNetByMethod.transfer +
-                              movementNetByMethod.mercadopago
-                          )}
-                        </div>
+                        <div className="text-sm font-semibold text-foreground">{moneyAr(totalNetDistribucion)}</div>
                       </div>
                     </div>
 
                     <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                       <DonutChart
                         centerTop="Total neto"
-                        centerBottom={moneyAr(
-                          soldByMethod.cash +
-                            soldByMethod.card +
-                            soldByMethod.transfer +
-                            soldByMethod.mercadopago +
-                            movementNetByMethod.cash +
-                            movementNetByMethod.card +
-                            movementNetByMethod.transfer +
-                            movementNetByMethod.mercadopago
-                        )}
+                        centerBottom={moneyAr(totalNetDistribucion)}
                         values={([
-                          { label: "Efectivo", value: soldByMethod.cash + movementNetByMethod.cash, color: "rgb(16,185,129)" },
-                          { label: "Tarjeta", value: soldByMethod.card + movementNetByMethod.card, color: "rgb(245,158,11)" },
-                          { label: "Transfer.", value: soldByMethod.transfer + movementNetByMethod.transfer, color: "rgb(139,92,246)" },
-                          { label: "M. Pago", value: soldByMethod.mercadopago + movementNetByMethod.mercadopago, color: "rgb(14,165,233)" },
+                          { label: "Efectivo", value: netInChannel("cash"), color: "rgb(16,185,129)" },
+                          { label: "Tarjeta", value: netInChannel("card"), color: "rgb(245,158,11)" },
+                          { label: "Transfer.", value: netInChannel("transfer"), color: "rgb(139,92,246)" },
+                          { label: "M. Pago", value: netInChannel("mercadopago"), color: "rgb(14,165,233)" },
                         ] as const).map((v) => v)}
                       />
 
@@ -451,7 +495,7 @@ export function CashPageClient({
                           { key: "mercadopago", label: "Mercado Pago", tone: "border-sky-500/20 bg-sky-500/10 text-sky-800 dark:text-sky-200" },
                         ] as const).map((it) => {
                           const key = it.key as keyof MethodTotals;
-                          const net = soldByMethod[key] + movementNetByMethod[key];
+                          const net = netInChannel(key);
                           return (
                             <div key={it.key} className={"flex items-center justify-between rounded-md border px-2 py-1.5 " + it.tone}>
                               <span className="font-medium">{it.label}</span>
@@ -479,13 +523,16 @@ export function CashPageClient({
           <div className="absolute top-0 right-0 h-32 w-32 -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
           <CardHeader className="border-b bg-primary/5 backdrop-blur-md">
             <CardTitle className="text-xl font-bold">Resultado por medio</CardTitle>
-            <CardDescription className="text-muted-foreground/80 font-medium">Ventas + movimientos manuales</CardDescription>
+            <CardDescription className="text-muted-foreground/80 font-medium">
+              Ventas + movimientos manuales + cobros de deuda CC
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 pt-6 text-sm">
             {(["cash", "card", "transfer", "mercadopago"] as const).map((m) => {
               const sold = soldByMethod[m];
               const mov = movementNetByMethod[m];
-              const net = sold + mov;
+              const cobro = cobrosCuentaByMethod[m];
+              const net = sold + mov + cobro;
               return (
                 <div key={m} className="group relative overflow-hidden rounded-xl border border-primary/20 bg-background/40 p-3 transition-all hover:bg-background/60 hover:shadow-md">
                   <div className="flex items-center justify-between">
@@ -499,10 +546,12 @@ export function CashPageClient({
                       <div className="text-lg font-bold tracking-tight">{moneyAr(net)}</div>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     <span>Venta: {moneyAr(sold)}</span>
-                    <span>•</span>
+                    <span className="text-muted-foreground/40">•</span>
                     <span>Mov: {moneyAr(mov)}</span>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span title="Cobros de cuenta corriente por este medio">Cobro CC: {moneyAr(cobro)}</span>
                   </div>
                 </div>
               );
@@ -557,12 +606,22 @@ export function CashPageClient({
                     <td className="px-4 py-3 text-muted-foreground">{formatArDateTime(row.created_at)}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5">
-                        {row.movement_type === "in" ? (
-                          <ArrowDownCircle className="size-4 text-emerald-400" />
+                        {row.kind === "cc_sale" ? (
+                          <>
+                            <Clock3 className="size-4 text-slate-400" />
+                            Pendiente
+                          </>
+                        ) : row.movement_type === "in" ? (
+                          <>
+                            <ArrowDownCircle className="size-4 text-emerald-400" />
+                            Entrada
+                          </>
                         ) : (
-                          <ArrowUpCircle className="size-4 text-rose-400" />
+                          <>
+                            <ArrowUpCircle className="size-4 text-rose-400" />
+                            Salida
+                          </>
                         )}
-                        {row.movement_type === "in" ? "Entrada" : "Salida"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -572,14 +631,28 @@ export function CashPageClient({
                           ? "Venta eliminada"
                           : row.kind === "opening"
                             ? "Apertura"
-                            : "Manual"}
+                            : row.kind === "cc_sale"
+                              ? "Cuenta corriente"
+                              : row.kind === "cc_payment"
+                                ? "Cobro deuda"
+                                : "Manual"}
                     </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1.5">{methodIcon(row.method)}{methodLabel(row.method)}</span>
                     </td>
                     <td className="px-4 py-3">{row.reason}</td>
-                    <td className={"px-4 py-3 text-right font-semibold " + (row.movement_type === "in" ? "text-emerald-500" : "text-rose-500")}>
-                      {row.movement_type === "in" ? "+" : "-"}{moneyAr(row.amount)}
+                    <td
+                      className={
+                        "px-4 py-3 text-right font-semibold " +
+                        (row.kind === "cc_sale"
+                          ? "text-slate-500"
+                          : row.movement_type === "in"
+                            ? "text-emerald-500"
+                            : "text-rose-500")
+                      }
+                    >
+                      {row.kind === "cc_sale" ? "+" : row.movement_type === "in" ? "+" : "-"}
+                      {moneyAr(row.amount)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -591,7 +664,7 @@ export function CashPageClient({
                           onClick={() => {
                             setTicketPreview({
                               business,
-                              kind: row.kind,
+                              kind: row.kind === "cc_sale" || row.kind === "cc_payment" ? "sale" : row.kind,
                               total: row.amount,
                               saleId: row.sale_id || row.id,
                               items: row.items,
@@ -613,7 +686,7 @@ export function CashPageClient({
                           onClick={() => {
                             printTicket({
                               business,
-                              kind: row.kind,
+                              kind: row.kind === "cc_sale" || row.kind === "cc_payment" ? "sale" : row.kind,
                               total: row.amount,
                               saleId: row.sale_id || row.id,
                               items: row.items,

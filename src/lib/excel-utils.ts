@@ -2,17 +2,15 @@
 
 import * as XLSX from "xlsx-js-style";
 
-/**
- * Genera un archivo Excel (.xlsx) real a partir de un arreglo de objetos.
- * Utiliza la librería SheetJS para asegurar compatibilidad total y formato binario profesional.
- */
-export function exportToExcel(data: any[], filename: string) {
-  if (data.length === 0) return;
+function sanitizeSheetName(name: string): string {
+  const cleaned = String(name ?? "").replace(/[:\\/?*[\]]/g, "-").trim();
+  const base = cleaned.slice(0, 31) || "Hoja";
+  return base;
+}
 
-  // 1. Crear el libro y la hoja de trabajo
+function createStyledWorksheet(data: any[]): XLSX.WorkSheet {
   const worksheet = XLSX.utils.json_to_sheet(data, { cellDates: true });
 
-  // Auto-ajuste básico de columnas (aprox.)
   const keys = Object.keys(data[0] ?? {});
   worksheet["!cols"] = keys.map((k) => {
     const headerLen = String(k).length;
@@ -25,7 +23,6 @@ export function exportToExcel(data: any[], filename: string) {
     return { wch: Math.min(50, Math.max(10, maxLen + 2)) };
   });
 
-  // Autofiltro en encabezado
   try {
     const range = XLSX.utils.decode_range(worksheet["!ref"] ?? "A1:A1");
     if (range.e.r >= 0 && range.e.c >= 0) {
@@ -37,7 +34,6 @@ export function exportToExcel(data: any[], filename: string) {
     // noop
   }
 
-  // Congelar primera fila (encabezado)
   (worksheet as any)["!freeze"] = {
     xSplit: 0,
     ySplit: 1,
@@ -46,7 +42,6 @@ export function exportToExcel(data: any[], filename: string) {
     state: "frozen",
   };
 
-  // Estilos
   const headerStyle = {
     font: { bold: true, color: { rgb: "FFFFFF" } },
     fill: { patternType: "solid", fgColor: { rgb: "0F766E" } },
@@ -70,6 +65,7 @@ export function exportToExcel(data: any[], filename: string) {
   const range = XLSX.utils.decode_range(ref);
   const moneyCols = new Set<number>();
   const dateCols = new Set<number>();
+  const countCols = new Set<number>();
 
   for (let c = range.s.c; c <= range.e.c; c++) {
     const addr = XLSX.utils.encode_cell({ r: 0, c });
@@ -77,6 +73,7 @@ export function exportToExcel(data: any[], filename: string) {
     const label = cell?.v ? String(cell.v).toLowerCase() : "";
     if (/total|monto|importe|inicial|final|vendido|caja/.test(label)) moneyCols.add(c);
     if (/fecha|apertura|cierre/.test(label)) dateCols.add(c);
+    if (/cantidad/.test(label)) countCols.add(c);
   }
 
   for (let r = range.s.r; r <= range.e.r; r++) {
@@ -92,7 +89,7 @@ export function exportToExcel(data: any[], filename: string) {
 
       const isOdd = r % 2 === 1;
       const baseFill = isOdd ? "FFFFFF" : "F8FAFC";
-      const alignRight = moneyCols.has(c);
+      const alignRight = moneyCols.has(c) || countCols.has(c);
 
       cell.s = {
         font: { color: { rgb: "111827" } },
@@ -105,7 +102,6 @@ export function exportToExcel(data: any[], filename: string) {
         border: cellBorder,
       };
 
-      // Formatos
       if (cell.t === "d" || dateCols.has(c)) {
         cell.z = "dd/mm/yyyy hh:mm";
       }
@@ -113,16 +109,18 @@ export function exportToExcel(data: any[], filename: string) {
       if (cell.t === "n" && moneyCols.has(c)) {
         cell.z = "$ #,##0.00";
       }
+
+      if (cell.t === "n" && countCols.has(c)) {
+        cell.z = "#,##0";
+      }
     }
   }
 
-  // Mejorar altura del encabezado
   (worksheet as any)["!rows"] = [{ hpt: 22 }];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+  return worksheet;
+}
 
-  // 2. Generar el archivo y disparar la descarga
-  // writeFile maneja automáticamente el Blob y el link de descarga en el navegador
+function writeWorkbookDownload(workbook: XLSX.WorkBook, filename: string) {
   const base = String(filename ?? "").trim() || "reporte";
   const safeBase = base.replace(/[\\/:*?"<>|]+/g, "-");
   const fullFilename = safeBase.toLowerCase().endsWith(".xlsx") ? safeBase : `${safeBase}.xlsx`;
@@ -142,4 +140,47 @@ export function exportToExcel(data: any[], filename: string) {
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Genera un archivo Excel (.xlsx) real a partir de un arreglo de objetos.
+ * Utiliza la librería SheetJS para asegurar compatibilidad total y formato binario profesional.
+ */
+export function exportToExcel(data: any[], filename: string) {
+  if (data.length === 0) return;
+
+  const worksheet = createStyledWorksheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte");
+  writeWorkbookDownload(workbook, filename);
+}
+
+export type StyledSheetInput = { name: string; data: any[] };
+
+/**
+ * Varias hojas con el mismo estilo (encabezado teal, filas alternadas, autofiltro, fechas).
+ * Omite hojas sin filas.
+ */
+export function exportStyledWorkbook(sheets: StyledSheetInput[], filename: string) {
+  const nonEmpty = sheets.filter((s) => Array.isArray(s.data) && s.data.length > 0);
+  if (nonEmpty.length === 0) return;
+
+  const workbook = XLSX.utils.book_new();
+  const used = new Set<string>();
+
+  for (const { name, data } of nonEmpty) {
+    let sheetName = sanitizeSheetName(name);
+    let n = 2;
+    while (used.has(sheetName)) {
+      const suffix = ` (${n})`;
+      sheetName = sanitizeSheetName(name.slice(0, 31 - suffix.length) + suffix);
+      n += 1;
+    }
+    used.add(sheetName);
+
+    const ws = createStyledWorksheet(data);
+    XLSX.utils.book_append_sheet(workbook, ws, sheetName);
+  }
+
+  writeWorkbookDownload(workbook, filename);
 }

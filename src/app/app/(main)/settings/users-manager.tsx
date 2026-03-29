@@ -10,6 +10,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { createBusinessUser, listBusinessUsers, removeBusinessUser, restoreBusinessUser, updateBusinessUser, upsertMyProfile } from "@/app/app/(main)/settings/actions";
+import {
+  defaultEmployeePermissions,
+  EMPLOYEE_PERMISSION_OPTIONS,
+  normalizePermissionsFromStorage,
+} from "@/lib/employee-permissions";
 
 type Row = {
   user_id: string;
@@ -20,6 +25,33 @@ type Row = {
   full_name: string | null;
   avatar?: string | null;
 };
+
+function PermissionCheckboxGrid({
+  values,
+  onToggle,
+}: {
+  values: Record<string, boolean>;
+  onToggle: (key: string, checked: boolean) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {EMPLOYEE_PERMISSION_OPTIONS.map((it) => (
+        <label
+          key={it.key}
+          className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--pos-border)] bg-background px-3 py-2.5 text-sm shadow-sm transition hover:bg-[var(--pos-surface-2)]"
+        >
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-[var(--pos-accent)]"
+            checked={Boolean(values[it.key])}
+            onChange={(e) => onToggle(it.key, e.target.checked)}
+          />
+          <span className="min-w-0 font-medium leading-snug">{it.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
 
 export function UsersManager() {
   const [loading, startTransition] = React.useTransition();
@@ -32,7 +64,7 @@ export function UsersManager() {
   const [editing, setEditing] = React.useState<Row | null>(null);
   const [editName, setEditName] = React.useState("");
   const [editRole, setEditRole] = React.useState("member");
-  const [editPerm, setEditPerm] = React.useState<any>({});
+  const [editPerm, setEditPerm] = React.useState<Record<string, boolean>>({});
   const [editAvatar, setEditAvatar] = React.useState("");
 
   const [removeOpen, setRemoveOpen] = React.useState(false);
@@ -40,17 +72,7 @@ export function UsersManager() {
   const [deleteAuth, setDeleteAuth] = React.useState(false);
 
   const [permOpen, setPermOpen] = React.useState(false);
-  const [perm, setPerm] = React.useState({
-    dashboard: false,
-    pos: true,
-    sales: false,
-    cash: true,
-    inventory: false,
-    products: false,
-    reports: false,
-    settings: false,
-    subscription: false,
-  });
+  const [perm, setPerm] = React.useState<Record<string, boolean>>(() => defaultEmployeePermissions());
 
   const refresh = React.useCallback(() => {
     startTransition(async () => {
@@ -70,7 +92,7 @@ export function UsersManager() {
   }, [refresh]);
 
   const onCreate = (formData: FormData) => {
-    formData.set("permissions", JSON.stringify(perm));
+    formData.set("permissions", JSON.stringify({ ...defaultEmployeePermissions(), ...perm }));
     startSubmitTransition(async () => {
       const res = await createBusinessUser(formData);
       if ((res as any).error) {
@@ -87,12 +109,7 @@ export function UsersManager() {
     setEditName(r.full_name ?? "");
     setEditRole(r.role);
     setEditAvatar(r.avatar ?? "");
-    const raw = (r.permissions ?? {}) as any;
-    const normalized = { ...raw };
-    if (normalized.pos == null && normalized.sales === true) {
-      normalized.pos = true;
-    }
-    setEditPerm(normalized);
+    setEditPerm(normalizePermissionsFromStorage((r.permissions ?? {}) as Record<string, unknown>));
     setEditOpen(true);
   };
 
@@ -104,7 +121,7 @@ export function UsersManager() {
       fd.set("full_name", editName);
       fd.set("role", editRole);
       fd.set("avatar", editAvatar);
-      fd.set("permissions", JSON.stringify(editPerm ?? {}));
+      fd.set("permissions", JSON.stringify({ ...defaultEmployeePermissions(), ...editPerm }));
       const res = await updateBusinessUser(fd);
       if ((res as any).error) {
         toast.error("No se pudo actualizar", { description: String((res as any).error) });
@@ -341,42 +358,25 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setPermOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl border bg-card shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Permisos del empleado</div>
-                <div className="text-xs text-muted-foreground">Elegí qué pantallas puede ver.</div>
+                <div className="text-xs text-muted-foreground">Elegí qué pantallas puede ver (grilla en 4 columnas en pantallas anchas).</div>
               </div>
-              <Button type="button" variant="outline" className="h-9" onClick={() => setPermOpen(false)}>
+              <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setPermOpen(false)}>
                 Listo
               </Button>
             </div>
-            <div className="grid gap-3 p-5 text-sm">
-              {(
-                [
-                  { key: "dashboard", label: "Dashboard" },
-                  { key: "pos", label: "Punto de venta" },
-                  { key: "sales", label: "Ventas (historial)" },
-                  { key: "cash", label: "Caja" },
-                  { key: "inventory", label: "Inventario" },
-                  { key: "products", label: "Productos" },
-                  { key: "reports", label: "Reportes" },
-                  { key: "settings", label: "Configuración" },
-                  { key: "subscription", label: "Suscripción" },
-                ] as const
-              ).map((it) => (
-                <label key={it.key} className="flex items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3">
-                  <span className="font-medium">{it.label}</span>
-                  <input
-                    type="checkbox"
-                    checked={Boolean((perm as any)[it.key])}
-                    onChange={(e) => setPerm((p) => ({ ...p, [it.key]: e.target.checked }))}
-                    className="size-4"
-                  />
-                </label>
-              ))}
-              <div className="text-[11px] text-muted-foreground">
-                Esto se guarda en el comercio y luego lo usamos para ocultar secciones en el menú y pantallas.
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <PermissionCheckboxGrid
+                values={perm}
+                onToggle={(key, checked) => setPerm((p) => ({ ...p, [key]: checked }))}
+              />
+              <div className="mt-4 text-[11px] text-muted-foreground">
+                Una casilla por pantalla del menú. Podés activar solo las que necesite. Los empleados creados antes
+                con solo &quot;Productos&quot; heredan Clientes, Proveedores, Empleados y Etiquetas hasta que guardes
+                de nuevo con los nuevos permisos.
               </div>
             </div>
           </div>
@@ -392,88 +392,66 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setEditOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl border bg-card shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Editar usuario</div>
                 <div className="text-xs text-muted-foreground">{editing.email ?? editing.user_id.slice(0, 8) + "…"}</div>
               </div>
-              <Button type="button" variant="outline" className="h-9" onClick={() => setEditOpen(false)}>
+              <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setEditOpen(false)}>
                 Cerrar
               </Button>
             </div>
-            <div className="grid gap-3 p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
               <div className="grid gap-1.5">
                 <Label htmlFor="edit_full_name">Nombre</Label>
                 <Input id="edit_full_name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="edit_role">Rol</Label>
-                <select
-                  id="edit_role"
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value)}
-                  className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="member">Empleado</option>
-                  <option value="owner">Dueño</option>
-                </select>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="edit_avatar">Avatar</Label>
-                <select
-                  id="edit_avatar"
-                  value={editAvatar}
-                  onChange={(e) => setEditAvatar(e.target.value)}
-                  className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">Sin avatar</option>
-                  <option value="male">Hombre</option>
-                  <option value="female">Mujer</option>
-                </select>
-              </div>
-
-              <div className="grid gap-2">
-                <div className="text-xs font-medium text-muted-foreground">Permisos</div>
-                {(
-                  [
-                    { key: "dashboard", label: "Dashboard" },
-                    { key: "pos", label: "Punto de venta" },
-                    { key: "sales", label: "Ventas (historial)" },
-                    { key: "cash", label: "Caja" },
-                    { key: "inventory", label: "Inventario" },
-                    { key: "products", label: "Productos" },
-                    { key: "reports", label: "Reportes" },
-                    { key: "settings", label: "Configuración" },
-                    { key: "subscription", label: "Suscripción" },
-                  ] as const
-                ).map((it) => (
-                  <label
-                    key={it.key}
-                    className="flex items-center justify-between gap-3 rounded-lg border bg-background px-4 py-3"
+              <div className="mt-3 grid gap-1.5 sm:grid-cols-2 sm:gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit_role">Rol</Label>
+                  <select
+                    id="edit_role"
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
                   >
-                    <span className="text-sm font-medium">{it.label}</span>
-                    <input
-                      type="checkbox"
-                      checked={Boolean((editPerm as any)?.[it.key])}
-                      onChange={(e) =>
-                        setEditPerm((p: any) => ({ ...(p ?? {}), [it.key]: e.target.checked }))
-                      }
-                      className="size-4"
-                    />
-                  </label>
-                ))}
+                    <option value="member">Empleado</option>
+                    <option value="owner">Dueño</option>
+                  </select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit_avatar">Avatar</Label>
+                  <select
+                    id="edit_avatar"
+                    value={editAvatar}
+                    onChange={(e) => setEditAvatar(e.target.value)}
+                    className="h-10 rounded-md border border-input bg-transparent px-3 text-sm"
+                  >
+                    <option value="">Sin avatar</option>
+                    <option value="male">Hombre</option>
+                    <option value="female">Mujer</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={submitting}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={submitEdit} disabled={submitting}>
-                  {submitting ? "Guardando..." : "Guardar"}
-                </Button>
+              <div className="mt-5 grid gap-3">
+                <div className="text-xs font-medium text-muted-foreground">Permisos (una casilla por pantalla)</div>
+                <PermissionCheckboxGrid
+                  values={editPerm}
+                  onToggle={(key, checked) =>
+                    setEditPerm((p) => ({ ...defaultEmployeePermissions(), ...(p ?? {}), [key]: checked }))
+                  }
+                />
               </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--pos-border)] bg-[var(--pos-surface)] px-5 py-4">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={submitEdit} disabled={submitting}>
+                {submitting ? "Guardando..." : "Guardar"}
+              </Button>
             </div>
           </div>
         </div>
