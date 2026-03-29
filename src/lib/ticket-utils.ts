@@ -22,6 +22,8 @@ export type TicketData = {
   items?: TicketItem[];
   total: number;
   paymentMethod?: string;
+  /** Etiquetas personalizadas por código (desde configuración del negocio). */
+  paymentMethodLabels?: Record<string, string>;
   cashReceived?: number;
   reason?: string;
   notes?: string;
@@ -49,17 +51,32 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-export function getPaymentMethodLabel(method: string) {
+export function getPaymentMethodLabel(method: string, custom?: Record<string, string>) {
+  if (method === "mixed") return "Mixto";
+  if (custom?.[method]) return custom[method]!;
   if (method === "cash") return "Efectivo";
   if (method === "card") return "Tarjeta";
   if (method === "transfer") return "Transferencia";
   if (method === "mercadopago") return "Mercado Pago";
-  if (method === "mixed") return "Mixto";
   return method;
 }
 
 export function generateTicketHtml(data: TicketData) {
-  const { business, items, total, saleId, movementId, paymentMethod, cashReceived, reason, notes, kind, created_at, closureData } = data;
+  const {
+    business,
+    items,
+    total,
+    saleId,
+    movementId,
+    paymentMethod,
+    paymentMethodLabels,
+    cashReceived,
+    reason,
+    notes,
+    kind,
+    created_at,
+    closureData,
+  } = data;
   const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
   
   let rows = "";
@@ -138,7 +155,7 @@ export function generateTicketHtml(data: TicketData) {
     ` : `
       <div style="border-top:1px dashed #000;margin:6px 0;"></div>
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOTAL</span><span>$${total.toFixed(2)}</span></div>
-      ${paymentMethod ? `<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px;"><span>Pago</span><span>${getPaymentMethodLabel(paymentMethod)}</span></div>` : ""}
+      ${paymentMethod ? `<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px;"><span>Pago</span><span>${escapeHtml(getPaymentMethodLabel(paymentMethod, paymentMethodLabels))}</span></div>` : ""}
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Recibido</span><span>$${cashReceived.toFixed(2)}</span></div>` : ""}
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Vuelto</span><span>$${change.toFixed(2)}</span></div>` : ""}
     `}

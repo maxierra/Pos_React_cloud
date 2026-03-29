@@ -1,17 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Users, Store, Mail, Send } from "lucide-react";
+import { Users, Store, Mail, Wallet, X, QrCode } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { BusinessInfoForm } from "@/app/app/(main)/settings/business-info-form";
+import { MercadoPagoPosForm } from "@/app/app/(main)/settings/mercadopago-pos-form";
+import { PaymentMethodsManager } from "@/app/app/(main)/settings/payment-methods-manager";
 import { UsersManager } from "@/app/app/(main)/settings/users-manager";
 import { updateReportDaily, sendDailyReportNow } from "@/app/app/(main)/settings/actions";
+import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 
 type BusinessDefaults = {
   name: string;
@@ -27,45 +29,222 @@ type BusinessDefaults = {
 
 type Props = {
   defaults?: BusinessDefaults;
+  paymentMethods: BusinessPaymentMethodRow[];
+  canEditPaymentMethods: boolean;
+  mercadoPagoPosExternalId: string | null;
+  mercadoPagoQrReady: boolean;
 };
 
-function ModalShell({ open, title, description, onClose, children }: {
+type ModalAccent = "emerald" | "sky" | "violet" | "amber" | "cyan";
+
+const MODAL_ACCENT: Record<ModalAccent, { blob: string; gradient: string }> = {
+  emerald: {
+    blob: "bg-emerald-400/20",
+    gradient: "from-emerald-500/[0.12] via-teal-500/[0.06] to-transparent",
+  },
+  sky: {
+    blob: "bg-sky-400/20",
+    gradient: "from-sky-500/[0.12] via-blue-500/[0.06] to-transparent",
+  },
+  violet: {
+    blob: "bg-violet-400/20",
+    gradient: "from-violet-500/[0.12] via-fuchsia-500/[0.05] to-transparent",
+  },
+  amber: {
+    blob: "bg-amber-400/20",
+    gradient: "from-amber-500/[0.12] via-orange-500/[0.06] to-transparent",
+  },
+  cyan: {
+    blob: "bg-cyan-400/20",
+    gradient: "from-cyan-500/[0.12] via-sky-500/[0.06] to-transparent",
+  },
+};
+
+function ModalShell({
+  open,
+  title,
+  description,
+  onClose,
+  children,
+  maxWidthClass = "max-w-3xl",
+  accent = "emerald",
+}: {
   open: boolean;
   title: string;
   description?: string;
   onClose: () => void;
   children: React.ReactNode;
+  maxWidthClass?: string;
+  accent?: ModalAccent;
 }) {
   if (!open) return null;
 
+  const a = MODAL_ACCENT[accent];
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
-        <div className="flex items-start justify-between gap-3 border-b bg-gradient-to-r from-emerald-600/15 via-cyan-600/10 to-transparent px-5 py-4">
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold tracking-tight">{title}</div>
-            {description ? <div className="text-xs text-muted-foreground">{description}</div> : null}
+      <div
+        className={cn(
+          "flex w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card",
+          "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.55)]",
+          "ring-1 ring-black/[0.06] dark:ring-white/10",
+          maxWidthClass,
+          "max-h-[min(90vh,880px)]"
+        )}
+      >
+        <div className="relative shrink-0 overflow-hidden border-b border-border/50">
+          <div className={cn("absolute inset-0 bg-gradient-to-br", a.gradient)} />
+          <div
+            className={cn("pointer-events-none absolute -right-16 -top-20 size-56 rounded-full blur-3xl", a.blob)}
+          />
+          <div className="relative flex items-start justify-between gap-4 px-5 py-5 sm:px-6">
+            <div className="min-w-0 space-y-1">
+              <div className="text-lg font-semibold tracking-tight text-foreground">{title}</div>
+              {description ? (
+                <div className="text-sm leading-snug text-muted-foreground">{description}</div>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="size-9 shrink-0 rounded-full border border-border/60 bg-background/80 text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+              aria-label="Cerrar"
+            >
+              <X className="size-4" />
+            </Button>
           </div>
-          <Button type="button" variant="outline" onClick={onClose} className="h-9 bg-background/70">
-            Cerrar
-          </Button>
         </div>
-        <div className="min-h-0 overflow-auto p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-muted/20 to-transparent p-5 sm:p-6">
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-export function SettingsClient({ defaults }: Props) {
+type SettingsCardAccent = "emerald" | "sky" | "violet" | "amber" | "cyan";
+
+const SETTINGS_CARD_STYLES: Record<
+  SettingsCardAccent,
+  { iconWrap: string; icon: string; hoverBorder: string; hoverShadow: string }
+> = {
+  emerald: {
+    iconWrap: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+    icon: "text-emerald-600 dark:text-emerald-400",
+    hoverBorder: "hover:border-emerald-500/35",
+    hoverShadow: "hover:shadow-emerald-500/[0.12]",
+  },
+  sky: {
+    iconWrap: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+    icon: "text-sky-600 dark:text-sky-400",
+    hoverBorder: "hover:border-sky-500/35",
+    hoverShadow: "hover:shadow-sky-500/[0.12]",
+  },
+  violet: {
+    iconWrap: "bg-violet-500/15 text-violet-800 dark:text-violet-300",
+    icon: "text-violet-600 dark:text-violet-400",
+    hoverBorder: "hover:border-violet-500/35",
+    hoverShadow: "hover:shadow-violet-500/[0.12]",
+  },
+  amber: {
+    iconWrap: "bg-amber-500/15 text-amber-900 dark:text-amber-400",
+    icon: "text-amber-600 dark:text-amber-400",
+    hoverBorder: "hover:border-amber-500/40",
+    hoverShadow: "hover:shadow-amber-500/[0.12]",
+  },
+  cyan: {
+    iconWrap: "bg-cyan-500/15 text-cyan-900 dark:text-cyan-300",
+    icon: "text-cyan-600 dark:text-cyan-400",
+    hoverBorder: "hover:border-cyan-500/40",
+    hoverShadow: "hover:shadow-cyan-500/[0.12]",
+  },
+};
+
+function SettingsCard({
+  accent,
+  icon: Icon,
+  title,
+  description,
+  hint,
+  onClick,
+}: {
+  accent: SettingsCardAccent;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  const s = SETTINGS_CARD_STYLES[accent];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative text-left",
+        "rounded-2xl border border-border/70 bg-card",
+        "shadow-md shadow-black/[0.04] dark:shadow-black/20",
+        "ring-1 ring-transparent transition-all duration-200",
+        "hover:-translate-y-1 hover:shadow-xl",
+        s.hoverBorder,
+        s.hoverShadow
+      )}
+    >
+      <div className="relative overflow-hidden rounded-2xl p-5">
+        <div
+          className={cn(
+            "pointer-events-none absolute -right-6 -top-6 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100",
+            accent === "emerald" && "bg-emerald-400/25",
+            accent === "sky" && "bg-sky-400/25",
+            accent === "violet" && "bg-violet-400/25",
+            accent === "amber" && "bg-amber-400/25",
+            accent === "cyan" && "bg-cyan-400/25"
+          )}
+        />
+        <div className="relative flex gap-4">
+          <div
+            className={cn(
+              "flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/20 shadow-inner dark:border-white/5",
+              s.iconWrap
+            )}
+          >
+            <Icon className={cn("size-6", s.icon)} />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="font-semibold tracking-tight text-foreground">{title}</div>
+            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-xs font-medium text-muted-foreground/90">{hint}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center text-xs font-semibold text-foreground/70 transition group-hover:text-foreground">
+          <span className="border-b border-transparent group-hover:border-current">Abrir</span>
+          <span className="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export function SettingsClient({
+  defaults,
+  paymentMethods,
+  canEditPaymentMethods,
+  mercadoPagoPosExternalId,
+  mercadoPagoQrReady,
+}: Props) {
   const [bizOpen, setBizOpen] = React.useState(false);
   const [usersOpen, setUsersOpen] = React.useState(false);
+  const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [mpPosOpen, setMpPosOpen] = React.useState(false);
   const [reportOpen, setReportOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [sendingNow, setSendingNow] = React.useState(false);
@@ -113,79 +292,51 @@ export function SettingsClient({ defaults }: Props) {
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <button
-          type="button"
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <SettingsCard
+          accent="emerald"
+          icon={Store}
+          title="Datos del negocio"
+          description="Información que sale en el ticket de venta."
+          hint="Nombre, CUIT, dirección y textos del ticket."
           onClick={() => setBizOpen(true)}
-          className={cn(
-            "text-left",
-            "rounded-xl border bg-card shadow-sm transition",
-            "hover:border-emerald-500/40 hover:shadow-md"
-          )}
-        >
-          <Card className="border-0 shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Store className="size-4 text-emerald-600" />
-                Datos del negocio
-              </CardTitle>
-              <CardDescription>Información que sale en el ticket.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-xs text-muted-foreground">Editar nombre, CUIT, dirección y mensajes.</div>
-            </CardContent>
-          </Card>
-        </button>
-
-        <button
-          type="button"
+        />
+        <SettingsCard
+          accent="sky"
+          icon={Users}
+          title="Usuarios"
+          description="Empleados que acceden a este comercio."
+          hint="Creá cuentas y asigná roles."
           onClick={() => setUsersOpen(true)}
-          className={cn(
-            "text-left",
-            "rounded-xl border bg-card shadow-sm transition",
-            "hover:border-emerald-500/40 hover:shadow-md"
-          )}
-        >
-          <Card className="border-0 shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Users className="size-4 text-emerald-600" />
-                Usuarios
-              </CardTitle>
-              <CardDescription>Empleados que acceden a este comercio.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-xs text-muted-foreground">Crear usuarios y asignar roles.</div>
-            </CardContent>
-          </Card>
-        </button>
-
-        <button
-          type="button"
+        />
+        <SettingsCard
+          accent="violet"
+          icon={Wallet}
+          title="Medios de pago"
+          description="Qué aparece al cobrar en el POS."
+          hint={`${paymentMethods.filter((m) => m.is_active).length} activos en caja`}
+          onClick={() => setPaymentOpen(true)}
+        />
+        <SettingsCard
+          accent="cyan"
+          icon={QrCode}
+          title="Mercado Pago (QR)"
+          description="Token e ID de caja para cobrar con QR en el POS."
+          hint={mercadoPagoQrReady ? "QR activo en ventas" : "Sin configurar o incompleto"}
+          onClick={() => setMpPosOpen(true)}
+        />
+        <SettingsCard
+          accent="amber"
+          icon={Mail}
+          title="Reporte diario"
+          description="Recibí un resumen diario por email."
+          hint={
+            defaults?.report_daily_enabled
+              ? `Activo · ${defaults.report_daily_email || "sin email"}`
+              : "Configurar envío automático"
+          }
           onClick={() => setReportOpen(true)}
-          className={cn(
-            "text-left",
-            "rounded-xl border bg-card shadow-sm transition",
-            "hover:border-emerald-500/40 hover:shadow-md"
-          )}
-        >
-          <Card className="border-0 shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="size-4 text-emerald-600" />
-                Reporte diario
-              </CardTitle>
-              <CardDescription>Recibe un resumen diario por email.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-xs text-muted-foreground">
-                {defaults?.report_daily_enabled 
-                  ? `Activo - ${defaults.report_daily_email || ""}` 
-                  : "Configurar envío automático"}
-              </div>
-            </CardContent>
-          </Card>
-        </button>
+        />
       </div>
 
       <ModalShell
@@ -193,6 +344,7 @@ export function SettingsClient({ defaults }: Props) {
         title="Datos del negocio"
         description="Esta información aparecerá en los tickets de venta."
         onClose={() => setBizOpen(false)}
+        accent="emerald"
       >
         <BusinessInfoForm defaults={defaults} />
       </ModalShell>
@@ -202,8 +354,35 @@ export function SettingsClient({ defaults }: Props) {
         title="Usuarios"
         description="Creá usuarios para tus empleados y asignales permisos para este comercio."
         onClose={() => setUsersOpen(false)}
+        accent="sky"
       >
         <UsersManager />
+      </ModalShell>
+
+      <ModalShell
+        open={paymentOpen}
+        title="Medios de pago en el POS"
+        description="Nombre visible, ícono o logo URL, orden y activación."
+        onClose={() => setPaymentOpen(false)}
+        maxWidthClass="max-w-4xl"
+        accent="violet"
+      >
+        <PaymentMethodsManager initialRows={paymentMethods} canEdit={canEditPaymentMethods} />
+      </ModalShell>
+
+      <ModalShell
+        open={mpPosOpen}
+        title="Mercado Pago QR"
+        description="Token de producción + caja en MP para mostrar el QR al cobrar."
+        onClose={() => setMpPosOpen(false)}
+        maxWidthClass="max-w-lg"
+        accent="cyan"
+      >
+        <MercadoPagoPosForm
+          posExternalId={mercadoPagoPosExternalId}
+          qrReady={mercadoPagoQrReady}
+          canEdit={canEditPaymentMethods}
+        />
       </ModalShell>
 
       <ModalShell
@@ -211,8 +390,17 @@ export function SettingsClient({ defaults }: Props) {
         title="Reporte diario por email"
         description="Recibí un resumen de ventas cada día a la mañana."
         onClose={() => setReportOpen(false)}
+        accent="amber"
       >
-        <form onSubmit={handleReportSubmit} className="space-y-4">
+        <form
+          onSubmit={handleReportSubmit}
+          className="space-y-4"
+          key={[
+            defaults?.report_daily_enabled ? "1" : "0",
+            defaults?.report_daily_email ?? "",
+            defaults?.report_daily_time ?? "08:00",
+          ].join("\u0001")}
+        >
           <div className="flex items-center gap-2">
             <input
               type="checkbox"

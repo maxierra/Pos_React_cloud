@@ -22,6 +22,7 @@ export interface Database {
           phone: string | null
           email: string | null
           logo_url: string | null
+          mercadopago_pos_external_id: string | null
           created_at: string
           updated_at: string
         }
@@ -33,6 +34,7 @@ export interface Database {
           phone?: string | null
           email?: string | null
           logo_url?: string | null
+          mercadopago_pos_external_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -44,6 +46,62 @@ export interface Database {
           phone?: string | null
           email?: string | null
           logo_url?: string | null
+          mercadopago_pos_external_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      business_mercadopago_access: {
+        Row: {
+          business_id: string
+          access_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          access_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          access_token?: string | null
+          updated_at?: string
+        }
+      }
+      business_payment_methods: {
+        Row: {
+          id: string
+          business_id: string
+          method_code: string
+          label: string
+          icon_key: string
+          icon_url: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          method_code: string
+          label: string
+          icon_key?: string
+          icon_url?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          method_code?: string
+          label?: string
+          icon_key?: string
+          icon_url?: string | null
+          is_active?: boolean
+          sort_order?: number
           created_at?: string
           updated_at?: string
         }

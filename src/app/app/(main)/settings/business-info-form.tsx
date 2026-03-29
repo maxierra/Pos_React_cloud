@@ -20,6 +20,18 @@ type Props = {
   };
 };
 
+function businessDefaultsKey(defaults: Props["defaults"]) {
+  const tf = defaults?.ticket_footer ?? "¡Gracias por su compra!";
+  return [
+    defaults?.name ?? "",
+    defaults?.address ?? "",
+    defaults?.phone ?? "",
+    defaults?.cuit ?? "",
+    defaults?.ticket_header ?? "",
+    tf,
+  ].join("\u0001");
+}
+
 export function BusinessInfoForm({ defaults }: Props) {
   const [pending, startTransition] = React.useTransition();
 
@@ -48,7 +60,7 @@ export function BusinessInfoForm({ defaults }: Props) {
         </div>
       </div>
 
-      <form action={handleSubmit} className="grid gap-5">
+      <form action={handleSubmit} key={businessDefaultsKey(defaults)} className="grid gap-5">
         {/* Nombre y CUIT */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">

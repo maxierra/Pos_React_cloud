@@ -50,7 +50,7 @@ async function updateBusinessInfoImpl(formData: FormData) {
   return { success: true };
 }
 
-async function assertOwner(businessId: string) {
+export async function assertSettingsOwner(businessId: string) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   const uid = authData.user?.id;
@@ -168,7 +168,7 @@ async function createBusinessUserImpl(formData: FormData) {
   }
 
   try {
-    await assertOwner(businessId);
+    await assertSettingsOwner(businessId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "not_authorized" } as const;
   }
@@ -261,7 +261,7 @@ async function restoreBusinessUserImpl(formData: FormData) {
   }
 
   try {
-    await assertOwner(businessId);
+    await assertSettingsOwner(businessId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "not_authorized" } as const;
   }
@@ -289,7 +289,7 @@ async function updateBusinessUserImpl(formData: FormData) {
   }
 
   try {
-    await assertOwner(businessId);
+    await assertSettingsOwner(businessId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "not_authorized" } as const;
   }
@@ -366,7 +366,7 @@ async function removeBusinessUserImpl(formData: FormData) {
   }
 
   try {
-    await assertOwner(businessId);
+    await assertSettingsOwner(businessId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "not_authorized" } as const;
   }

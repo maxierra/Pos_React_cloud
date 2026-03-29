@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import { createClient } from "@/lib/supabase/server";
 
 import { PosClient, type PosProduct } from "@/app/app/(main)/pos/pos-client";
@@ -78,5 +79,27 @@ export default async function PosPage() {
 
   const cashOpen = !!openRegister;
 
-  return <PosClient products={products} business={business} cashOpen={cashOpen} />;
+  await supabase.rpc("ensure_business_payment_methods", { p_business_id: businessId });
+  const { data: pmRows } = await supabase
+    .from("business_payment_methods")
+    .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order")
+    .eq("business_id", businessId)
+    .order("sort_order", { ascending: true });
+
+  const paymentMethodConfig = (pmRows ?? []) as BusinessPaymentMethodRow[];
+
+  const { data: mpQrReady, error: mpRpcErr } = await supabase.rpc("business_mercadopago_qr_ready", {
+    p_business_id: businessId,
+  });
+  const mercadoPagoQrReady = !mpRpcErr && mpQrReady === true;
+
+  return (
+    <PosClient
+      products={products}
+      business={business}
+      cashOpen={cashOpen}
+      paymentMethodConfig={paymentMethodConfig}
+      mercadoPagoQrReady={mercadoPagoQrReady}
+    />
+  );
 }
