@@ -186,6 +186,10 @@ export async function middleware(request: NextRequest) {
           else if (pathname.startsWith("/app/sales")) required = "sales";
           else if (pathname.startsWith("/app/cash")) required = "cash";
           else if (pathname.startsWith("/app/products")) required = "products";
+          else if (pathname.startsWith("/app/clientes")) required = "products";
+          else if (pathname.startsWith("/app/proveedores")) required = "products";
+          else if (pathname.startsWith("/app/empleados")) required = "products";
+          else if (pathname.startsWith("/app/etiquetas")) required = "products";
           else if (pathname.startsWith("/app/reports")) required = "reports";
           else if (pathname.startsWith("/app/settings")) required = "settings";
 

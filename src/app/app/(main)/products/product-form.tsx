@@ -154,7 +154,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
       if (!currentStock) setStockDecimalInput("100");
       if (!currentMin) setLowStockThresholdDecimalInput("50");
     }
-  });
+  }, [preload, defaults?.id, soldByWeight]);
 
   React.useEffect(() => {
     const ean = barcodeInput.replace(/\s+/g, "").trim();
@@ -274,7 +274,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
               <option value="unit">Por unidad</option>
               <option value="weight">Pesable (por kg)</option>
             </select>
-            <input type="hidden" name="sold_by_weight" value={soldByWeight ? "on" : ""} />
+            <input type="hidden" name="sold_by_weight" value={soldByWeight ? "on" : "off"} />
           </div>
 
           <div className="grid gap-2">

@@ -35,7 +35,7 @@ async function createProductImpl(formData: FormData) {
     throw new Error("missing_name");
   }
 
-  const soldByWeight = String(formData.get("sold_by_weight") ?? "") === "on";
+  const soldByWeight = String(formData.get("sold_by_weight") ?? "off") === "on";
 
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
@@ -101,24 +101,77 @@ async function updateProductImpl(formData: FormData) {
     throw new Error("missing_name");
   }
 
-  const soldByWeight = String(formData.get("sold_by_weight") ?? "") === "on";
+  const soldByWeight = String(formData.get("sold_by_weight") ?? "off") === "on";
 
   const supabase = await createClient();
+  const { data: existing, error: exErr } = await supabase
+    .from("products")
+    .select("stock,stock_decimal,low_stock_threshold,low_stock_threshold_decimal,scale_code")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .single();
+
+  if (exErr || !existing) {
+    throw new Error(exErr?.message ?? "product_not_found");
+  }
+
+  const ex = existing as {
+    stock: number;
+    stock_decimal: number | string;
+    low_stock_threshold: number;
+    low_stock_threshold_decimal: number | string;
+    scale_code: string | null;
+  };
+
+  const exStockDec = Number(ex.stock_decimal);
+  const exMinDec = Number(ex.low_stock_threshold_decimal);
+
+  let stock: number;
+  let stock_decimal: number;
+  let low_stock_threshold: number;
+  let low_stock_threshold_decimal: number;
+
+  if (soldByWeight) {
+    stock = 0;
+    low_stock_threshold = 0;
+    stock_decimal = formData.has("stock_decimal")
+      ? toNumber(formData.get("stock_decimal"))
+      : Number.isFinite(exStockDec)
+        ? exStockDec
+        : 0;
+    low_stock_threshold_decimal = formData.has("low_stock_threshold_decimal")
+      ? toNumber(formData.get("low_stock_threshold_decimal"))
+      : Number.isFinite(exMinDec)
+        ? exMinDec
+        : 0;
+  } else {
+    stock_decimal = 0;
+    low_stock_threshold_decimal = 0;
+    stock = formData.has("stock") ? Math.trunc(toNumber(formData.get("stock"))) : Number(ex.stock);
+    low_stock_threshold = formData.has("low_stock_threshold")
+      ? Math.trunc(toNumber(formData.get("low_stock_threshold")))
+      : Number(ex.low_stock_threshold);
+  }
+
+  const scale_code = formData.has("scale_code")
+    ? String(formData.get("scale_code") ?? "").trim() || null
+    : ex.scale_code;
+
   const { error } = await supabase
     .from("products")
     .update({
       name,
       barcode: String(formData.get("barcode") ?? "").trim() || null,
-      scale_code: String(formData.get("scale_code") ?? "").trim() || null,
+      scale_code,
       category: String(formData.get("category") ?? "").trim() || null,
       cost: toNumber(formData.get("cost")),
       price: toNumber(formData.get("price")),
       expires_at: toNullableDate(formData.get("expires_at")),
       sold_by_weight: soldByWeight,
-      stock: soldByWeight ? 0 : Math.trunc(toNumber(formData.get("stock"))),
-      stock_decimal: soldByWeight ? toNumber(formData.get("stock_decimal")) : 0,
-      low_stock_threshold: soldByWeight ? 0 : Math.trunc(toNumber(formData.get("low_stock_threshold"))),
-      low_stock_threshold_decimal: soldByWeight ? toNumber(formData.get("low_stock_threshold_decimal")) : 0,
+      stock,
+      stock_decimal,
+      low_stock_threshold,
+      low_stock_threshold_decimal,
       active: String(formData.get("active") ?? "") !== "off",
       updated_at: new Date().toISOString(),
     })

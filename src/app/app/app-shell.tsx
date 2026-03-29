@@ -17,6 +17,10 @@ import {
   Receipt,
   Settings,
   ShoppingCart,
+  Tag,
+  Truck,
+  UserCircle2,
+  Users,
   Wallet,
   X,
 } from "lucide-react";
@@ -41,6 +45,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart },
   { href: "/app/inventory", label: "Inventario", icon: Boxes },
   { href: "/app/products", label: "Productos", icon: Package },
+  { href: "/app/clientes", label: "Clientes", icon: Users },
+  { href: "/app/proveedores", label: "Proveedores", icon: Truck },
+  { href: "/app/empleados", label: "Empleados", icon: UserCircle2 },
+  { href: "/app/etiquetas", label: "Etiquetas", icon: Tag },
   { href: "/app/sales", label: "Ventas", icon: Receipt },
   { href: "/app/cash", label: "Caja", icon: Wallet },
   { href: "/app/reports", label: "Reportes", icon: BarChart3 },
@@ -163,6 +171,10 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
       if (item.href.startsWith("/app/sales")) return can("sales");
       if (item.href.startsWith("/app/cash")) return can("cash");
       if (item.href.startsWith("/app/products")) return can("products");
+      if (item.href.startsWith("/app/clientes")) return can("products");
+      if (item.href.startsWith("/app/proveedores")) return can("products");
+      if (item.href.startsWith("/app/empleados")) return can("products");
+      if (item.href.startsWith("/app/etiquetas")) return can("products");
       if (item.href.startsWith("/app/reports")) return can("reports");
       if (item.href.startsWith("/app/settings")) return can("settings");
 
