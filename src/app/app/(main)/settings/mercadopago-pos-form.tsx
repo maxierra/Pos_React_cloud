@@ -186,8 +186,10 @@ export function MercadoPagoPosForm({ posExternalId, qrReady, canEdit }: Props) {
       </div>
 
       <p className="text-[11px] leading-snug text-muted-foreground">
-        Cobro automático al pagar el QR: en MP configurá notificaciones (IPN) a{" "}
-        <code className="rounded bg-muted px-1 py-0.5 text-[10px]">…/api/webhooks/mercadopago</code> (https público).
+        Cobro automático con QR: en Mercado Pago → Tu integración → Webhooks, URL{" "}
+        <code className="rounded bg-muted px-1 py-0.5 text-[10px]">https://tu-dominio/api/webhooks/mercadopago</code> y
+        activá el evento Order (Mercado Pago) (no alcanza solo notificaciones de “Pagos”). Usá modo producción y credenciales
+        de producción.
       </p>
 
       {canEdit ? (

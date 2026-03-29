@@ -3,6 +3,11 @@ import { revalidatePath } from "next/cache";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  extractPosCompletionFromOrderJson,
+  fetchMercadoPagoOrderWithTokens,
+  type MercadoPagoPosOrderCompletion,
+} from "@/lib/mercadopago-pos-order-sync";
 import { isMercadoPagoPosCheckoutExternalReference } from "@/lib/mp-pos-external-ref";
 
 export const dynamic = "force-dynamic";
@@ -47,9 +52,28 @@ function getPaymentIdFromPayload(body: unknown): string | null {
 
   if (o.action && o.data && typeof o.data === "object") {
     const id = (o.data as Record<string, unknown>).id;
-    if (id != null) return String(id);
+    if (id != null) {
+      const sid = String(id);
+      if (/^ORD/i.test(sid)) return null;
+      return sid;
+    }
   }
 
+  return null;
+}
+
+function getOrderIdFromWebhookPayload(body: unknown, requestUrl: string): string | null {
+  const url = new URL(requestUrl);
+  const qp = url.searchParams.get("data.id") ?? url.searchParams.get("id");
+  if (qp && /^ORD/i.test(qp.trim())) return qp.trim();
+
+  if (!body || typeof body !== "object") return null;
+  const o = body as Record<string, unknown>;
+  const data = o.data;
+  if (data && typeof data === "object") {
+    const id = String((data as Record<string, unknown>).id ?? "").trim();
+    if (id && /^ORD/i.test(id)) return id;
+  }
   return null;
 }
 
@@ -152,12 +176,7 @@ async function processSubscriptionApproved(payment: MpPayment, paymentId: string
   return NextResponse.json({ ok: true });
 }
 
-async function processPosQrApproved(payment: MpPayment, paymentId: string): Promise<NextResponse> {
-  const extRef = String(payment.external_reference ?? "").trim();
-  if (!isMercadoPagoPosCheckoutExternalReference(extRef)) {
-    return NextResponse.json({ ok: true, ignored: "not_pos_ref" });
-  }
-
+async function completeMercadoPagoPosPending(completion: MercadoPagoPosOrderCompletion): Promise<NextResponse> {
   let admin;
   try {
     admin = createAdminClient();
@@ -165,15 +184,11 @@ async function processPosQrApproved(payment: MpPayment, paymentId: string): Prom
     return NextResponse.json({ ok: false, error: "no_admin_client" }, { status: 503 });
   }
 
-  const mpId = String(payment.id ?? paymentId);
-  const amount = Number(payment.transaction_amount ?? 0);
-  const currency = String(payment.currency_id ?? "ARS");
-
   const { data: saleId, error } = await admin.rpc("mercadopago_pos_complete_pending", {
-    p_external_reference: extRef,
-    p_mp_payment_id: mpId,
-    p_paid_amount: amount,
-    p_currency_id: currency,
+    p_external_reference: completion.external_reference,
+    p_mp_payment_id: completion.mp_payment_id,
+    p_paid_amount: completion.amount,
+    p_currency_id: completion.currency,
   });
 
   if (error) {
@@ -189,6 +204,74 @@ async function processPosQrApproved(payment: MpPayment, paymentId: string): Prom
   revalidatePath("/app/pos");
   revalidatePath("/app/products");
   return NextResponse.json({ ok: true, pos_sale_id: saleId });
+}
+
+async function processPosQrApproved(payment: MpPayment, paymentId: string): Promise<NextResponse> {
+  const extRef = String(payment.external_reference ?? "").trim();
+  if (!isMercadoPagoPosCheckoutExternalReference(extRef)) {
+    return NextResponse.json({ ok: true, ignored: "not_pos_ref" });
+  }
+
+  const mpId = String(payment.id ?? paymentId);
+  const amount = Number(payment.transaction_amount ?? 0);
+  const currency = String(payment.currency_id ?? "ARS");
+
+  return completeMercadoPagoPosPending({
+    external_reference: extRef,
+    mp_payment_id: mpId,
+    amount,
+    currency,
+  });
+}
+
+/**
+ * Webhooks QR (Orders API): MP envía type=order / action order.processed con data embebida o solo data.id ORD...
+ */
+async function processOrderWebhook(raw: unknown, requestUrl: string): Promise<NextResponse | null> {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+
+  if (o.type === "order" && o.data && typeof o.data === "object") {
+    const data = o.data as Record<string, unknown>;
+    const action = String(o.action ?? "");
+
+    if (action === "order.processed" || String(data.status ?? "") === "processed") {
+      const fromBody = extractPosCompletionFromOrderJson(data as Record<string, unknown>);
+      if (fromBody) {
+        console.info("[mp-webhook] order.processed (body)", { ref: fromBody.external_reference.slice(0, 12) });
+        return completeMercadoPagoPosPending(fromBody);
+      }
+    }
+
+    const oid = String(data.id ?? "").trim();
+    if (oid && /^ORD/i.test(oid)) {
+      console.info("[mp-webhook] order (fetch ORD)", { order_id: oid.slice(0, 16) });
+      return fetchOrderAndCompletePos(oid);
+    }
+  }
+
+  const qpType = new URL(requestUrl).searchParams.get("type");
+  const orderId = getOrderIdFromWebhookPayload(raw, requestUrl);
+  if (qpType === "order" && orderId) {
+    console.info("[mp-webhook] order (query + fetch)", { order_id: orderId.slice(0, 16) });
+    return fetchOrderAndCompletePos(orderId);
+  }
+
+  return null;
+}
+
+async function fetchOrderAndCompletePos(orderId: string): Promise<NextResponse> {
+  const tokens = await collectMercadoPagoAccessTokens();
+  const json = await fetchMercadoPagoOrderWithTokens(orderId, tokens);
+  if (!json) {
+    console.warn("[mp-webhook] GET /v1/orders falló para todos los tokens", { order_id: orderId.slice(0, 20) });
+    return NextResponse.json({ ok: false, error: "order_fetch" }, { status: 502 });
+  }
+  const completion = extractPosCompletionFromOrderJson(json);
+  if (!completion) {
+    return NextResponse.json({ ok: true, ignored: "order_not_pos_or_not_processed" });
+  }
+  return completeMercadoPagoPosPending(completion);
 }
 
 async function processPaymentNotification(paymentId: string): Promise<NextResponse> {
@@ -210,9 +293,10 @@ async function processPaymentNotification(paymentId: string): Promise<NextRespon
 }
 
 /**
- * IPN Mercado Pago: pagos de suscripción (external_reference = UUID del negocio)
- * y cobros QR en el POS (external_reference tipo p{uuid}-{8hex}).
- * Configurá esta URL en tu aplicación de Mercado Pago (notificaciones IPN).
+ * IPN Mercado Pago:
+ * - Suscripción: notificación payment + external_reference = UUID del negocio.
+ * - QR POS: Mercado Pago envía webhooks **Order** (`type: order`, `order.processed`), no siempre `payment`.
+ * En el panel: Webhooks → evento **Order (Mercado Pago)** → URL https://tu-dominio/api/webhooks/mercadopago
  */
 export async function POST(request: Request) {
   let raw: unknown;
@@ -236,6 +320,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
+  const url = request.url;
+  const orderRes = await processOrderWebhook(raw, url);
+  if (orderRes) return orderRes;
+
   const paymentId = getPaymentIdFromPayload(raw);
   if (!paymentId) {
     return NextResponse.json({ ok: true, ignored: true });
@@ -247,9 +335,13 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const topic = url.searchParams.get("topic");
+  const type = url.searchParams.get("type");
   const id = url.searchParams.get("id") ?? url.searchParams.get("data.id");
   if (topic === "payment" && id) {
     return processPaymentNotification(id);
+  }
+  if (type === "order" && id && /^ORD/i.test(id)) {
+    return fetchOrderAndCompletePos(id);
   }
   return NextResponse.json({ ok: true });
 }
