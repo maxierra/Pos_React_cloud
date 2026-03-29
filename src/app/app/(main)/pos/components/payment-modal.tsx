@@ -171,6 +171,8 @@ export function PaymentModal({
   const [mpExternalRef, setMpExternalRef] = React.useState<string | null>(null);
   const mpQrRequestRef = React.useRef(0);
   const mpAutoNotifiedRef = React.useRef(false);
+  /** Evita resetear vista previa / QR cuando total o props del padre cambian mientras el modal sigue abierto (prod: refresh, RSC). */
+  const paymentModalWasOpenRef = React.useRef(false);
 
   const abandonMercadoPagoPending = React.useCallback(async () => {
     if (mpExternalRef) {
@@ -180,30 +182,36 @@ export function PaymentModal({
   }, [mpExternalRef]);
 
   React.useEffect(() => {
-    if (open) {
-      setMethod(defaultMethod);
-      setReceivedInput(String(total));
-      setMixed(false);
-      setM1(defaultMethod);
-      setTransferConfirmOpen(false);
-      setMpQrData(null);
-      setMpQrError(null);
-      setMpQrLoading(false);
-      setMpQrRetryTick(0);
-      setMpExternalRef(null);
-      mpAutoNotifiedRef.current = false;
-      const second =
-        activeSorted.find((x) => x.method_code !== defaultMethod)?.method_code ??
-        activeSorted.find((x) => x.method_code !== activeSorted[0]?.method_code)?.method_code ??
-        defaultMethod;
-      setM2(second);
-      setA1Input(String(total));
-      setCashReceivedInput(String(total));
-      setPrintTicket(true);
-      setPreviewOpen(false);
-      setPendingPayload(null);
-      window.setTimeout(() => receivedRef.current?.focus(), 0);
+    if (!open) {
+      paymentModalWasOpenRef.current = false;
+      return;
     }
+    if (paymentModalWasOpenRef.current) {
+      return;
+    }
+    paymentModalWasOpenRef.current = true;
+    setMethod(defaultMethod);
+    setReceivedInput(String(total));
+    setMixed(false);
+    setM1(defaultMethod);
+    setTransferConfirmOpen(false);
+    setMpQrData(null);
+    setMpQrError(null);
+    setMpQrLoading(false);
+    setMpQrRetryTick(0);
+    setMpExternalRef(null);
+    mpAutoNotifiedRef.current = false;
+    const second =
+      activeSorted.find((x) => x.method_code !== defaultMethod)?.method_code ??
+      activeSorted.find((x) => x.method_code !== activeSorted[0]?.method_code)?.method_code ??
+      defaultMethod;
+    setM2(second);
+    setA1Input(String(total));
+    setCashReceivedInput(String(total));
+    setPrintTicket(true);
+    setPreviewOpen(false);
+    setPendingPayload(null);
+    window.setTimeout(() => receivedRef.current?.focus(), 0);
   }, [open, defaultMethod, total, activeSorted]);
 
   React.useEffect(() => {
@@ -225,6 +233,12 @@ export function PaymentModal({
     const other = activeSorted.find((x) => x.method_code !== m1)?.method_code;
     if (other) setM2(other);
   }, [open, mixed, m1, m2, activeSorted]);
+
+  const mpCartFingerprint = React.useMemo(
+    () =>
+      `${total}|${items.map((it) => `${it.product_id}:${it.quantity}:${it.unit_price}`).join(",")}`,
+    [items, total]
+  );
 
   React.useEffect(() => {
     if (!open || !previewOpen || !pendingPayload) {
@@ -282,7 +296,7 @@ export function PaymentModal({
         }
       }
     });
-  }, [open, previewOpen, pendingPayload, mercadoPagoQrReady, total, items, mpQrRetryTick]);
+  }, [open, previewOpen, pendingPayload, mercadoPagoQrReady, total, mpCartFingerprint, mpQrRetryTick]);
 
   const change = React.useMemo(() => {
     if (!mixed) {
