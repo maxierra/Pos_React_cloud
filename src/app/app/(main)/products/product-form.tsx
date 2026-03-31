@@ -30,6 +30,8 @@ type Props = {
   defaults?: ProductDefaults;
   action: (formData: FormData) => void | Promise<void>;
   container?: boolean;
+  canEditPrice?: boolean;
+  canEditStock?: boolean;
 };
 
 function round2(n: number) {
@@ -48,7 +50,14 @@ function formatNumberLoose(n: number) {
   return String(n);
 }
 
-export function ProductForm({ title, description, defaults, action }: Props) {
+export function ProductForm({
+  title,
+  description,
+  defaults,
+  action,
+  canEditPrice = true,
+  canEditStock = true,
+}: Props) {
   const initialCost = defaults?.cost ?? 0;
   const initialPrice = defaults?.price ?? 0;
 
@@ -306,6 +315,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
               step="0.01"
               value={costInput}
               onChange={(e) => setCostInput(e.target.value)}
+              disabled={!canEditPrice}
               required
             />
           </div>
@@ -322,6 +332,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 setLastEdited("margin");
                 setMarginInput(e.target.value);
               }}
+              disabled={!canEditPrice}
             />
           </div>
 
@@ -338,6 +349,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 setLastEdited("price");
                 setPriceInput(e.target.value);
               }}
+              disabled={!canEditPrice}
             />
           </div>
         </div>
@@ -378,6 +390,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 step="0.001"
                 value={stockDecimalInput}
                 onChange={(e) => setStockDecimalInput(e.target.value)}
+                disabled={!canEditStock}
               />
             </div>
             <div className="grid gap-2">
@@ -390,6 +403,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 step="0.001"
                 value={lowStockThresholdDecimalInput}
                 onChange={(e) => setLowStockThresholdDecimalInput(e.target.value)}
+                disabled={!canEditStock}
               />
             </div>
           </div>
@@ -404,6 +418,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 step="1"
                 value={stockInput}
                 onChange={(e) => setStockInput(e.target.value)}
+                disabled={!canEditStock}
               />
             </div>
             <div className="grid gap-2">
@@ -415,6 +430,7 @@ export function ProductForm({ title, description, defaults, action }: Props) {
                 step="1"
                 value={lowStockThresholdInput}
                 onChange={(e) => setLowStockThresholdInput(e.target.value)}
+                disabled={!canEditStock}
               />
             </div>
           </div>

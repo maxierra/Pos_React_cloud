@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:e2e": "playwright test",
     "cron:dev": "node --env-file=.env scripts/cron-dev.mjs"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "@playwright/test": "^1.50.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

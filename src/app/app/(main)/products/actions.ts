@@ -104,6 +104,8 @@ async function updateProductImpl(formData: FormData) {
   const soldByWeight = String(formData.get("sold_by_weight") ?? "off") === "on";
 
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   const { data: beforeRow, error: exErr } = await supabase
     .from("products")
     .select("*")
@@ -116,6 +118,8 @@ async function updateProductImpl(formData: FormData) {
   }
 
   const ex = beforeRow as {
+    cost: number;
+    price: number;
     stock: number;
     stock_decimal: number | string;
     low_stock_threshold: number;
@@ -125,6 +129,10 @@ async function updateProductImpl(formData: FormData) {
 
   const exStockDec = Number(ex.stock_decimal);
   const exMinDec = Number(ex.low_stock_threshold_decimal);
+
+  // Nuevos valores propuestos
+  const nextCost = toNumber(formData.get("cost"));
+  const nextPrice = toNumber(formData.get("price"));
 
   let stock: number;
   let stock_decimal: number;
@@ -182,6 +190,36 @@ async function updateProductImpl(formData: FormData) {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  // Validar permisos finos para cambios en precio/stock (solo para empleados que no son dueño)
+  if (userId) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("role,permissions")
+      .eq("user_id", userId)
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const role = (membership as any)?.role as string | null;
+    const perms = ((membership as any)?.permissions ?? {}) as Record<string, unknown>;
+
+    if (role !== "owner") {
+      const priceChanged = nextCost !== Number(ex.cost) || nextPrice !== Number(ex.price);
+      const stockChanged =
+        stock !== Number(ex.stock) ||
+        stock_decimal !== Number(ex.stock_decimal) ||
+        low_stock_threshold !== Number(ex.low_stock_threshold) ||
+        low_stock_threshold_decimal !== Number(ex.low_stock_threshold_decimal);
+
+      if (priceChanged && perms.products_edit_price !== true) {
+        throw new Error("forbidden_edit_price");
+      }
+      if (stockChanged && perms.products_edit_stock !== true) {
+        throw new Error("forbidden_edit_stock");
+      }
+    }
   }
 
   const { error: activityErr } = await supabase.rpc("record_product_change_activity", {

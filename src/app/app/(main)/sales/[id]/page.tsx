@@ -76,6 +76,8 @@ export default async function SaleDetailPage({ params }: Props) {
   }
 
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   const { data: saleData, error: saleError } = await supabase
     .from("sales")
     .select("id,created_at,total,payment_method,payment_details,status")
@@ -112,7 +114,19 @@ export default async function SaleDetailPage({ params }: Props) {
 
   const items = (itemsData ?? []) as SaleItemRow[];
 
-  const canVoid = sale.status === "paid";
+  let canVoid = sale.status === "paid";
+  if (userId) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("role,permissions")
+      .eq("user_id", userId)
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const role = (membership as any)?.role as string | null;
+    const perms = ((membership as any)?.permissions ?? {}) as Record<string, unknown>;
+    canVoid = canVoid && (role === "owner" || perms.sales_void === true);
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">

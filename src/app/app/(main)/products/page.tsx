@@ -45,6 +45,8 @@ export default async function ProductsPage() {
   }
 
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   const { data } = await supabase
     .from("products")
     .select(
@@ -56,6 +58,24 @@ export default async function ProductsPage() {
 
   const products = (data ?? []) as ProductRow[];
 
+  let canEditPrice = true;
+  let canEditStock = true;
+  if (userId) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("role,permissions")
+      .eq("user_id", userId)
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const role = (membership as any)?.role as string | null;
+    const perms = ((membership as any)?.permissions ?? {}) as Record<string, unknown>;
+    if (role !== "owner") {
+      canEditPrice = perms.products_edit_price === true;
+      canEditStock = perms.products_edit_stock === true;
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <div className="space-y-1">
@@ -63,7 +83,7 @@ export default async function ProductsPage() {
         <p className="text-sm text-muted-foreground">Alta, edición y control de stock.</p>
       </div>
 
-      <ProductsClient products={products} />
+      <ProductsClient products={products} canEditPrice={canEditPrice} canEditStock={canEditStock} />
     </div>
   );
 }

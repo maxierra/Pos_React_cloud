@@ -165,6 +165,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   }
 
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   let query = supabase
     .from("sales")
     .select("id,total,payment_method,payment_details,status,created_at")
@@ -180,6 +182,22 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   }
 
   const { data } = await query.order("created_at", { ascending: false }).limit(filterDate ? 1000 : 100);
+
+  let canVoidForUser = false;
+  if (userId) {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("role,permissions")
+      .eq("user_id", userId)
+      .eq("business_id", businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    const role = (membership as any)?.role as string | null;
+    const perms = ((membership as any)?.permissions ?? {}) as Record<string, unknown>;
+
+    canVoidForUser = role === "owner" || perms.sales_void === true;
+  }
 
   const sales = (data ?? []) as SaleRow[];
   const salesNormalized = sales.map((s) => ({
@@ -245,7 +263,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                   const statusLabel =
                     s.status === "paid" ? "Pagada" : s.status === "voided" ? "Anulada" : s.status;
                   const statusKind = s.status === "paid" ? "success" : s.status === "voided" ? "warning" : "neutral";
-                  const canVoid = s.status === "paid";
+                  const canVoid = s.status === "paid" && canVoidForUser;
 
                   return (
                     <tr key={s.key} className="border-b last:border-b-0">

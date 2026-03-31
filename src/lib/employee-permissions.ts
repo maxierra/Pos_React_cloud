@@ -18,6 +18,14 @@ export type EmployeePermissionKey =
   | "subscription"
   | "settings";
 
+/** Flags adicionales para acciones finas dentro de cada módulo. */
+export type EmployeePermissionActionKey =
+  | "sales_void" // puede anular ventas
+  | "products_edit_price" // puede editar precios de productos
+  | "products_edit_stock"; // puede editar stock de productos
+
+export type EmployeePermissionFlag = EmployeePermissionKey | EmployeePermissionActionKey;
+
 /** Opciones en Configuración → empleados (orden del menú lateral). */
 export const EMPLOYEE_PERMISSION_OPTIONS: readonly { key: EmployeePermissionKey; label: string }[] = [
   { key: "dashboard", label: "Dashboard" },
@@ -35,7 +43,7 @@ export const EMPLOYEE_PERMISSION_OPTIONS: readonly { key: EmployeePermissionKey;
   { key: "settings", label: "Configuración" },
 ] as const;
 
-export function defaultEmployeePermissions(): Record<EmployeePermissionKey, boolean> {
+export function defaultEmployeePermissions(): Record<EmployeePermissionFlag, boolean> {
   return {
     dashboard: false,
     pos: false,
@@ -50,6 +58,9 @@ export function defaultEmployeePermissions(): Record<EmployeePermissionKey, bool
     reports: false,
     subscription: false,
     settings: false,
+    sales_void: false,
+    products_edit_price: false,
+    products_edit_stock: false,
   };
 }
 
@@ -59,7 +70,7 @@ export function normalizePermissionsFromStorage(raw: Record<string, unknown> | n
   const src = raw ?? {};
   const legacyProducts = src.products === true;
 
-  for (const k of Object.keys(base) as EmployeePermissionKey[]) {
+  for (const k of Object.keys(base) as EmployeePermissionFlag[]) {
     if (src[k] !== undefined && src[k] !== null) {
       (base as any)[k] = Boolean(src[k]);
     }

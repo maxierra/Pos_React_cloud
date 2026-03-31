@@ -34,6 +34,8 @@ type ProductRow = {
 
 type Props = {
   products: ProductRow[];
+  canEditPrice?: boolean;
+  canEditStock?: boolean;
 };
 
 function formatStock(p: ProductRow) {
@@ -62,7 +64,7 @@ function findProductByScannedCode(products: ProductRow[], raw: string): ProductR
   return undefined;
 }
 
-export function ProductsClient({ products }: Props) {
+export function ProductsClient({ products, canEditPrice = true, canEditStock = true }: Props) {
   const router = useRouter();
   const [openCreate, setOpenCreate] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<ProductRow | null>(null);
@@ -344,7 +346,14 @@ export function ProductsClient({ products }: Props) {
 
               <div className="p-5">
                 <div className={cn(pending ? "pointer-events-none opacity-80" : "")}>
-                  <ProductForm title="" description={undefined} container={false} action={onCreate} />
+                  <ProductForm
+                    title=""
+                    description={undefined}
+                    container={false}
+                    action={onCreate}
+                    canEditPrice={canEditPrice}
+                    canEditStock={canEditStock}
+                  />
                 </div>
               </div>
             </motion.div>
@@ -409,6 +418,8 @@ export function ProductsClient({ products }: Props) {
                       active: editProduct.active,
                     }}
                     action={onUpdate}
+                    canEditPrice={canEditPrice}
+                    canEditStock={canEditStock}
                   />
                 </div>
               </div>

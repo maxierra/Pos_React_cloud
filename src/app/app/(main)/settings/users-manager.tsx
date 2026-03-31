@@ -2,7 +2,22 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { UserPlus, RefreshCw, Pencil, Trash2 } from "lucide-react";
+import {
+  UserPlus,
+  RefreshCw,
+  Pencil,
+  Trash2,
+  LayoutDashboard,
+  ShoppingCart,
+  Boxes,
+  Package,
+  Users,
+  Tag,
+  BarChart3,
+  CreditCard,
+  Settings,
+  Wallet,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +41,90 @@ type Row = {
   avatar?: string | null;
 };
 
+const PERM_ICON: Record<
+  string,
+  { Icon: React.ComponentType<{ className?: string }>; color: string; bg: string; chip: string }
+> = {
+  dashboard: {
+    Icon: LayoutDashboard,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    chip: "bg-emerald-500/10 text-emerald-600",
+  },
+  pos: {
+    Icon: ShoppingCart,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    chip: "bg-emerald-500/10 text-emerald-600",
+  },
+  sales: {
+    Icon: Wallet,
+    color: "text-sky-600",
+    bg: "bg-sky-50 dark:bg-sky-950/30",
+    chip: "bg-sky-500/10 text-sky-600",
+  },
+  cash: {
+    Icon: Wallet,
+    color: "text-amber-600",
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    chip: "bg-amber-500/10 text-amber-700",
+  },
+  inventory: {
+    Icon: Boxes,
+    color: "text-sky-700",
+    bg: "bg-sky-50 dark:bg-sky-950/30",
+    chip: "bg-sky-500/10 text-sky-700",
+  },
+  products: {
+    Icon: Package,
+    color: "text-violet-600",
+    bg: "bg-violet-50 dark:bg-violet-950/30",
+    chip: "bg-violet-500/10 text-violet-600",
+  },
+  clientes: {
+    Icon: Users,
+    color: "text-cyan-700",
+    bg: "bg-cyan-50 dark:bg-cyan-950/30",
+    chip: "bg-cyan-500/10 text-cyan-700",
+  },
+  proveedores: {
+    Icon: Users,
+    color: "text-amber-700",
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    chip: "bg-amber-500/10 text-amber-700",
+  },
+  empleados: {
+    Icon: Users,
+    color: "text-rose-600",
+    bg: "bg-rose-50 dark:bg-rose-950/30",
+    chip: "bg-rose-500/10 text-rose-600",
+  },
+  etiquetas: {
+    Icon: Tag,
+    color: "text-fuchsia-600",
+    bg: "bg-fuchsia-50 dark:bg-fuchsia-950/30",
+    chip: "bg-fuchsia-500/10 text-fuchsia-600",
+  },
+  reports: {
+    Icon: BarChart3,
+    color: "text-indigo-600",
+    bg: "bg-indigo-50 dark:bg-indigo-950/30",
+    chip: "bg-indigo-500/10 text-indigo-600",
+  },
+  subscription: {
+    Icon: CreditCard,
+    color: "text-purple-600",
+    bg: "bg-purple-50 dark:bg-purple-950/30",
+    chip: "bg-purple-500/10 text-purple-600",
+  },
+  settings: {
+    Icon: Settings,
+    color: "text-slate-600",
+    bg: "bg-slate-50 dark:bg-slate-950/30",
+    chip: "bg-slate-500/10 text-slate-700",
+  },
+};
+
 function PermissionCheckboxGrid({
   values,
   onToggle,
@@ -35,20 +134,48 @@ function PermissionCheckboxGrid({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-      {EMPLOYEE_PERMISSION_OPTIONS.map((it) => (
-        <label
-          key={it.key}
-          className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--pos-border)] bg-background px-3 py-2.5 text-sm shadow-sm transition hover:bg-[var(--pos-surface-2)]"
-        >
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4 shrink-0 accent-[var(--pos-accent)]"
-            checked={Boolean(values[it.key])}
-            onChange={(e) => onToggle(it.key, e.target.checked)}
-          />
-          <span className="min-w-0 font-medium leading-snug">{it.label}</span>
-        </label>
-      ))}
+      {EMPLOYEE_PERMISSION_OPTIONS.map((it) => {
+        const active = Boolean(values[it.key]);
+        const meta = PERM_ICON[it.key] ?? {
+          Icon: LayoutDashboard,
+          color: "text-muted-foreground",
+          bg: "bg-muted/40",
+          chip: "bg-muted text-muted-foreground",
+        };
+        const Icon = meta.Icon;
+        return (
+          <label
+            key={it.key}
+            className={cn(
+              "flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2.5 text-sm shadow-sm transition",
+              active
+                ? `${meta.bg} ${meta.color} border-transparent`
+                : "border-[var(--pos-border)] bg-background hover:bg-[var(--pos-surface-2)]"
+            )}
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-[var(--pos-accent)]"
+              checked={active}
+              onChange={(e) => onToggle(it.key, e.target.checked)}
+            />
+            <span className="min-w-0 space-y-1">
+              <span className="flex items-center gap-1.5">
+                <Icon className={cn("size-3.5", active ? "" : "text-muted-foreground")} />
+                <span className="truncate font-medium leading-snug">{it.label}</span>
+              </span>
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                  active ? meta.chip : "bg-muted text-muted-foreground"
+                )}
+              >
+                Solo ver
+              </span>
+            </span>
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -358,7 +485,7 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setPermOpen(false);
           }}
         >
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
             <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Permisos del empleado</div>
@@ -369,14 +496,72 @@ export function UsersManager() {
               </Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <PermissionCheckboxGrid
-                values={perm}
-                onToggle={(key, checked) => setPerm((p) => ({ ...p, [key]: checked }))}
-              />
-              <div className="mt-4 text-[11px] text-muted-foreground">
-                Una casilla por pantalla del menú. Podés activar solo las que necesite. Los empleados creados antes
-                con solo &quot;Productos&quot; heredan Clientes, Proveedores, Empleados y Etiquetas hasta que guardes
-                de nuevo con los nuevos permisos.
+              <div className="space-y-4">
+                    <div>
+                  <div className="text-xs font-medium text-muted-foreground">Pantallas visibles</div>
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    Tildá qué secciones del menú puede abrir este empleado. Estos permisos solo dan acceso de{" "}
+                    <span className="font-semibold">lectura básica</span>.
+                  </p>
+                  <PermissionCheckboxGrid
+                    values={perm}
+                    onToggle={(key, checked) => setPerm((p) => ({ ...p, [key]: checked }))}
+                  />
+                </div>
+
+                <div className="rounded-xl border border-dashed border-[var(--pos-border)] bg-muted/30 p-3">
+                  <div className="text-xs font-semibold text-muted-foreground">Configuraciones especiales</div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Acá definís si además de ver la pantalla puede hacer acciones sensibles.{" "}
+                    <span className="font-semibold">Si no está tildado, esa acción queda bloqueada.</span>
+                  </p>
+                  <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(perm.sales_void)}
+                        onChange={(e) => setPerm((p) => ({ ...p, sales_void: e.target.checked }))}
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede anular ventas</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          Controla el acceso al botón &quot;Anular&quot; en el historial de ventas.
+                        </span>
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(perm.products_edit_price)}
+                        onChange={(e) => setPerm((p) => ({ ...p, products_edit_price: e.target.checked }))}
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede editar precios</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          Si está desactivado, el precio queda solo de lectura en la edición de productos.
+                        </span>
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(perm.products_edit_stock)}
+                        onChange={(e) => setPerm((p) => ({ ...p, products_edit_stock: e.target.checked }))}
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede editar stock</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          Si está desactivado, el stock manual de productos queda bloqueado.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -392,7 +577,7 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setEditOpen(false);
           }}
         >
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
             <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Editar usuario</div>
@@ -436,13 +621,73 @@ export function UsersManager() {
               </div>
 
               <div className="mt-5 grid gap-3">
-                <div className="text-xs font-medium text-muted-foreground">Permisos (una casilla por pantalla)</div>
-                <PermissionCheckboxGrid
-                  values={editPerm}
-                  onToggle={(key, checked) =>
-                    setEditPerm((p) => ({ ...defaultEmployeePermissions(), ...(p ?? {}), [key]: checked }))
-                  }
-                />
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Permisos (pantallas y acciones dentro de cada una)
+                  </div>
+                  <PermissionCheckboxGrid
+                    values={editPerm}
+                    onToggle={(key, checked) =>
+                      setEditPerm((p) => ({ ...defaultEmployeePermissions(), ...(p ?? {}), [key]: checked }))
+                    }
+                  />
+
+                  <div className="grid gap-2 text-xs sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(editPerm.sales_void)}
+                        onChange={(e) =>
+                          setEditPerm((p) => ({
+                            ...defaultEmployeePermissions(),
+                            ...(p ?? {}),
+                            sales_void: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede anular ventas</span>
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(editPerm.products_edit_price)}
+                        onChange={(e) =>
+                          setEditPerm((p) => ({
+                            ...defaultEmployeePermissions(),
+                            ...(p ?? {}),
+                            products_edit_price: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede editar precios</span>
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                        checked={Boolean(editPerm.products_edit_stock)}
+                        onChange={(e) =>
+                          setEditPerm((p) => ({
+                            ...defaultEmployeePermissions(),
+                            ...(p ?? {}),
+                            products_edit_stock: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="font-medium text-foreground">Puede editar stock</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--pos-border)] bg-[var(--pos-surface)] px-5 py-4">
