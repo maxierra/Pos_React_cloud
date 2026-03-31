@@ -40,22 +40,24 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Clase Tailwind para el color principal del ítem (icono/texto activo). */
+  colorClass: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart },
-  { href: "/app/inventory", label: "Inventario", icon: Boxes },
-  { href: "/app/products", label: "Productos", icon: Package },
-  { href: "/app/clientes", label: "Clientes", icon: Users },
-  { href: "/app/proveedores", label: "Proveedores", icon: Truck },
-  { href: "/app/empleados", label: "Empleados", icon: UserCircle2 },
-  { href: "/app/etiquetas", label: "Etiquetas", icon: Tag },
-  { href: "/app/sales", label: "Ventas", icon: Receipt },
-  { href: "/app/cash", label: "Caja", icon: Wallet },
-  { href: "/app/reports", label: "Reportes", icon: BarChart3 },
-  { href: "/app/subscription", label: "Suscripción", icon: CreditCard },
-  { href: "/app/settings", label: "Configuración", icon: Settings },
+  { href: "/app", label: "Dashboard", icon: LayoutDashboard, colorClass: "text-emerald-500" },
+  { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart, colorClass: "text-emerald-500" },
+  { href: "/app/inventory", label: "Inventario", icon: Boxes, colorClass: "text-sky-500" },
+  { href: "/app/products", label: "Productos", icon: Package, colorClass: "text-violet-500" },
+  { href: "/app/clientes", label: "Clientes", icon: Users, colorClass: "text-cyan-500" },
+  { href: "/app/proveedores", label: "Proveedores", icon: Truck, colorClass: "text-amber-500" },
+  { href: "/app/empleados", label: "Empleados", icon: UserCircle2, colorClass: "text-rose-500" },
+  { href: "/app/etiquetas", label: "Etiquetas", icon: Tag, colorClass: "text-fuchsia-500" },
+  { href: "/app/sales", label: "Ventas", icon: Receipt, colorClass: "text-indigo-500" },
+  { href: "/app/cash", label: "Caja", icon: Wallet, colorClass: "text-emerald-500" },
+  { href: "/app/reports", label: "Reportes", icon: BarChart3, colorClass: "text-sky-500" },
+  { href: "/app/subscription", label: "Suscripción", icon: CreditCard, colorClass: "text-purple-500" },
+  { href: "/app/settings", label: "Configuración", icon: Settings, colorClass: "text-slate-500" },
 ];
 
 type Props = {
@@ -140,8 +142,22 @@ function NavLinks({
             {active ? (
               <span className="absolute left-0 top-2 h-[calc(100%-16px)] w-1 rounded-r bg-[var(--pos-accent)]" />
             ) : null}
-            <Icon className={cn("size-4 shrink-0", active ? "text-[var(--pos-accent)]" : "")} />
-            {iconOnly ? null : <span className="truncate">{item.label}</span>}
+            <Icon
+              className={cn(
+                "size-4 shrink-0",
+                active ? item.colorClass : "text-muted-foreground"
+              )}
+            />
+            {iconOnly ? null : (
+              <span
+                className={cn(
+                  "truncate",
+                  active ? item.colorClass : ""
+                )}
+              >
+                {item.label}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -350,7 +366,7 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <header className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] px-3 py-3 shadow-sm sm:gap-3 sm:px-4">
+          <header className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--pos-border)] bg-gradient-to-r from-[var(--pos-surface-2)] to-[var(--pos-surface)] px-3 py-3 shadow-sm sm:gap-3 sm:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <Button
                 type="button"
