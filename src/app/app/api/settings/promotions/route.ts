@@ -122,15 +122,12 @@ export async function POST(request: Request) {
     payload.amount_min = body.amount_min ?? 0;
     payload.amount_max = body.amount_max ?? null;
     payload.quantity_min = null;
-    payload.product_id = null;
   } else if (kind === "ticket_quantity") {
     payload.quantity_min = body.quantity_min ?? 1;
     payload.amount_min = null;
     payload.amount_max = null;
-    payload.product_id = null;
   } else if (kind === "product_quantity") {
     payload.quantity_min = body.quantity_min ?? 1;
-    payload.product_id = body.product_id ?? null;
     payload.amount_min = null;
     payload.amount_max = null;
   }
