@@ -375,20 +375,35 @@ export function PromotionsManager() {
                           const value = (e.currentTarget.value ?? "").trim();
                           if (!value) return;
                           try {
-                            const res = await fetch(`/app/api/settings/promotions/product-lookup?code=${encodeURIComponent(value)}`);
-                            const json = (await res.json()) as { id?: string; name?: string; barcode?: string; error?: string };
+                            const res = await fetch(
+                              `/app/api/settings/promotions/product-lookup?code=${encodeURIComponent(value)}`
+                            );
+                            const json = (await res.json()) as {
+                              id?: string;
+                              name?: string;
+                              barcode?: string;
+                              error?: string;
+                            };
                             if (!res.ok || !json.id) {
                               setError(json.error ?? "No se encontró el producto para ese código.");
                               return;
                             }
+                            const productId = json.id as string;
                             setRows((prev) =>
                               prev.map((r) =>
                                 r.id === selected.id
                                   ? {
                                       ...r,
-                                      products: r.products.some((p) => p.id === json.id)
+                                      products: r.products.some((p) => p.id === productId)
                                         ? r.products
-                                        : [...r.products, { id: json.id, name: json.name ?? null, barcode: json.barcode ?? null }],
+                                        : [
+                                            ...r.products,
+                                            {
+                                              id: productId,
+                                              name: json.name ?? null,
+                                              barcode: json.barcode ?? null,
+                                            },
+                                          ],
                                     }
                                   : r
                               )
