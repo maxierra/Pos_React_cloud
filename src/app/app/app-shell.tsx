@@ -144,15 +144,16 @@ function NavLinks({
             ) : null}
             <Icon
               className={cn(
-                "size-4 shrink-0",
-                active ? item.colorClass : "text-muted-foreground"
+                "size-4 shrink-0 transition-colors",
+                item.colorClass,
+                active ? "opacity-100" : "opacity-60 group-hover:opacity-100"
               )}
             />
             {iconOnly ? null : (
               <span
                 className={cn(
-                  "truncate",
-                  active ? item.colorClass : ""
+                  "truncate transition-colors",
+                  active ? "font-semibold" : "text-muted-foreground"
                 )}
               >
                 {item.label}
@@ -220,7 +221,7 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[min(20rem,calc(100vw-2rem))] max-w-[100vw] flex-col border-r border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-xl transition-transform duration-200 ease-out md:hidden",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(20rem,calc(100vw-2rem))] max-w-[100vw] flex-col border-r border-[var(--pos-border)] bg-[#f5f7fb] shadow-xl transition-transform duration-200 ease-out dark:bg-zinc-950",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
         )}
         role="dialog"
@@ -297,7 +298,7 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
       <div className="flex min-h-dvh w-full gap-4 px-2 py-4 md:px-3">
         <aside
           className={cn(
-            "sticky top-4 hidden h-[calc(100dvh-2rem)] shrink-0 flex-col rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-sm md:flex",
+            "sticky top-4 hidden h-[calc(100dvh-2rem)] shrink-0 flex-col rounded-2xl border border-[var(--pos-border)] bg-[#f5f7fb] shadow-sm md:flex dark:bg-zinc-950",
             collapsed ? "w-20" : "w-72"
           )}
         >
