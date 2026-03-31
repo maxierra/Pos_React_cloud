@@ -660,9 +660,6 @@ export function PromotionsManager() {
                 ) : null}
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setPromosOpen(false)}>
-                  Cerrar
-                </Button>
                 <Button type="button" size="sm" onClick={onSave} disabled={saving}>
                   {saving ? "Guardando…" : "Guardar promoción"}
                 </Button>
