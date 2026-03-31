@@ -127,8 +127,6 @@ revoke all on function public.customer_balance(uuid) from public;
 grant execute on function public.customer_balance(uuid) to authenticated;
 
 -- 6) create_sale_with_items con validación de crédito y cliente
-drop function if exists public.create_sale_with_items(uuid, text, jsonb, jsonb);
-
 create or replace function public.create_sale_with_items(
   p_business_id uuid,
   p_payment_method text,
@@ -297,9 +295,6 @@ begin
   return v_sale_id;
 end;
 $$;
-
-revoke all on function public.create_sale_with_items(uuid, text, jsonb, jsonb, uuid) from public;
-grant execute on function public.create_sale_with_items(uuid, text, jsonb, jsonb, uuid) to authenticated;
 
 -- 7) Cobro de cuenta corriente (baja deuda + movimiento de caja real)
 create or replace function public.record_customer_account_payment(

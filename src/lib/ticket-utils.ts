@@ -40,6 +40,13 @@ export type TicketData = {
       difference: number;
     }[];
   };
+  promotion?: {
+    name: string;
+    percent: number;
+    amount: number;
+    total_before: number;
+    total_after: number;
+  } | null;
 };
 
 function escapeHtml(value: string) {
@@ -77,6 +84,7 @@ export function generateTicketHtml(data: TicketData) {
     kind,
     created_at,
     closureData,
+    promotion,
   } = data;
   const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
   
@@ -93,7 +101,10 @@ export function generateTicketHtml(data: TicketData) {
       .join("");
   }
 
-  const change = cashReceived ? Math.max(0, cashReceived - total) : 0;
+  const promo = promotion && promotion.amount > 0 ? promotion : null;
+  const baseTotal = promo ? promo.total_before : total;
+  const finalTotal = promo ? promo.total_after : total;
+  const change = cashReceived ? Math.max(0, cashReceived - finalTotal) : 0;
   const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
   const idValue = (saleId || movementId || "").slice(0, 8);
 
@@ -155,7 +166,21 @@ export function generateTicketHtml(data: TicketData) {
       </div>
     ` : `
       <div style="border-top:1px dashed #000;margin:6px 0;"></div>
-      <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOTAL</span><span>$${total.toFixed(2)}</span></div>
+      ${
+        promo
+          ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;">
+          <span>Subtotal</span><span>$${baseTotal.toFixed(2)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#16a34a;">
+          <span>Promo: ${escapeHtml(promo.name)} (${promo.percent.toFixed(1)}%)</span>
+          <span>−$${promo.amount.toFixed(2)}</span>
+        </div>
+        <div style="border-top:1px dashed #000;margin:6px 0;"></div>
+      `
+          : ""
+      }
+      <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOTAL</span><span>$${finalTotal.toFixed(2)}</span></div>
       ${paymentMethod ? `<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px;"><span>Pago</span><span>${escapeHtml(getPaymentMethodLabel(paymentMethod, paymentMethodLabels))}</span></div>` : ""}
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Recibido</span><span>$${cashReceived.toFixed(2)}</span></div>` : ""}
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Vuelto</span><span>$${change.toFixed(2)}</span></div>` : ""}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Users, Store, Mail, Wallet, X, QrCode } from "lucide-react";
+import { Percent, Users, Store, Mail, Wallet, X, QrCode } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { BusinessInfoForm } from "@/app/app/(main)/settings/business-info-form";
 import { MercadoPagoPosForm } from "@/app/app/(main)/settings/mercadopago-pos-form";
 import { PaymentMethodsManager } from "@/app/app/(main)/settings/payment-methods-manager";
 import { UsersManager } from "@/app/app/(main)/settings/users-manager";
+import { PromotionsManager } from "@/app/app/(main)/settings/promotions-manager";
 import { updateReportDaily, sendDailyReportNow } from "@/app/app/(main)/settings/actions";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 
@@ -96,7 +97,7 @@ function ModalShell({
           "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.55)]",
           "ring-1 ring-black/[0.06] dark:ring-white/10",
           maxWidthClass,
-          "max-h-[min(90vh,880px)]"
+          "max-h-[min(95vh,960px)]"
         )}
       >
         <div className="relative shrink-0 overflow-hidden border-b border-border/50">
@@ -175,6 +176,7 @@ function SettingsCard({
   title,
   description,
   hint,
+  tooltip,
   onClick,
 }: {
   accent: SettingsCardAccent;
@@ -182,23 +184,25 @@ function SettingsCard({
   title: string;
   description: string;
   hint: string;
+  tooltip?: string;
   onClick: () => void;
 }) {
   const s = SETTINGS_CARD_STYLES[accent];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "group relative text-left",
-        "rounded-2xl border border-border/70 bg-card",
-        "shadow-md shadow-black/[0.04] dark:shadow-black/20",
-        "ring-1 ring-transparent transition-all duration-200",
-        "hover:-translate-y-1 hover:shadow-xl",
-        s.hoverBorder,
-        s.hoverShadow
-      )}
-    >
+      <button
+        type="button"
+        onClick={onClick}
+        title={tooltip ?? description}
+        className={cn(
+          "group relative text-left",
+          "rounded-2xl border border-border/70 bg-card",
+          "shadow-md shadow-black/[0.04] dark:shadow-black/20",
+          "ring-1 ring-transparent transition-all duration-200",
+          "hover:-translate-y-1 hover:shadow-xl",
+          s.hoverBorder,
+          s.hoverShadow
+        )}
+      >
       <div className="relative overflow-hidden rounded-2xl p-5">
         <div
           className={cn(
@@ -221,13 +225,15 @@ function SettingsCard({
           </div>
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="font-semibold tracking-tight text-foreground">{title}</div>
-            <p className="text-sm text-muted-foreground">{description}</p>
-            <p className="text-xs font-medium text-muted-foreground/90">{hint}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
+            <p className="text-[11px] font-medium text-muted-foreground/80">{hint}</p>
           </div>
         </div>
-        <div className="mt-4 flex items-center text-xs font-semibold text-foreground/70 transition group-hover:text-foreground">
-          <span className="border-b border-transparent group-hover:border-current">Abrir</span>
-          <span className="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+        <div className="mt-4 flex items-center justify-between text-[11px] font-semibold text-muted-foreground/80 group-hover:text-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span className="border-b border-transparent group-hover:border-current">Abrir sección</span>
+            <span className="ml-0.5 transition-transform group-hover:translate-x-0.5">→</span>
+          </span>
         </div>
       </div>
     </button>
@@ -246,6 +252,7 @@ export function SettingsClient({
   const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [mpPosOpen, setMpPosOpen] = React.useState(false);
   const [reportOpen, setReportOpen] = React.useState(false);
+   const [promosOpen, setPromosOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [sendingNow, setSendingNow] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -297,44 +304,58 @@ export function SettingsClient({
           accent="emerald"
           icon={Store}
           title="Datos del negocio"
-          description="Información que sale en el ticket de venta."
-          hint="Nombre, CUIT, dirección y textos del ticket."
+          description="Nombre, CUIT y datos fiscales del comercio."
+          hint="Encabezado y pie del ticket."
+          tooltip="Configurá nombre del negocio, CUIT, dirección y textos que se imprimen en el ticket."
           onClick={() => setBizOpen(true)}
         />
         <SettingsCard
           accent="sky"
           icon={Users}
           title="Usuarios"
-          description="Empleados que acceden a este comercio."
-          hint="Creá cuentas y asigná roles."
+          description="Cuentas para empleados y permisos."
+          hint="Alta, baja y edición."
+          tooltip="Creá usuarios para tus empleados, definí roles y permisos para cada uno."
           onClick={() => setUsersOpen(true)}
         />
         <SettingsCard
           accent="violet"
           icon={Wallet}
           title="Medios de pago"
-          description="Qué aparece al cobrar en el POS."
-          hint={`${paymentMethods.filter((m) => m.is_active).length} activos en caja`}
+          description="Opciones que aparecen al cobrar."
+          hint={`${paymentMethods.filter((m) => m.is_active).length} medios activos`}
+          tooltip="Elegí qué métodos de pago se muestran en el POS, su nombre visible, ícono y orden."
           onClick={() => setPaymentOpen(true)}
+        />
+        <SettingsCard
+          accent="amber"
+          icon={Percent}
+          title="Promociones y descuentos"
+          description="Reglas automáticas de descuentos."
+          hint="Por monto, cantidad o producto."
+          tooltip="Definí promociones por monto de ticket, cantidad total o cantidad de producto, filtradas por medios de pago y horarios."
+          onClick={() => setPromosOpen(true)}
         />
         <SettingsCard
           accent="cyan"
           icon={QrCode}
           title="Mercado Pago (QR)"
-          description="Token e ID de caja para cobrar con QR en el POS."
-          hint={mercadoPagoQrReady ? "QR activo en ventas" : "Sin configurar o incompleto"}
+          description="Cobro con QR en el POS."
+          hint={mercadoPagoQrReady ? "QR activo" : "Pendiente de configurar"}
+          tooltip="Cargá el token y la caja de Mercado Pago para mostrar el QR al cobrar desde el POS."
           onClick={() => setMpPosOpen(true)}
         />
         <SettingsCard
           accent="amber"
           icon={Mail}
           title="Reporte diario"
-          description="Recibí un resumen diario por email."
+          description="Resumen diario por email."
           hint={
             defaults?.report_daily_enabled
               ? `Activo · ${defaults.report_daily_email || "sin email"}`
               : "Configurar envío automático"
           }
+          tooltip="Activá un mail automático con resumen de ventas, caja e inventario para cada día."
           onClick={() => setReportOpen(true)}
         />
       </div>
@@ -368,6 +389,17 @@ export function SettingsClient({
         accent="violet"
       >
         <PaymentMethodsManager initialRows={paymentMethods} canEdit={canEditPaymentMethods} />
+      </ModalShell>
+
+      <ModalShell
+        open={promosOpen}
+        title="Promociones y descuentos"
+        description="Configurá reglas de descuento por monto de ticket, cantidad total o cantidad por producto. Se aplican automáticamente en el punto de venta."
+        onClose={() => setPromosOpen(false)}
+        maxWidthClass="max-w-[1320px]"
+        accent="amber"
+      >
+        <PromotionsManager />
       </ModalShell>
 
       <ModalShell

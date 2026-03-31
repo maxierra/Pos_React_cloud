@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 
 import { Landmark, X } from "lucide-react";
 
+import { previewPromotion } from "@/app/app/(main)/pos/actions";
 import { createMercadoPagoPosQr } from "@/app/app/(main)/pos/mp-qr-actions";
 import {
   cancelMercadoPagoPosCheckout,
@@ -241,6 +242,52 @@ export function PaymentModal({
     window.setTimeout(() => receivedRef.current?.focus(), 0);
   }, [open, defaultMethod, total, activeSorted]);
 
+  const effectivePaymentMethod: PaymentMethodOrMixed = mixed ? "mixed" : method;
+
+  const [promoPreview, setPromoPreview] = React.useState<{
+    name: string;
+    percent: number;
+    amount: number;
+    total_before: number;
+    total_after: number;
+  } | null>(null);
+  const [promoLoading, setPromoLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (!items.length) {
+      setPromoPreview(null);
+      return;
+    }
+    setPromoLoading(true);
+    void (async () => {
+      try {
+        const res = await previewPromotion({
+          payment_method: effectivePaymentMethod,
+          items: items.map((it) => ({
+            product_id: it.product_id,
+            name: it.name,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+          })),
+        });
+        const promo = (res as any).promotion as
+          | { name: string; percent: number; amount: number; total_before: number; total_after: number }
+          | null
+          | undefined;
+        setPromoPreview(promo && promo.amount > 0 ? promo : null);
+      } catch {
+        setPromoPreview(null);
+      } finally {
+        setPromoLoading(false);
+      }
+    })();
+  }, [open, items, effectivePaymentMethod]);
+
+  const promo = promoPreview;
+  const baseTotal = promo?.total_before ?? total;
+  const finalTotal = promo?.total_after ?? total;
+
   React.useEffect(() => {
     if (!open) return;
     if (method === "cash") return;
@@ -439,7 +486,24 @@ export function PaymentModal({
               <div className="overflow-y-auto px-5 py-4">
                 <div className="rounded-xl border bg-[var(--pos-surface-2)]/30 p-3">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total a cobrar</div>
-                  <div className="mt-0.5 text-3xl font-bold tracking-tight text-[var(--pos-accent)]">${total}</div>
+                  <div className="mt-0.5 text-3xl font-bold tracking-tight text-[var(--pos-accent)]">
+                    ${finalTotal.toFixed(2)}
+                  </div>
+                  {promo ? (
+                    <div className="mt-1 space-y-0.5 text-xs">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>${baseTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                        <span>Promo: {promo.name} ({promo.percent.toFixed(1)}%)</span>
+                        <span>−${promo.amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                  {promoLoading ? (
+                    <div className="mt-1 text-[10px] text-muted-foreground">Calculando promociones…</div>
+                  ) : null}
                 </div>
 
                 <div className="mt-3 grid gap-2.5">
@@ -846,9 +910,22 @@ export function PaymentModal({
                     })}
                   </div>
                   <div className="my-2 border-b border-dashed" />
+                  {promo ? (
+                    <>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>${baseTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
+                        <span>Promo: {promo.name} ({promo.percent.toFixed(1)}%)</span>
+                        <span>−${promo.amount.toFixed(2)}</span>
+                      </div>
+                      <div className="my-1 border-b border-dashed" />
+                    </>
+                  ) : null}
                   <div className="flex items-center justify-between font-bold">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${finalTotal.toFixed(2)}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between">
                     <span>Pago</span>

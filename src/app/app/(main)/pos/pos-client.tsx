@@ -207,23 +207,31 @@ export function PosClient({
               })),
             });
 
+            const promo = (res as any).promotion as
+              | { name: string; percent: number; amount: number; total_before: number; total_after: number }
+              | null
+              | undefined;
+
             if (p.print_ticket) {
               printTicket({
                 kind: "sale",
                 business,
                 items: cart.items,
-                total: cart.total,
+                total: promo?.total_after ?? cart.total,
                 saleId: res.saleId,
                 paymentMethod: p.payment_method,
                 paymentMethodLabels: paymentLabelMap,
                 cashReceived: p.cash_received,
+                promotion: promo ?? null,
               });
             }
 
             cart.clear();
             closePayment();
             toast.success("Venta registrada", {
-              description: `ID ${res.saleId.slice(0, 8)}`,
+              description: promo
+                ? `ID ${res.saleId.slice(0, 8)} · Promo: ${promo.name} (-$${promo.amount.toFixed(2)})`
+                : `ID ${res.saleId.slice(0, 8)}`,
             });
           } catch (err) {
             toast.error("No se pudo cobrar", {
