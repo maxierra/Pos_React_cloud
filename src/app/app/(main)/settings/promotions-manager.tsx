@@ -234,7 +234,11 @@ export function PromotionsManager() {
                       {r.kind === "product_quantity" && (
                         <>
                           Desde <strong>{r.quantity_min ?? 0}</strong> unidades de{" "}
-                          <strong>{r.product_name ?? "producto"}</strong>
+                          <strong>
+                            {r.products[0]?.name ??
+                              r.products[0]?.barcode ??
+                              "producto"}
+                          </strong>
                         </>
                       )}
                     </div>
