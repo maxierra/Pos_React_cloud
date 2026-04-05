@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useFormState } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -306,6 +307,8 @@ export function CashPageClient({
   const [closeModal, setCloseModal] = React.useState(false);
   const [historyModal, setHistoryModal] = React.useState(false);
   const [historyDetailTurn, setHistoryDetailTurn] = React.useState<Props["historyTurns"][number] | null>(null);
+  
+  const [openCashState, openCashFormAction] = useFormState(openCashRegisterAction, { success: false, error: null });
   const [countedCash, setCountedCash] = React.useState(String(expectedByMethod.cash || 0));
   const [countedCard, setCountedCard] = React.useState(String(expectedByMethod.card || 0));
   const [countedTransfer, setCountedTransfer] = React.useState(String(expectedByMethod.transfer || 0));
@@ -319,6 +322,14 @@ export function CashPageClient({
     setCountedTransfer(String(expectedByMethod.transfer || 0));
     setCountedMercadoPago(String(expectedByMethod.mercadopago || 0));
   }, [expectedByMethod.cash, expectedByMethod.card, expectedByMethod.transfer, expectedByMethod.mercadopago, closeModal]);
+
+  // Cerrar modal de apertura de caja cuando la acción se completa exitosamente
+  React.useEffect(() => {
+    if (openCashState?.success) {
+      setOpenCashModal(false);
+      router.refresh(); // Refrescar la página para mostrar la caja abierta
+    }
+  }, [openCashState, router]);
 
   const counted = {
     cash: Number(countedCash || 0),
@@ -738,7 +749,7 @@ export function CashPageClient({
                   <X className="size-4" />
                 </Button>
               </div>
-              <form action={openCashRegisterAction} className="grid gap-3 p-5">
+              <form action={openCashFormAction} className="grid gap-3 p-5">
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="grid gap-1.5">
                     <Label htmlFor="opening_amount_modal">Monto inicial</Label>
@@ -763,6 +774,11 @@ export function CashPageClient({
                   </Button>
                   <Button type="submit">Abrir caja</Button>
                 </div>
+                {openCashState?.error && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                    {openCashState.error}
+                  </div>
+                )}
               </form>
             </motion.div>
           </motion.div>

@@ -25,28 +25,34 @@ function parseMethodTotals(formData: FormData) {
   return { cash, card, transfer, mercadopago };
 }
 
-async function openCashRegisterActionImpl(formData: FormData) {
-  const cookieStore = await cookies();
-  const businessId = cookieStore.get("active_business_id")?.value;
-  if (!businessId) throw new Error("missing_active_business_id");
+async function openCashRegisterActionImpl(prevState: any, formData: FormData) {
+  try {
+    const cookieStore = await cookies();
+    const businessId = cookieStore.get("active_business_id")?.value;
+    if (!businessId) throw new Error("missing_active_business_id");
 
-  const openingAmount = parseMoney(formData.get("opening_amount"));
-  const shiftStartAt = parseTime(formData.get("shift_start_at"));
-  const shiftEndAt = parseTime(formData.get("shift_end_at"));
-  const notes = String(formData.get("notes") ?? "").trim();
+    const openingAmount = parseMoney(formData.get("opening_amount"));
+    const shiftStartAt = parseTime(formData.get("shift_start_at"));
+    const shiftEndAt = parseTime(formData.get("shift_end_at"));
+    const notes = String(formData.get("notes") ?? "").trim();
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("open_cash_register", {
-    p_business_id: businessId,
-    p_opening_amount: openingAmount,
-    p_shift_start_at: shiftStartAt,
-    p_shift_end_at: shiftEndAt,
-    p_notes: notes || null,
-  });
-  if (error) throw new Error(error.message);
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("open_cash_register", {
+      p_business_id: businessId,
+      p_opening_amount: openingAmount,
+      p_shift_start_at: shiftStartAt,
+      p_shift_end_at: shiftEndAt,
+      p_notes: notes || null,
+    });
+    if (error) throw new Error(error.message);
 
-  revalidatePath("/app/cash");
-  revalidatePath("/app/pos");
+    revalidatePath("/app/cash");
+    revalidatePath("/app/pos");
+    
+    return { success: true };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 async function createCashMovementActionImpl(formData: FormData) {
