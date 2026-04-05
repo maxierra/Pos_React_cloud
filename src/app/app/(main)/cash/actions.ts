@@ -25,7 +25,7 @@ function parseMethodTotals(formData: FormData) {
   return { cash, card, transfer, mercadopago };
 }
 
-async function openCashRegisterActionImpl(prevState: any, formData: FormData) {
+async function openCashRegisterActionImpl(prevState: { success: boolean; error: string | null }, formData: FormData) {
   try {
     const cookieStore = await cookies();
     const businessId = cookieStore.get("active_business_id")?.value;
@@ -49,9 +49,9 @@ async function openCashRegisterActionImpl(prevState: any, formData: FormData) {
     revalidatePath("/app/cash");
     revalidatePath("/app/pos");
     
-    return { success: true };
+    return { success: true, error: null };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 

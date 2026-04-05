@@ -308,7 +308,7 @@ export function CashPageClient({
   const [historyModal, setHistoryModal] = React.useState(false);
   const [historyDetailTurn, setHistoryDetailTurn] = React.useState<Props["historyTurns"][number] | null>(null);
   
-  const [openCashState, openCashFormAction] = useFormState(openCashRegisterAction, { success: false, error: null });
+  const [openCashState, openCashFormAction] = useFormState(openCashRegisterAction, { success: false, error: null as string | null });
   const [countedCash, setCountedCash] = React.useState(String(expectedByMethod.cash || 0));
   const [countedCard, setCountedCard] = React.useState(String(expectedByMethod.card || 0));
   const [countedTransfer, setCountedTransfer] = React.useState(String(expectedByMethod.transfer || 0));
