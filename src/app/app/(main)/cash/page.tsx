@@ -225,58 +225,34 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   let movements: CashMovementRow[] = [];
   let customerPayments: CustomerPaymentRow[] = [];
 
-  if (openRegister && !filterDate) {
-    const [{ data: salesData }, { data: movementsData }, { data: capData }] = await Promise.all([
-      supabase
-        .from("sales")
-        .select("id,total,payment_method,payment_details,status,created_at")
-        .eq("business_id", businessId)
-        .eq("cash_register_id", openRegister.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("cash_movements")
-        .select("id,movement_type,payment_method,amount,reason,notes,created_at")
-        .eq("business_id", businessId)
-        .eq("cash_register_id", openRegister.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("customer_account_payments")
-        .select("id,amount,payment_method,created_at,notes")
-        .eq("business_id", businessId)
-        .eq("cash_register_id", openRegister.id)
-        .order("created_at", { ascending: false }),
-    ]);
-    sales = (salesData ?? []) as SaleRow[];
-    movements = (movementsData ?? []) as CashMovementRow[];
-    customerPayments = (capData ?? []) as CustomerPaymentRow[];
-  } else {
-    const [{ data: salesData }, { data: movementsData }, { data: capData }] = await Promise.all([
-      supabase
-        .from("sales")
-        .select("id,total,payment_method,payment_details,status,created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", todayEnd.toISOString())
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("cash_movements")
-        .select("id,movement_type,payment_method,amount,reason,notes,created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", todayEnd.toISOString())
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("customer_account_payments")
-        .select("id,amount,payment_method,created_at,notes")
-        .eq("business_id", businessId)
-        .gte("created_at", todayStart.toISOString())
-        .lt("created_at", todayEnd.toISOString())
-        .order("created_at", { ascending: false }),
-    ]);
-    sales = (salesData ?? []) as SaleRow[];
-    movements = (movementsData ?? []) as CashMovementRow[];
-    customerPayments = (capData ?? []) as CustomerPaymentRow[];
-  }
+  // MODELO B: siempre mostramos la foto del día (o fecha filtrada),
+  // independientemente de si hay caja abierta o no.
+  const [{ data: salesData }, { data: movementsData }, { data: capData }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("id,total,payment_method,payment_details,status,created_at")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", todayEnd.toISOString())
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("cash_movements")
+      .select("id,movement_type,payment_method,amount,reason,notes,created_at")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", todayEnd.toISOString())
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("customer_account_payments")
+      .select("id,amount,payment_method,created_at,notes")
+      .eq("business_id", businessId)
+      .gte("created_at", todayStart.toISOString())
+      .lt("created_at", todayEnd.toISOString())
+      .order("created_at", { ascending: false }),
+  ]);
+  sales = (salesData ?? []) as SaleRow[];
+  movements = (movementsData ?? []) as CashMovementRow[];
+  customerPayments = (capData ?? []) as CustomerPaymentRow[];
 
   const [{ data: businessData }, { data: turnsData }] = await Promise.all([
     supabase

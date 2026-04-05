@@ -305,6 +305,7 @@ export function CashPageClient({
   const [movementPending, startMovementTransition] = React.useTransition();
   const [closeModal, setCloseModal] = React.useState(false);
   const [historyModal, setHistoryModal] = React.useState(false);
+  const [historyDetailTurn, setHistoryDetailTurn] = React.useState<Props["historyTurns"][number] | null>(null);
   const [countedCash, setCountedCash] = React.useState(String(expectedByMethod.cash || 0));
   const [countedCard, setCountedCard] = React.useState(String(expectedByMethod.card || 0));
   const [countedTransfer, setCountedTransfer] = React.useState(String(expectedByMethod.transfer || 0));
@@ -780,7 +781,7 @@ export function CashPageClient({
             }}
           >
             <motion.div
-              className="w-full max-w-5xl rounded-2xl border bg-card shadow-xl"
+              className="w-full max-w-6xl rounded-2xl border bg-card shadow-xl"
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -1035,7 +1036,7 @@ export function CashPageClient({
             }}
           >
             <motion.div
-              className="w-full max-w-4xl rounded-2xl border bg-card shadow-xl"
+              className="w-full max-w-6xl rounded-2xl border bg-card shadow-xl"
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -1095,10 +1096,141 @@ export function CashPageClient({
                             <div className="rounded-md bg-primary/5 px-3 py-2">Cierre efec.: {moneyAr(turn.closing_amount)}</div>
                             <div className="rounded-md bg-primary/5 px-3 py-2">Dif total: {moneyAr(diffSum)}</div>
                           </div>
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={() => setHistoryDetailTurn(turn)}
+                            >
+                              Ver detalle
+                            </Button>
+                          </div>
                         </div>
                       );
                     })
                   )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {historyDetailTurn ? (
+          <motion.div
+            className="fixed inset-0 z-[55] flex items-center justify-center bg-black/60 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setHistoryDetailTurn(null);
+            }}
+          >
+            <motion.div
+              className="w-full max-w-5xl rounded-2xl border bg-card shadow-xl"
+              initial={{ y: 16, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 16, opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="flex items-center justify-between border-b px-5 py-4">
+                <div>
+                  <div className="text-sm font-semibold tracking-tight">
+                    Detalle de turno #{historyDetailTurn.id.slice(0, 8)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Apertura: {formatArDateTime(historyDetailTurn.opened_at)}
+                    {historyDetailTurn.closed_at ? ` · Cierre: ${formatArDateTime(historyDetailTurn.closed_at)}` : " · Abierto"}
+                  </div>
+                </div>
+                <Button type="button" variant="ghost" size="icon" onClick={() => setHistoryDetailTurn(null)}>
+                  <X className="size-4" />
+                </Button>
+              </div>
+              <div className="max-h-[75vh] overflow-auto p-6 space-y-4 text-sm">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-md bg-primary/5 px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Vendido</div>
+                    <div className="font-semibold">{moneyAr(historyDetailTurn.sold_total)}</div>
+                  </div>
+                  <div className="rounded-md bg-primary/5 px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Apertura</div>
+                    <div className="font-semibold">{moneyAr(historyDetailTurn.opening_amount)}</div>
+                  </div>
+                  <div className="rounded-md bg-primary/5 px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Cierre efectivo</div>
+                    <div className="font-semibold">{moneyAr(historyDetailTurn.closing_amount)}</div>
+                  </div>
+                  <div className="rounded-md bg-primary/5 px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Diferencia total</div>
+                    <div className="font-semibold">
+                      {moneyAr(
+                        Math.abs(historyDetailTurn.difference_totals.cash) +
+                          Math.abs(historyDetailTurn.difference_totals.card) +
+                          Math.abs(historyDetailTurn.difference_totals.transfer) +
+                          Math.abs(historyDetailTurn.difference_totals.mercadopago),
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Detalle por medio de pago
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    {(["cash", "card", "transfer", "mercadopago"] as const).map((m) => {
+                      const tone = methodCardTone(m);
+                      const label = methodLabel(m);
+                      const expected = historyDetailTurn.expected_totals[m];
+                      const closing = historyDetailTurn.closing_totals[m];
+                      const diff = historyDetailTurn.difference_totals[m];
+                      return (
+                        <div
+                          key={m}
+                          className={
+                            "rounded-xl border px-2 py-1.5 text-[11px] flex flex-col gap-1 " +
+                            tone.wrap
+                          }
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className={tone.title}>{label}</span>
+                            </div>
+                            <span className={"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium " + tone.badge}>
+                              {methodIcon(m)}
+                              {methodShortLabel(m)}
+                            </span>
+                          </div>
+                          <div
+                            className={
+                              "mt-0.5 flex flex-wrap items-center gap-1 text-[11px] " +
+                              (Math.abs(diff) < 0.01
+                                ? "text-muted-foreground"
+                                : diff > 0
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-rose-600 dark:text-rose-400")
+                            }
+                          >
+                            <span className="text-muted-foreground">
+                              Esp: <span className="font-semibold text-foreground">{moneyAr(expected)}</span>
+                            </span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="text-muted-foreground">
+                              Cont: <span className="font-semibold text-foreground">{moneyAr(closing)}</span>
+                            </span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="font-semibold">
+                              Dif: {moneyAr(diff)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </motion.div>

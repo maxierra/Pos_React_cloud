@@ -1,0 +1,27 @@
+{
+  "name": "pos-printer-agent",
+  "version": "0.1.0",
+  "description": "Agente local de impresión para el POS (imprime tickets en impresoras térmicas desde localhost).",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build:exe": "npx pkg . --targets node18-win-x64 --output dist/pos-printer-agent.exe"
+  },
+  "bin": {
+    "pos-printer-agent": "index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "printer": "^0.4.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [],
+    "targets": [
+      "node18-win-x64"
+    ]
+  }
+}

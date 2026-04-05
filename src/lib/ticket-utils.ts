@@ -108,8 +108,27 @@ export function generateTicketHtml(data: TicketData) {
   const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
   const idValue = (saleId || movementId || "").slice(0, 8);
 
-  return `<!doctype html><html><head><meta charset="utf-8" /><title>Ticket</title></head>
-  <body style="font-family:monospace;padding:16px;max-width:300px;margin:auto;color:#000;background:#fff;">
+  return `<!doctype html><html><head><meta charset="utf-8" /><title>Ticket</title>
+  <style>
+    @page {
+      margin: 0;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: monospace;
+      /* 58–80mm ancho típico de ticket */
+      width: 72mm;
+      max-width: 72mm;
+      padding: 8px 10px;
+      color: #000;
+      background: #fff;
+    }
+  </style>
+  </head>
+  <body>
     <div style="text-align:center;margin-bottom:10px;">
       <div style="font-weight:bold;font-size:16px">${escapeHtml(business?.name ?? "Mi Negocio")}</div>
       ${business?.address ? `<div style="font-size:11px">${escapeHtml(business.address)}</div>` : ""}
@@ -203,8 +222,7 @@ export function printTicket(data: TicketData) {
   popup.document.write(html);
   popup.document.close();
   popup.focus();
-  
-  // Wait for content to load before printing
+
   setTimeout(() => {
     popup.print();
     popup.close();

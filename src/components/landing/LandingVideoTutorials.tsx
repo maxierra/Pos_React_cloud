@@ -18,16 +18,22 @@ export function LandingVideoTutorials() {
           Guías paso a paso para sacarle el máximo al sistema.
         </p>
 
-        <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-white/[0.03] px-6 py-14 backdrop-blur-sm md:py-16">
-          <PlayCircle
-            className="mx-auto size-14 text-white/25 md:size-16"
-            strokeWidth={1.25}
-            aria-hidden
-          />
-          <p className="mt-4 text-lg font-medium text-white/80">Próximamente</p>
-          <p className="mt-2 text-sm text-white/50">
-            Estamos preparando videos cortos: primera venta, stock, informes y más.
-          </p>
+        <div className="mt-8 rounded-2xl border border-white/20 bg-white/[0.03] p-2 backdrop-blur-sm">
+          <div className="relative aspect-video rounded-xl overflow-hidden bg-black/50">
+            <iframe
+              src="https://www.loom.com/embed/c119a013531a4928a9ee3dcd98f3fce9"
+              className="absolute inset-0 w-full h-full rounded-xl"
+              title="Video tutorial - Punto de Venta"
+              allowFullScreen
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+            />
+          </div>
+          <div className="mt-4 text-center">
+            <p className="text-lg font-medium text-white/80">Tutorial completo del sistema</p>
+            <p className="mt-2 text-sm text-white/50">
+              Aprendé a hacer tu primera venta, gestionar stock y generar informes.
+            </p>
+          </div>
         </div>
       </div>
     </section>

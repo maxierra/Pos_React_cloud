@@ -1,8 +1,22 @@
-/* Solo al imprimir desde /app/etiquetas: ocultar la UI y mostrar el área de etiquetas */
+/* Solo al imprimir desde /app/etiquetas:
+ * ocultar toda la UI y mostrar únicamente el área de etiquetas,
+ * ocupando toda la página.
+ */
 @media print {
+  body {
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Ocultar layout general (header, sidebar, etc.) */
+  header,
+  aside,
+  nav,
   .etiquetas-ui {
     display: none !important;
   }
+
+  /* Forzar que solo el área de impresión ocupe la página */
   .etiquetas-print-area {
     position: static !important;
     left: auto !important;
@@ -10,5 +24,6 @@
     z-index: auto !important;
     width: 100% !important;
     padding: 0 !important;
+    background: #ffffff !important;
   }
 }

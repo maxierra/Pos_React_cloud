@@ -632,71 +632,82 @@ export function UsersManager() {
                     }
                   />
 
-                  <div className="grid gap-2 text-xs sm:grid-cols-2">
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                      <input
-                        type="checkbox"
-                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
-                        checked={Boolean(editPerm.sales_void)}
-                        onChange={(e) =>
-                          setEditPerm((p) => ({
-                            ...defaultEmployeePermissions(),
-                            ...(p ?? {}),
-                            sales_void: e.target.checked,
-                          }))
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="font-medium text-foreground">Puede anular ventas</span>
-                      </span>
-                    </label>
+                  <div className="rounded-xl border border-dashed border-[var(--pos-border)] bg-muted/30 p-3 text-xs">
+                    <div className="font-semibold text-muted-foreground">Acciones especiales</div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                          checked={Boolean(editPerm.sales_void)}
+                          onChange={(e) =>
+                            setEditPerm((p) => ({
+                              ...defaultEmployeePermissions(),
+                              ...(p ?? {}),
+                              sales_void: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium text-foreground">Puede anular ventas</span>
+                        </span>
+                      </label>
 
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                      <input
-                        type="checkbox"
-                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
-                        checked={Boolean(editPerm.products_edit_price)}
-                        onChange={(e) =>
-                          setEditPerm((p) => ({
-                            ...defaultEmployeePermissions(),
-                            ...(p ?? {}),
-                            products_edit_price: e.target.checked,
-                          }))
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="font-medium text-foreground">Puede editar precios</span>
-                      </span>
-                    </label>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                          checked={Boolean(editPerm.products_edit_price)}
+                          onChange={(e) =>
+                            setEditPerm((p) => ({
+                              ...defaultEmployeePermissions(),
+                              ...(p ?? {}),
+                              products_edit_price: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium text-foreground">Puede editar precios</span>
+                        </span>
+                      </label>
 
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
-                      <input
-                        type="checkbox"
-                        className="size-4 shrink-0 accent-[var(--pos-accent)]"
-                        checked={Boolean(editPerm.products_edit_stock)}
-                        onChange={(e) =>
-                          setEditPerm((p) => ({
-                            ...defaultEmployeePermissions(),
-                            ...(p ?? {}),
-                            products_edit_stock: e.target.checked,
-                          }))
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="font-medium text-foreground">Puede editar stock</span>
-                      </span>
-                    </label>
+                      <label className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="size-4 shrink-0 accent-[var(--pos-accent)]"
+                          checked={Boolean(editPerm.products_edit_stock)}
+                          onChange={(e) =>
+                            setEditPerm((p) => ({
+                              ...defaultEmployeePermissions(),
+                              ...(p ?? {}),
+                              products_edit_stock: e.target.checked,
+                            }))
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium text-foreground">Puede editar stock</span>
+                        </span>
+                      </label>
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      Si una acción no está tildada, ese empleado no puede realizarla aunque tenga acceso a la pantalla.
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--pos-border)] bg-[var(--pos-surface)] px-5 py-4">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={submitting}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={submitEdit} disabled={submitting}>
-                {submitting ? "Guardando..." : "Guardar"}
-              </Button>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--pos-border)] bg-[var(--pos-surface)] px-5 py-4 text-xs text-muted-foreground">
+              <div>
+                {Object.entries(editPerm).filter(([, v]) => v).length} permisos activos
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={submitting}>
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={submitEdit} disabled={submitting}>
+                  {submitting ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
