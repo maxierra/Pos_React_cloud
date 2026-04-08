@@ -2,18 +2,39 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CameraOff, CheckCircle2, X } from "lucide-react";
+import { CameraOff, CheckCircle2, Minus, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const SCANNER_ELEMENT_ID = "pos-html5-qrcode-region";
 
-export type BarcodeDecodedPayload = boolean | { ok: boolean; addedName?: string };
+export type BarcodeDecodedPayload =
+  | boolean
+  | {
+      ok: boolean;
+      addedName?: string;
+      productId?: string;
+      soldByWeight?: boolean;
+    };
 
-function parseDecodeResult(r: BarcodeDecodedPayload): { ok: boolean; addedName?: string } {
+function parseDecodeResult(r: BarcodeDecodedPayload): {
+  ok: boolean;
+  addedName?: string;
+  productId?: string;
+  soldByWeight?: boolean;
+} {
   if (typeof r === "boolean") return { ok: r };
-  return { ok: r.ok, addedName: r.addedName };
+  return {
+    ok: r.ok,
+    addedName: r.addedName,
+    productId: r.productId,
+    soldByWeight: r.soldByWeight,
+  };
+}
+
+function round2(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 export type BarcodeScannerProps = {
@@ -31,6 +52,9 @@ export type BarcodeScannerProps = {
    * Tiene efecto si `continuous` es true (flujo móvil).
    */
   steppedAfterSuccess?: boolean;
+  /** Cantidad actual en carrito para el producto confirmado (solo paso confirmación móvil). */
+  getCartQuantityForProduct?: (productId: string) => number;
+  onAdjustCartQuantity?: (productId: string, direction: "inc" | "dec") => void;
   className?: string;
 };
 
@@ -58,6 +82,8 @@ export function BarcodeScanner({
   onDecoded,
   continuous = false,
   steppedAfterSuccess = false,
+  getCartQuantityForProduct,
+  onAdjustCartQuantity,
   className,
 }: BarcodeScannerProps) {
   const html5Ref = React.useRef<import("html5-qrcode").Html5Qrcode | null>(null);
@@ -71,6 +97,8 @@ export function BarcodeScanner({
   const [starting, setStarting] = React.useState(false);
   const [phase, setPhase] = React.useState<"scanning" | "confirm">("scanning");
   const [confirmName, setConfirmName] = React.useState("");
+  const [confirmProductId, setConfirmProductId] = React.useState<string | null>(null);
+  const [confirmSoldByWeight, setConfirmSoldByWeight] = React.useState(false);
 
   React.useEffect(() => {
     onDecodedRef.current = onDecoded;
@@ -102,6 +130,8 @@ export function BarcodeScanner({
       setStarting(false);
       setPhase("scanning");
       setConfirmName("");
+      setConfirmProductId(null);
+      setConfirmSoldByWeight(false);
       lastSuccessCodeRef.current = null;
       rapidRef.current = { code: "", t: 0 };
       return;
@@ -109,6 +139,8 @@ export function BarcodeScanner({
 
     setPhase("scanning");
     setConfirmName("");
+    setConfirmProductId(null);
+    setConfirmSoldByWeight(false);
     lastSuccessCodeRef.current = null;
     rapidRef.current = { code: "", t: 0 };
   }, [open, stopScanner]);
@@ -196,6 +228,8 @@ export function BarcodeScanner({
               void (async () => {
                 await stopScanner();
                 setConfirmName(label);
+                setConfirmProductId(parsed.productId ?? null);
+                setConfirmSoldByWeight(Boolean(parsed.soldByWeight));
                 setPhase("confirm");
               })();
               return;
@@ -247,6 +281,16 @@ export function BarcodeScanner({
     setPhase("scanning");
   }, []);
 
+  const cartQty =
+    confirmProductId && getCartQuantityForProduct ? getCartQuantityForProduct(confirmProductId) : 0;
+  const showQtyControls =
+    phase === "confirm" &&
+    confirmProductId &&
+    getCartQuantityForProduct &&
+    onAdjustCartQuantity &&
+    cartQty > 0;
+  const canDecreaseQty = confirmSoldByWeight ? cartQty > 0.051 : cartQty > 1;
+
   return (
     <AnimatePresence>
       {open ? (
@@ -264,9 +308,9 @@ export function BarcodeScanner({
               </div>
               <div className="text-xs text-white/70">
                 {phase === "confirm"
-                  ? "Podés seguir sumando o cerrar el lector"
+                  ? "Ajustá la cantidad acá o seguí escaneando"
                   : continuous
-                    ? "Una lectura a la vez. Más unidades del mismo producto: botón + en el carrito."
+                    ? "Una lectura a la vez. Podés sumar cantidad en la pantalla siguiente."
                     : "Apuntá al código de barras"}
               </div>
             </div>
@@ -299,6 +343,47 @@ export function BarcodeScanner({
                   </div>
                   <div className="mt-2 text-balance text-lg font-semibold leading-snug">{confirmName}</div>
                 </div>
+
+                {showQtyControls && confirmProductId ? (
+                  <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-white/5 px-4 py-4">
+                    <div className="text-xs font-medium uppercase tracking-wider text-white/60">
+                      Cantidad en este pedido
+                    </div>
+                    <div className="mt-3 flex items-center justify-center gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="size-12 shrink-0 rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/20"
+                        aria-label="Quitar una unidad"
+                        disabled={!canDecreaseQty}
+                        onClick={() => onAdjustCartQuantity!(confirmProductId, "dec")}
+                      >
+                        <Minus className="size-5" />
+                      </Button>
+                      <div className="min-w-[5.5rem] text-center font-numeric text-2xl font-bold tabular-nums text-white">
+                        {confirmSoldByWeight
+                          ? `${round2(cartQty)} kg`
+                          : String(Math.max(0, Math.round(cartQty)))}
+                      </div>
+                      <Button
+                        type="button"
+                        size="icon"
+                        className="size-12 shrink-0 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                        aria-label="Agregar una unidad"
+                        onClick={() => onAdjustCartQuantity!(confirmProductId, "inc")}
+                      >
+                        <Plus className="size-5" />
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-center text-[11px] text-white/45">
+                      {confirmSoldByWeight
+                        ? "Pasos de ~50 g. Podés editar gramos en el carrito."
+                        : "Unidades enteras. Después podés escanear otro producto."}
+                    </p>
+                  </div>
+                ) : null}
+
                 <p className="text-balance text-sm text-white/75">
                   ¿Querés seguir agregando productos a esta compra?
                 </p>
@@ -320,7 +405,7 @@ export function BarcodeScanner({
                   </Button>
                 </div>
                 <p className="text-balance text-xs text-white/50">
-                  Para repetir el mismo producto, usá el botón + en el carrito.
+                  Para otro producto distinto, tocá &quot;Escanear otro&quot;.
                 </p>
               </motion.div>
             ) : starting ? (

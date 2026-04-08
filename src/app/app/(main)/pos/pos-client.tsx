@@ -43,7 +43,9 @@ type PosBusinessInfo = {
   ticket_footer: string | null;
 } | null;
 
-export type PosDecodeResult = { ok: false } | { ok: true; addedName: string };
+export type PosDecodeResult =
+  | { ok: false }
+  | { ok: true; addedName: string; productId: string; soldByWeight: boolean };
 
 export function PosClient({
   products,
@@ -113,7 +115,12 @@ export function PosClient({
       if (found) {
         addProduct(found, { silentToast: opts?.silentToast });
         if (typeof console !== "undefined") console.log("[POS] Código procesado:", q);
-        return { ok: true, addedName: found.name };
+        return {
+          ok: true,
+          addedName: found.name,
+          productId: found.id,
+          soldByWeight: found.sold_by_weight,
+        };
       }
 
       const parsed = parseScaleBarcode(q);
@@ -132,6 +139,8 @@ export function PosClient({
           return {
             ok: true,
             addedName: `${byScaleCode.name} · ${parsed.weightKg} kg`,
+            productId: byScaleCode.id,
+            soldByWeight: true,
           };
         }
       }
@@ -150,6 +159,30 @@ export function PosClient({
       void procesarCodigo(prod.query);
     },
     [procesarCodigo, prod.query]
+  );
+
+  const getCartQuantityForProduct = React.useCallback(
+    (productId: string) => cart.items.find((i) => i.product_id === productId)?.quantity ?? 0,
+    [cart.items]
+  );
+
+  const onAdjustCartQuantityFromScanner = React.useCallback(
+    (productId: string, direction: "inc" | "dec") => {
+      const item = cart.items.find((i) => i.product_id === productId);
+      if (!item) return;
+      if (direction === "inc") {
+        cart.inc(item);
+        beep();
+        return;
+      }
+      if (item.sold_by_weight) {
+        if (item.quantity <= 0.051) return;
+      } else if (item.quantity <= 1) {
+        return;
+      }
+      cart.dec(item);
+    },
+    [cart]
   );
 
   const openPayment = React.useCallback(() => {
@@ -359,6 +392,8 @@ export function PosClient({
         open={scannerOpen}
         continuous={isMobilePos}
         steppedAfterSuccess={isMobilePos}
+        getCartQuantityForProduct={getCartQuantityForProduct}
+        onAdjustCartQuantity={onAdjustCartQuantityFromScanner}
         onClose={() => setScannerOpen(false)}
         onDecoded={(code) => procesarCodigo(code, { silentToast: isMobilePos })}
       />
