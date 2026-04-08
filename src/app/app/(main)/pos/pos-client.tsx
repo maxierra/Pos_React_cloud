@@ -10,12 +10,15 @@ import { POSLayout } from "@/app/app/(main)/pos/components/POSLayout";
 import { PaymentModal } from "@/app/app/(main)/pos/components/payment-modal";
 import { ProductGrid } from "@/app/app/(main)/pos/components/product-grid";
 import { SearchBar } from "@/app/app/(main)/pos/components/SearchBar";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { useCart } from "@/app/app/(main)/pos/hooks/use-cart";
 import { useProducts, type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { beep } from "@/app/app/(main)/pos/utils/beep";
 import { buildPaymentLabelMap, sortPaymentMethods, type BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
-import { printTicket, type TicketItem } from "@/lib/ticket-utils";
+import { printTicket } from "@/lib/ticket-utils";
+import { Button } from "@/components/ui/button";
+import { ScanLine } from "lucide-react";
 
 export { type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 
@@ -59,6 +62,7 @@ export function PosClient({
   const searchRef = React.useRef<HTMLInputElement | null>(null);
   const [pending, startTransition] = React.useTransition();
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
 
   const cart = useCart();
   const prod = useProducts(products);
@@ -94,19 +98,19 @@ export function PosClient({
     [cart, searchRef]
   );
 
-  const onSearchKeyDown = React.useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key !== "Enter") return;
-      e.preventDefault();
+  const procesarCodigo = React.useCallback(
+    (raw: string) => {
+      const q = raw.replace(/\s+/g, "").trim();
+      if (!q) return;
 
-      const q = prod.query;
       const found = prod.findByBarcodeOrName(q);
       if (found) {
         addProduct(found);
+        if (typeof console !== "undefined") console.log("[POS] Código procesado:", q);
         return;
       }
 
-      const parsed = parseScaleBarcode(q.replace(/\s+/g, "").trim());
+      const parsed = parseScaleBarcode(q);
       if (parsed) {
         const byScaleCode = products.find((p) => (p.scale_code ?? "").toLowerCase() === parsed.scaleCode.toLowerCase());
         if (byScaleCode && byScaleCode.sold_by_weight) {
@@ -116,13 +120,24 @@ export function PosClient({
             description: `${byScaleCode.name} · ${parsed.weightKg} kg`,
           });
           prod.setQuery("");
+          if (typeof console !== "undefined") console.log("[POS] Código procesado (balanza):", q);
           return;
         }
       }
 
+      prod.setQuery(q);
       toast.error("No se encontró el producto");
     },
     [addProduct, prod, products, cart]
+  );
+
+  const onSearchKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      procesarCodigo(prod.query);
+    },
+    [procesarCodigo, prod.query]
   );
 
   const openPayment = React.useCallback(() => {
@@ -279,13 +294,24 @@ export function PosClient({
       )}
       <POSLayout
         header={
-          <div className="w-full">
-            <SearchBar inputRef={searchRef} value={prod.query} onChange={prod.setQuery} onKeyDown={onSearchKeyDown} />
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch">
+            <div className="min-w-0 flex-1">
+              <SearchBar inputRef={searchRef} value={prod.query} onChange={prod.setQuery} onKeyDown={onSearchKeyDown} />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 shrink-0 gap-2 border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10 sm:min-w-[9rem]"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanLine className="size-5" />
+              Escanear
+            </Button>
           </div>
         }
         left={
           <div>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <div className="text-sm font-semibold">Productos</div>
               <div className="text-xs text-muted-foreground">
                 Mostrando {prod.visible.length} / {prod.filteredCount}
@@ -315,6 +341,14 @@ export function PosClient({
             lastAddedProductId={cart.lastAddedProductId}
           />
         }
+      />
+
+      <BarcodeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDecoded={(code) => {
+          procesarCodigo(code);
+        }}
       />
 
       <PaymentModal

@@ -11,28 +11,45 @@ type Props = {
   className?: string;
 };
 
+/**
+ * Layout POS: mobile-first (columna, carrito abajo, productos con scroll).
+ * Desktop: grid 8/4 como antes.
+ */
 export function POSLayout({ header, left, right, className }: Props) {
   return (
     <div
       className={cn(
-        "h-[calc(100vh-140px)] bg-[var(--pos-bg)] text-foreground",
+        "flex min-h-0 flex-col bg-[var(--pos-bg)] text-foreground",
+        "min-h-[calc(100dvh-7rem)] max-lg:pb-[env(safe-area-inset-bottom)]",
+        "md:min-h-[calc(100vh-140px)]",
         className
       )}
     >
-      <div className="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 px-4 py-4">
-        <div className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4 shadow-sm">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col gap-3 px-3 pt-2 sm:gap-4 sm:px-4 sm:py-4">
+        {/* Búsqueda arriba, visible */}
+        <div className="sticky top-0 z-20 shrink-0 rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-3 shadow-sm sm:p-4">
           {header}
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-12">
-          <div className="min-h-0 lg:col-span-8">
-            <div className="h-full overflow-auto rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4 shadow-sm">
-              {left}
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
+          {/* Lista de productos: ocupa el espacio central y hace scroll */}
+          <div className="flex min-h-0 flex-col lg:col-span-8">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-sm">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 lg:max-h-none">
+                {left}
+              </div>
             </div>
           </div>
 
-          <div className="min-h-0 lg:col-span-4">
-            <div className="h-full rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-sm">
+          {/* Carrito: abajo en móvil, columna derecha en desktop */}
+          <div className="flex min-h-0 shrink-0 flex-col lg:col-span-4 lg:min-h-0">
+            <div
+              className={cn(
+                "flex max-h-[min(52vh,420px)] min-h-[220px] flex-col overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] shadow-lg",
+                "lg:max-h-[calc(100vh-10rem)] lg:h-full lg:shadow-sm",
+                "max-lg:sticky max-lg:bottom-[max(0.5rem,env(safe-area-inset-bottom))] max-lg:z-30"
+              )}
+            >
               {right}
             </div>
           </div>
