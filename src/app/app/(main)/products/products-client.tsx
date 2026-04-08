@@ -4,15 +4,17 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Plus, ScanBarcode, Trash2, X } from "lucide-react";
+import { Pencil, Plus, ScanBarcode, ScanLine, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { createProduct, deleteProduct, updateProduct } from "@/app/app/(main)/products/actions";
 import { ProductForm } from "@/app/app/(main)/products/product-form";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { cn } from "@/lib/utils";
 
 type ProductRow = {
@@ -66,9 +68,11 @@ function findProductByScannedCode(products: ProductRow[], raw: string): ProductR
 
 export function ProductsClient({ products, canEditPrice = true, canEditStock = true }: Props) {
   const router = useRouter();
+  const isMobileAssist = useIsMobilePos();
   const [openCreate, setOpenCreate] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<ProductRow | null>(null);
   const [pending, startTransition] = React.useTransition();
+  const [scannerSearchOpen, setScannerSearchOpen] = React.useState(false);
 
   const [nameQuery, setNameQuery] = React.useState("");
   const [barcodeQuery, setBarcodeQuery] = React.useState("");
@@ -234,11 +238,28 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
               autoComplete="off"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="hidden text-[11px] text-muted-foreground lg:block">
             Enfocá este campo y escaneá: al terminar (Enter) se abre la edición.
           </p>
         </div>
       </div>
+
+      {isMobileAssist ? (
+        <div className="mt-3 lg:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 w-full gap-2 rounded-xl border-emerald-600/40 bg-[var(--pos-surface)] font-semibold"
+            onClick={() => setScannerSearchOpen(true)}
+          >
+            <ScanLine className="size-5" />
+            Escanear para buscar y editar
+          </Button>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Lee el código de un producto ya cargado y se abre el formulario para ajustar stock y precios.
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-4 overflow-hidden rounded-2xl border bg-card">
         <div className="overflow-auto">
@@ -427,6 +448,28 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      <BarcodeScanner
+        open={scannerSearchOpen}
+        continuous={false}
+        steppedAfterSuccess={false}
+        onClose={() => setScannerSearchOpen(false)}
+        onDecoded={(raw) => {
+          const code = raw.replace(/\s+/g, "").trim();
+          if (!code) return false;
+          const found = findProductByScannedCode(products, code);
+          if (found) {
+            openEdit(found);
+            setBarcodeQuery("");
+            toast.success("Producto encontrado", { description: found.name, duration: 1200 });
+            return true;
+          }
+          toast.error("No hay producto con ese código", {
+            description: "Creá uno nuevo con «Nuevo producto» o revisá el código.",
+          });
+          return false;
+        }}
+      />
     </div>
   );
 }

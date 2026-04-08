@@ -2,9 +2,13 @@
 
 import * as React from "react";
 
+import { ScanLine } from "lucide-react";
+
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { createClient } from "@/lib/supabase/browser";
 
 type ProductDefaults = {
@@ -29,6 +33,7 @@ type Props = {
   description?: string;
   defaults?: ProductDefaults;
   action: (formData: FormData) => void | Promise<void>;
+  /** Si false, el formulario no envuelve en card (modales). */
   container?: boolean;
   canEditPrice?: boolean;
   canEditStock?: boolean;
@@ -55,6 +60,7 @@ export function ProductForm({
   description,
   defaults,
   action,
+  container = true,
   canEditPrice = true,
   canEditStock = true,
 }: Props) {
@@ -82,6 +88,9 @@ export function ProductForm({
   const [priceInput, setPriceInput] = React.useState<string>(formatNumberLoose(initialPrice));
   /** En alta, el margen puede arrastrar el precio. En edición, el precio guardado manda (si no, al redondear el % y volver a aplicar costo×(1+margen) se desfasa, ej. 3500 → 3500.1). */
   const [lastEdited, setLastEdited] = React.useState<"margin" | "price">(() => (defaults?.id ? "price" : "margin"));
+
+  const isMobileAssist = useIsMobilePos();
+  const [scannerOpen, setScannerOpen] = React.useState(false);
 
   const [preloadLoading, setPreloadLoading] = React.useState(false);
   const [preload, setPreload] = React.useState<
@@ -242,8 +251,6 @@ export function ProductForm({
     setMarginInput(formatNumberLoose(m));
   }, [cost, price, lastEdited]);
 
-  const container = (arguments[0] as Props).container ?? true;
-
   const content = (
     <>
       <div className="space-y-1">
@@ -254,6 +261,25 @@ export function ProductForm({
       <form action={action} className="mt-5 grid gap-4">
         {defaults?.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
 
+        {isMobileAssist ? (
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+            <p className="text-sm font-medium text-foreground">Asistido (celular)</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escané el código para cargar el EAN y, si está en la base, nombre y precio sugerido. Después
+              completá compra, margen y stock como siempre.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 h-12 w-full gap-2 rounded-xl border-emerald-600/40 bg-background font-semibold"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanLine className="size-5" />
+              Escanear código de barras
+            </Button>
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-3">
           <div className="grid gap-2 md:col-span-1">
             <Label htmlFor="barcode">Código de barras</Label>
@@ -262,6 +288,8 @@ export function ProductForm({
               name="barcode"
               value={barcodeInput}
               onChange={(e) => setBarcodeInput(e.target.value)}
+              inputMode="numeric"
+              autoComplete="off"
             />
           </div>
 
@@ -440,6 +468,18 @@ export function ProductForm({
           <Button type="submit">Guardar</Button>
         </div>
       </form>
+
+      <BarcodeScanner
+        open={scannerOpen}
+        continuous={false}
+        steppedAfterSuccess={false}
+        onClose={() => setScannerOpen(false)}
+        onDecoded={(raw) => {
+          const code = raw.replace(/\s+/g, "").trim();
+          if (code) setBarcodeInput(code);
+          return true;
+        }}
+      />
     </>
   );
 
