@@ -101,15 +101,15 @@ export function PosClient({
   );
 
   const procesarCodigo = React.useCallback(
-    (raw: string) => {
+    (raw: string): boolean => {
       const q = raw.replace(/\s+/g, "").trim();
-      if (!q) return;
+      if (!q) return false;
 
       const found = prod.findByBarcodeOrName(q);
       if (found) {
         addProduct(found);
         if (typeof console !== "undefined") console.log("[POS] Código procesado:", q);
-        return;
+        return true;
       }
 
       const parsed = parseScaleBarcode(q);
@@ -123,12 +123,13 @@ export function PosClient({
           });
           prod.setQuery("");
           if (typeof console !== "undefined") console.log("[POS] Código procesado (balanza):", q);
-          return;
+          return true;
         }
       }
 
       prod.setQuery(q);
       toast.error("No se encontró el producto");
+      return false;
     },
     [addProduct, prod, products, cart]
   );
@@ -349,9 +350,7 @@ export function PosClient({
         open={scannerOpen}
         continuous={isMobilePos}
         onClose={() => setScannerOpen(false)}
-        onDecoded={(code) => {
-          procesarCodigo(code);
-        }}
+        onDecoded={(code) => procesarCodigo(code)}
       />
 
       <PaymentModal

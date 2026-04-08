@@ -12,11 +12,14 @@ const SCANNER_ELEMENT_ID = "pos-html5-qrcode-region";
 export type BarcodeScannerProps = {
   open: boolean;
   onClose: () => void;
-  /** Código leído (limpio); el padre decide qué hacer (ej. procesarCodigo). */
-  onDecoded: (code: string) => void;
+  /**
+   * Código leído (limpio). Devolvé `true` si el producto se agregó al carrito;
+   * en modo continuo, el mismo código no vuelve a dispararse hasta que se escanee **otro** código distinto
+   * (para sumar más del mismo producto usá el botón + en el carrito).
+   */
+  onDecoded: (code: string) => boolean;
   /**
    * Si es true, la cámara sigue activa tras cada lectura (ideal para armar el carrito escaneando).
-   * Evita lecturas duplicadas del mismo código en ~900 ms.
    */
   continuous?: boolean;
   className?: string;
@@ -38,15 +41,17 @@ export function playScanBeep() {
   // Ej.: new Audio("/beep.mp3").play().catch(() => {});
 }
 
-/** En modo continuo, ignora el mismo código repetido en ~220 ms (ruido del lector). */
-const CONTINUOUS_SAME_CODE_MS = 220;
+/** Antirruido: el lector puede disparar el mismo frame varias veces en pocos ms. */
+const RAPID_DUPLICATE_MS = 160;
 
 export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, className }: BarcodeScannerProps) {
   const html5Ref = React.useRef<import("html5-qrcode").Html5Qrcode | null>(null);
   const onDecodedRef = React.useRef(onDecoded);
   const onCloseRef = React.useRef(onClose);
   const continuousRef = React.useRef(continuous);
-  const lastScanRef = React.useRef<{ code: string; t: number }>({ code: "", t: 0 });
+  /** Tras un agregado exitoso en modo continuo: mismo código se ignora hasta que se lea otro distinto. */
+  const lastSuccessCodeRef = React.useRef<string | null>(null);
+  const rapidRef = React.useRef<{ code: string; t: number }>({ code: "", t: 0 });
   const [error, setError] = React.useState<string | null>(null);
   const [starting, setStarting] = React.useState(false);
 
@@ -77,9 +82,13 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
       void stopScanner();
       setError(null);
       setStarting(false);
-      lastScanRef.current = { code: "", t: 0 };
+      lastSuccessCodeRef.current = null;
+      rapidRef.current = { code: "", t: 0 };
       return;
     }
+
+    lastSuccessCodeRef.current = null;
+    rapidRef.current = { code: "", t: 0 };
 
     let cancelled = false;
 
@@ -128,16 +137,27 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
             const code = decodedText.trim();
             if (!code) return;
 
-            if (continuousRef.current) {
-              const now = Date.now();
-              const last = lastScanRef.current;
-              if (code === last.code && now - last.t < CONTINUOUS_SAME_CODE_MS) return;
-              lastScanRef.current = { code, t: now };
+            if (continuousRef.current && code === lastSuccessCodeRef.current) {
+              return;
+            }
+
+            const now = Date.now();
+            const rapid = rapidRef.current;
+            if (code === rapid.code && now - rapid.t < RAPID_DUPLICATE_MS) return;
+            rapidRef.current = { code, t: now };
+
+            const success = onDecodedRef.current(code);
+
+            if (continuousRef.current && success) {
+              lastSuccessCodeRef.current = code;
+            }
+
+            if (!success) {
+              return;
             }
 
             feedbackScanSuccess();
             playScanBeep();
-            onDecodedRef.current(code);
 
             if (continuousRef.current) return;
 
@@ -188,7 +208,9 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
             <div>
               <div className="text-sm font-semibold">Escanear código</div>
               <div className="text-xs text-white/70">
-                {continuous ? "Seguí escaneando para sumar al carrito · Cerrá cuando termines" : "Apuntá al código de barras"}
+                {continuous
+                  ? "Un código = una unidad. Más del mismo: botón + en el carrito. Luego escaneá otro producto."
+                  : "Apuntá al código de barras"}
               </div>
             </div>
             <Button

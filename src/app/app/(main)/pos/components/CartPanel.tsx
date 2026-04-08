@@ -116,8 +116,9 @@ export function CartPanel({
             <div className="text-base font-semibold tracking-tight">Tu carrito</div>
             <div className="max-w-xs text-xs leading-relaxed text-muted-foreground">
               <span className="block lg:hidden">
-                Tocá <strong>Escanear</strong> para leer códigos de barras (modo continuo), o escribí el código
-                y presioná Enter.
+                Tocá <strong>Escanear</strong>: cada lectura suma <strong>una</strong> unidad. Para más del mismo
+                producto usá el botón <strong className="text-foreground">+</strong> en la línea del carrito. Después
+                podés escanear otro código.
               </span>
               <span className="hidden lg:block">Escaneá un código o tocá un producto en la lista.</span>
             </div>
@@ -160,11 +161,18 @@ export function CartPanel({
                   </div>
 
                   {/* Fila 2: controles de cantidad */}
-                  <div className="mt-1.5 flex items-center gap-1">
+                  <div className="mt-1.5 flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2 px-0.5 lg:hidden">
+                      <span className="text-[10px] font-medium text-muted-foreground">Cantidad</span>
+                      <span className="text-[10px] text-muted-foreground">Más del mismo: +</span>
+                    </div>
+                    <div className="flex items-center gap-1">
                     <button
                       type="button"
+                      aria-label="Quitar una unidad"
+                      title="Quitar una unidad"
                       onClick={() => onDec(item)}
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40 lg:size-8"
                     >
                       <Minus className="size-3.5" />
                     </button>
@@ -219,11 +227,14 @@ export function CartPanel({
                     </div>
                     <button
                       type="button"
+                      aria-label="Agregar una unidad del mismo producto"
+                      title="Agregar una unidad"
                       onClick={() => onInc(item)}
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-600 transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-900/40 lg:size-8"
                     >
-                      <Plus className="size-3.5" />
+                      <Plus className="size-4" strokeWidth={2.5} />
                     </button>
+                    </div>
                   </div>
                 </div>
               );
