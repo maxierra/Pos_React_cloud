@@ -116,9 +116,9 @@ export function CartPanel({
             <div className="text-base font-semibold tracking-tight">Tu carrito</div>
             <div className="max-w-xs text-xs leading-relaxed text-muted-foreground">
               <span className="block lg:hidden">
-                Tocá <strong>Escanear</strong>: cada lectura suma <strong>una</strong> unidad. Para más del mismo
-                producto usá el botón <strong className="text-foreground">+</strong> en la línea del carrito. Después
-                podés escanear otro código.
+                Tocá <strong>Escanear</strong>: leés un código, te mostramos el producto y elegís si seguís
+                escaneando o cerrás el lector. Más unidades del mismo ítem: botón{" "}
+                <strong className="text-foreground">+</strong> en la línea.
               </span>
               <span className="hidden lg:block">Escaneá un código o tocá un producto en la lista.</span>
             </div>

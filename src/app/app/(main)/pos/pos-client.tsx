@@ -43,6 +43,8 @@ type PosBusinessInfo = {
   ticket_footer: string | null;
 } | null;
 
+export type PosDecodeResult = { ok: false } | { ok: true; addedName: string };
+
 export function PosClient({
   products,
   business,
@@ -79,12 +81,14 @@ export function PosClient({
   const hasMore = prod.visibleCount < prod.filteredCount;
 
   const addProduct = React.useCallback(
-    (p: PosProduct) => {
+    (p: PosProduct, opts?: { silentToast?: boolean }) => {
       cart.add(p);
       beep();
       prod.setQuery("");
-      toast.success("Agregado", { description: p.name, duration: 900 });
-      
+      if (!opts?.silentToast) {
+        toast.success("Agregado", { description: p.name, duration: 900 });
+      }
+
       if (p.sold_by_weight) {
         setTimeout(() => {
           const input = document.getElementById(`qty-input-${p.id}`) as HTMLInputElement;
@@ -101,15 +105,15 @@ export function PosClient({
   );
 
   const procesarCodigo = React.useCallback(
-    (raw: string): boolean => {
+    (raw: string, opts?: { silentToast?: boolean }): PosDecodeResult => {
       const q = raw.replace(/\s+/g, "").trim();
-      if (!q) return false;
+      if (!q) return { ok: false };
 
       const found = prod.findByBarcodeOrName(q);
       if (found) {
-        addProduct(found);
+        addProduct(found, { silentToast: opts?.silentToast });
         if (typeof console !== "undefined") console.log("[POS] Código procesado:", q);
-        return true;
+        return { ok: true, addedName: found.name };
       }
 
       const parsed = parseScaleBarcode(q);
@@ -118,18 +122,23 @@ export function PosClient({
         if (byScaleCode && byScaleCode.sold_by_weight) {
           cart.add(byScaleCode, { quantity: parsed.weightKg });
           beep();
-          toast.success("Producto agregado", {
-            description: `${byScaleCode.name} · ${parsed.weightKg} kg`,
-          });
+          if (!opts?.silentToast) {
+            toast.success("Producto agregado", {
+              description: `${byScaleCode.name} · ${parsed.weightKg} kg`,
+            });
+          }
           prod.setQuery("");
           if (typeof console !== "undefined") console.log("[POS] Código procesado (balanza):", q);
-          return true;
+          return {
+            ok: true,
+            addedName: `${byScaleCode.name} · ${parsed.weightKg} kg`,
+          };
         }
       }
 
       prod.setQuery(q);
       toast.error("No se encontró el producto");
-      return false;
+      return { ok: false };
     },
     [addProduct, prod, products, cart]
   );
@@ -138,7 +147,7 @@ export function PosClient({
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      procesarCodigo(prod.query);
+      void procesarCodigo(prod.query);
     },
     [procesarCodigo, prod.query]
   );
@@ -349,8 +358,9 @@ export function PosClient({
       <BarcodeScanner
         open={scannerOpen}
         continuous={isMobilePos}
+        steppedAfterSuccess={isMobilePos}
         onClose={() => setScannerOpen(false)}
-        onDecoded={(code) => procesarCodigo(code)}
+        onDecoded={(code) => procesarCodigo(code, { silentToast: isMobilePos })}
       />
 
       <PaymentModal

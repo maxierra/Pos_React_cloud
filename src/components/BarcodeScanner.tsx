@@ -2,26 +2,35 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CameraOff, X } from "lucide-react";
+import { CameraOff, CheckCircle2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const SCANNER_ELEMENT_ID = "pos-html5-qrcode-region";
 
+export type BarcodeDecodedPayload = boolean | { ok: boolean; addedName?: string };
+
+function parseDecodeResult(r: BarcodeDecodedPayload): { ok: boolean; addedName?: string } {
+  if (typeof r === "boolean") return { ok: r };
+  return { ok: r.ok, addedName: r.addedName };
+}
+
 export type BarcodeScannerProps = {
   open: boolean;
   onClose: () => void;
   /**
-   * Código leído (limpio). Devolvé `true` si el producto se agregó al carrito;
-   * en modo continuo, el mismo código no vuelve a dispararse hasta que se escanee **otro** código distinto
-   * (para sumar más del mismo producto usá el botón + en el carrito).
+   * Resultado del código: `true`/`{ ok: true, addedName }` si se agregó al carrito.
+   * En modo continuo, el mismo código no se procesa de nuevo hasta leer otro distinto.
    */
-  onDecoded: (code: string) => boolean;
-  /**
-   * Si es true, la cámara sigue activa tras cada lectura (ideal para armar el carrito escaneando).
-   */
+  onDecoded: (code: string) => BarcodeDecodedPayload;
+  /** Mantiene la cámara lista para varios productos (móvil). */
   continuous?: boolean;
+  /**
+   * Tras cada lectura exitosa: pausa la cámara y muestra confirmación para escanear otro o terminar.
+   * Tiene efecto si `continuous` es true (flujo móvil).
+   */
+  steppedAfterSuccess?: boolean;
   className?: string;
 };
 
@@ -41,25 +50,34 @@ export function playScanBeep() {
   // Ej.: new Audio("/beep.mp3").play().catch(() => {});
 }
 
-/** Antirruido: el lector puede disparar el mismo frame varias veces en pocos ms. */
 const RAPID_DUPLICATE_MS = 160;
 
-export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, className }: BarcodeScannerProps) {
+export function BarcodeScanner({
+  open,
+  onClose,
+  onDecoded,
+  continuous = false,
+  steppedAfterSuccess = false,
+  className,
+}: BarcodeScannerProps) {
   const html5Ref = React.useRef<import("html5-qrcode").Html5Qrcode | null>(null);
   const onDecodedRef = React.useRef(onDecoded);
   const onCloseRef = React.useRef(onClose);
   const continuousRef = React.useRef(continuous);
-  /** Tras un agregado exitoso en modo continuo: mismo código se ignora hasta que se lea otro distinto. */
+  const steppedRef = React.useRef(steppedAfterSuccess);
   const lastSuccessCodeRef = React.useRef<string | null>(null);
   const rapidRef = React.useRef<{ code: string; t: number }>({ code: "", t: 0 });
   const [error, setError] = React.useState<string | null>(null);
   const [starting, setStarting] = React.useState(false);
+  const [phase, setPhase] = React.useState<"scanning" | "confirm">("scanning");
+  const [confirmName, setConfirmName] = React.useState("");
 
   React.useEffect(() => {
     onDecodedRef.current = onDecoded;
     onCloseRef.current = onClose;
     continuousRef.current = continuous;
-  }, [onDecoded, onClose, continuous]);
+    steppedRef.current = steppedAfterSuccess;
+  }, [onDecoded, onClose, continuous, steppedAfterSuccess]);
 
   const stopScanner = React.useCallback(async () => {
     const instance = html5Ref.current;
@@ -82,13 +100,24 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
       void stopScanner();
       setError(null);
       setStarting(false);
+      setPhase("scanning");
+      setConfirmName("");
       lastSuccessCodeRef.current = null;
       rapidRef.current = { code: "", t: 0 };
       return;
     }
 
+    setPhase("scanning");
+    setConfirmName("");
     lastSuccessCodeRef.current = null;
     rapidRef.current = { code: "", t: 0 };
+  }, [open, stopScanner]);
+
+  React.useEffect(() => {
+    if (!open || phase !== "scanning") {
+      if (!open) void stopScanner();
+      return;
+    }
 
     let cancelled = false;
 
@@ -146,7 +175,8 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
             if (code === rapid.code && now - rapid.t < RAPID_DUPLICATE_MS) return;
             rapidRef.current = { code, t: now };
 
-            const success = onDecodedRef.current(code);
+            const parsed = parseDecodeResult(onDecodedRef.current(code));
+            const success = parsed.ok;
 
             if (continuousRef.current && success) {
               lastSuccessCodeRef.current = code;
@@ -159,7 +189,21 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
             feedbackScanSuccess();
             playScanBeep();
 
-            if (continuousRef.current) return;
+            const label = parsed.addedName?.trim() || "Producto";
+
+            const useStepped = continuousRef.current && steppedRef.current;
+            if (useStepped) {
+              void (async () => {
+                await stopScanner();
+                setConfirmName(label);
+                setPhase("confirm");
+              })();
+              return;
+            }
+
+            if (continuousRef.current) {
+              return;
+            }
 
             void (async () => {
               await stopScanner();
@@ -192,7 +236,16 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
       cancelled = true;
       void stopScanner();
     };
-  }, [open, stopScanner]);
+  }, [open, phase, stopScanner]);
+
+  const handleClose = React.useCallback(() => {
+    void stopScanner();
+    onClose();
+  }, [onClose, stopScanner]);
+
+  const handleScanAnother = React.useCallback(() => {
+    setPhase("scanning");
+  }, []);
 
   return (
     <AnimatePresence>
@@ -206,11 +259,15 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
         >
           <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-white">
             <div>
-              <div className="text-sm font-semibold">Escanear código</div>
+              <div className="text-sm font-semibold">
+                {phase === "confirm" ? "Listo" : "Escanear código"}
+              </div>
               <div className="text-xs text-white/70">
-                {continuous
-                  ? "Un código = una unidad. Más del mismo: botón + en el carrito. Luego escaneá otro producto."
-                  : "Apuntá al código de barras"}
+                {phase === "confirm"
+                  ? "Podés seguir sumando o cerrar el lector"
+                  : continuous
+                    ? "Una lectura a la vez. Más unidades del mismo producto: botón + en el carrito."
+                    : "Apuntá al código de barras"}
               </div>
             </div>
             <Button
@@ -218,10 +275,7 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
               variant="secondary"
               size="icon"
               className="shrink-0 rounded-full bg-white/15 text-white hover:bg-white/25"
-              onClick={() => {
-                void stopScanner();
-                onClose();
-              }}
+              onClick={handleClose}
               aria-label="Cerrar escáner"
             >
               <X className="size-5" />
@@ -229,11 +283,51 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
           </div>
 
           <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center p-4">
-            {starting ? (
+            {phase === "confirm" ? (
+              <motion.div
+                className="flex w-full max-w-md flex-col items-center gap-5 px-2 text-center text-white"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div className="flex size-20 items-center justify-center rounded-full bg-emerald-500/25 text-emerald-300">
+                  <CheckCircle2 className="size-11" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider text-emerald-400/90">
+                    Agregado a la compra
+                  </div>
+                  <div className="mt-2 text-balance text-lg font-semibold leading-snug">{confirmName}</div>
+                </div>
+                <p className="text-balance text-sm text-white/75">
+                  ¿Querés seguir agregando productos a esta compra?
+                </p>
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+                  <Button
+                    type="button"
+                    className="h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white hover:bg-emerald-700 sm:min-w-[11rem]"
+                    onClick={handleScanAnother}
+                  >
+                    Escanear otro
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-12 w-full rounded-xl border border-white/20 bg-white/10 text-base font-medium text-white hover:bg-white/20 sm:min-w-[11rem]"
+                    onClick={handleClose}
+                  >
+                    Listo, cerrar
+                  </Button>
+                </div>
+                <p className="text-balance text-xs text-white/50">
+                  Para repetir el mismo producto, usá el botón + en el carrito.
+                </p>
+              </motion.div>
+            ) : starting ? (
               <div className="text-sm text-white/80">Iniciando cámara…</div>
             ) : null}
 
-            {error ? (
+            {phase === "scanning" && error ? (
               <div className="flex max-w-sm flex-col items-center gap-4 text-center">
                 <CameraOff className="size-12 text-rose-300" />
                 <p className="text-sm text-white/90">{error}</p>
@@ -241,12 +335,14 @@ export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, c
                   Cerrar
                 </Button>
               </div>
-            ) : (
+            ) : null}
+
+            {phase === "scanning" && !error ? (
               <div
                 id={SCANNER_ELEMENT_ID}
                 className="w-full max-w-lg overflow-hidden rounded-2xl bg-black [&_video]:max-h-[min(50vh,420px)] [&_video]:w-full [&_video]:object-cover"
               />
-            )}
+            ) : null}
           </div>
         </motion.div>
       ) : null}
