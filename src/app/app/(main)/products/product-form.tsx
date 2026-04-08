@@ -258,38 +258,27 @@ export function ProductForm({
         {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
       </div>
 
-      <form action={action} className="mt-5 flex flex-col gap-4 lg:grid lg:gap-4">
+      <form action={action} className="mt-5 grid gap-4">
         {defaults?.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
 
-        {/* Móvil: mismo patrón que ventas — botón Escanear arriba */}
-        <div className="flex flex-col gap-2 lg:hidden">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-            Paso 1 · Código de barras
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-14 w-full shrink-0 gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10"
-            onClick={() => setScannerOpen(true)}
-          >
-            <ScanLine className="size-5" />
-            Escanear
-          </Button>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Abrimos la cámara como en el POS. Al leer, se completa el EAN y, si está en tu base de referencia,
-            nombre y precio sugerido. Después te llevamos a <strong className="text-foreground">precio de compra</strong>{" "}
-            y stock.
-          </p>
-        </div>
-
-        <div className="hidden border-t border-[var(--pos-border)] lg:block" />
+        {defaults?.id ? (
+          <div className="flex flex-col gap-2 lg:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-14 w-full shrink-0 gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanLine className="size-5" />
+              Escanear
+            </Button>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Leé el código para actualizar el EAN. Podés seguir editando precio y stock abajo.
+            </p>
+          </div>
+        ) : null}
 
         <div>
-          <div className="mb-2 lg:hidden">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Paso 2 · Datos del producto
-            </span>
-          </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2 md:col-span-1">
               <Label htmlFor="barcode">Código de barras</Label>
@@ -316,7 +305,7 @@ export function ProductForm({
           {preload && !defaults?.id ? (
             <div
               className={cn(
-                "mt-3 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.07] p-3 text-left lg:hidden",
+                "mt-3 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.07] p-3 text-left",
                 "dark:bg-emerald-950/25"
               )}
             >
@@ -367,11 +356,6 @@ export function ProductForm({
           </div>
         </div>
 
-        <div className="mb-2 lg:hidden">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Paso 3 · Compra, venta y stock
-          </span>
-        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="grid gap-2">
             <Label htmlFor="cost">Precio compra</Label>
@@ -520,7 +504,11 @@ export function ProductForm({
           const code = raw.replace(/\s+/g, "").trim();
           if (!code) return true;
           setBarcodeInput(code);
-          if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+          if (
+            defaults?.id &&
+            typeof window !== "undefined" &&
+            window.matchMedia("(max-width: 1023px)").matches
+          ) {
             toast.success("Código leído", {
               description: "Revisá precio de compra, margen y stock.",
               duration: 2800,

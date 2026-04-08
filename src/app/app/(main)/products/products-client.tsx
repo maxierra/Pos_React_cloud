@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { createProduct, deleteProduct, updateProduct } from "@/app/app/(main)/products/actions";
+import { ProductCreateMobileWizard } from "@/app/app/(main)/products/product-create-mobile-wizard";
 import { ProductForm } from "@/app/app/(main)/products/product-form";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Button } from "@/components/ui/button";
@@ -365,7 +366,7 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
                     Cargá datos, precio y stock.
                   </div>
                   <div className="text-[11px] text-muted-foreground lg:hidden">
-                    Escanear primero, después completá compra y stock.
+                    Asistente paso a paso: código, datos, precios y stock.
                   </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setOpenCreate(false)}>
@@ -375,14 +376,22 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
 
               <div className="min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                 <div className={cn(pending ? "pointer-events-none opacity-80" : "")}>
-                  <ProductForm
-                    title=""
-                    description={undefined}
-                    container={false}
-                    action={onCreate}
-                    canEditPrice={canEditPrice}
-                    canEditStock={canEditStock}
-                  />
+                  {isMobileAssist ? (
+                    <ProductCreateMobileWizard
+                      action={onCreate}
+                      canEditPrice={canEditPrice}
+                      canEditStock={canEditStock}
+                    />
+                  ) : (
+                    <ProductForm
+                      title=""
+                      description={undefined}
+                      container={false}
+                      action={onCreate}
+                      canEditPrice={canEditPrice}
+                      canEditStock={canEditStock}
+                    />
+                  )}
                 </div>
               </div>
             </motion.div>
