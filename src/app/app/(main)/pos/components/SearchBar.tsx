@@ -29,13 +29,13 @@ export function SearchBar({ inputRef, value, onChange, onKeyDown, className }: P
         onKeyDown={onKeyDown}
         placeholder="Buscar por nombre o escanear código de barras…"
         className={cn(
-          "h-12 rounded-2xl bg-[var(--pos-surface-2)] pl-10 pr-24 text-base",
+          "h-12 rounded-2xl bg-[var(--pos-surface-2)] pl-10 pr-4 text-base lg:pr-24",
           "border border-[var(--pos-border)]",
           "focus-visible:ring-3 focus-visible:ring-[var(--pos-glow)] focus-visible:border-[var(--pos-accent)]"
         )}
       />
 
-      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-2">
+      <div className="pointer-events-none absolute inset-y-0 right-3 hidden items-center gap-2 lg:flex">
         <span className="rounded-lg border border-[var(--pos-border)] bg-[var(--pos-surface)] px-2 py-1 text-[11px] font-medium text-muted-foreground">
           F2
         </span>

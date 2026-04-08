@@ -17,6 +17,7 @@ import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { beep } from "@/app/app/(main)/pos/utils/beep";
 import { buildPaymentLabelMap, sortPaymentMethods, type BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import { printTicket } from "@/lib/ticket-utils";
+import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { Button } from "@/components/ui/button";
 import { ScanLine } from "lucide-react";
 
@@ -59,6 +60,7 @@ export function PosClient({
   mercadoPagoQrReady?: boolean;
 }) {
   const router = useRouter();
+  const isMobilePos = useIsMobilePos();
   const searchRef = React.useRef<HTMLInputElement | null>(null);
   const [pending, startTransition] = React.useTransition();
   const [paymentOpen, setPaymentOpen] = React.useState(false);
@@ -294,19 +296,19 @@ export function PosClient({
       )}
       <POSLayout
         header={
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch">
-            <div className="min-w-0 flex-1">
-              <SearchBar inputRef={searchRef} value={prod.query} onChange={prod.setQuery} onKeyDown={onSearchKeyDown} />
-            </div>
+          <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-stretch lg:gap-3">
             <Button
               type="button"
               variant="outline"
-              className="h-12 shrink-0 gap-2 border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10 sm:min-w-[9rem]"
+              className="order-1 h-14 w-full shrink-0 gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10 lg:order-2 lg:h-12 lg:w-auto lg:min-w-[9rem] lg:rounded-xl"
               onClick={() => setScannerOpen(true)}
             >
               <ScanLine className="size-5" />
               Escanear
             </Button>
+            <div className="order-2 min-w-0 flex-1 lg:order-1">
+              <SearchBar inputRef={searchRef} value={prod.query} onChange={prod.setQuery} onKeyDown={onSearchKeyDown} />
+            </div>
           </div>
         }
         left={
@@ -345,6 +347,7 @@ export function PosClient({
 
       <BarcodeScanner
         open={scannerOpen}
+        continuous={isMobilePos}
         onClose={() => setScannerOpen(false)}
         onDecoded={(code) => {
           procesarCodigo(code);

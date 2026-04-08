@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, ScanLine, Trash2 } from "lucide-react";
 
 import type { CartItem } from "@/app/app/(main)/pos/hooks/use-cart";
 import { Button } from "@/components/ui/button";
@@ -109,10 +109,17 @@ export function CartPanel({
       {/* Lista de items */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 pr-4">
         {items.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground">Carrito vacío</div>
-            <div className="text-xs text-muted-foreground">
-              Escaneá un código o tocá un producto a la izquierda.
+          <div className="flex min-h-[min(42dvh,320px)] flex-col items-center justify-center gap-3 p-6 text-center lg:min-h-0">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <ScanLine className="size-8" strokeWidth={1.75} />
+            </div>
+            <div className="text-base font-semibold tracking-tight">Tu carrito</div>
+            <div className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+              <span className="block lg:hidden">
+                Tocá <strong>Escanear</strong> para leer códigos de barras (modo continuo), o escribí el código
+                y presioná Enter.
+              </span>
+              <span className="hidden lg:block">Escaneá un código o tocá un producto en la lista.</span>
             </div>
           </div>
         ) : (

@@ -14,6 +14,11 @@ export type BarcodeScannerProps = {
   onClose: () => void;
   /** Código leído (limpio); el padre decide qué hacer (ej. procesarCodigo). */
   onDecoded: (code: string) => void;
+  /**
+   * Si es true, la cámara sigue activa tras cada lectura (ideal para armar el carrito escaneando).
+   * Evita lecturas duplicadas del mismo código en ~900 ms.
+   */
+  continuous?: boolean;
   className?: string;
 };
 
@@ -33,17 +38,23 @@ export function playScanBeep() {
   // Ej.: new Audio("/beep.mp3").play().catch(() => {});
 }
 
-export function BarcodeScanner({ open, onClose, onDecoded, className }: BarcodeScannerProps) {
+/** En modo continuo, ignora el mismo código repetido en ~220 ms (ruido del lector). */
+const CONTINUOUS_SAME_CODE_MS = 220;
+
+export function BarcodeScanner({ open, onClose, onDecoded, continuous = false, className }: BarcodeScannerProps) {
   const html5Ref = React.useRef<import("html5-qrcode").Html5Qrcode | null>(null);
   const onDecodedRef = React.useRef(onDecoded);
   const onCloseRef = React.useRef(onClose);
+  const continuousRef = React.useRef(continuous);
+  const lastScanRef = React.useRef<{ code: string; t: number }>({ code: "", t: 0 });
   const [error, setError] = React.useState<string | null>(null);
   const [starting, setStarting] = React.useState(false);
 
   React.useEffect(() => {
     onDecodedRef.current = onDecoded;
     onCloseRef.current = onClose;
-  }, [onDecoded, onClose]);
+    continuousRef.current = continuous;
+  }, [onDecoded, onClose, continuous]);
 
   const stopScanner = React.useCallback(async () => {
     const instance = html5Ref.current;
@@ -66,6 +77,7 @@ export function BarcodeScanner({ open, onClose, onDecoded, className }: BarcodeS
       void stopScanner();
       setError(null);
       setStarting(false);
+      lastScanRef.current = { code: "", t: 0 };
       return;
     }
 
@@ -115,11 +127,22 @@ export function BarcodeScanner({ open, onClose, onDecoded, className }: BarcodeS
           (decodedText) => {
             const code = decodedText.trim();
             if (!code) return;
+
+            if (continuousRef.current) {
+              const now = Date.now();
+              const last = lastScanRef.current;
+              if (code === last.code && now - last.t < CONTINUOUS_SAME_CODE_MS) return;
+              lastScanRef.current = { code, t: now };
+            }
+
             feedbackScanSuccess();
             playScanBeep();
+            onDecodedRef.current(code);
+
+            if (continuousRef.current) return;
+
             void (async () => {
               await stopScanner();
-              onDecodedRef.current(code);
               onCloseRef.current();
             })();
           },
@@ -164,7 +187,9 @@ export function BarcodeScanner({ open, onClose, onDecoded, className }: BarcodeS
           <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-white">
             <div>
               <div className="text-sm font-semibold">Escanear código</div>
-              <div className="text-xs text-white/70">Apuntá al código de barras</div>
+              <div className="text-xs text-white/70">
+                {continuous ? "Seguí escaneando para sumar al carrito · Cerrá cuando termines" : "Apuntá al código de barras"}
+              </div>
             </div>
             <Button
               type="button"
