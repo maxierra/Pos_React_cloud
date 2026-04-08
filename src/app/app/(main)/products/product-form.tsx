@@ -3,12 +3,13 @@
 import * as React from "react";
 
 import { ScanLine } from "lucide-react";
+import { toast } from "sonner";
 
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 
 type ProductDefaults = {
@@ -89,7 +90,6 @@ export function ProductForm({
   /** En alta, el margen puede arrastrar el precio. En edición, el precio guardado manda (si no, al redondear el % y volver a aplicar costo×(1+margen) se desfasa, ej. 3500 → 3500.1). */
   const [lastEdited, setLastEdited] = React.useState<"margin" | "price">(() => (defaults?.id ? "price" : "margin"));
 
-  const isMobileAssist = useIsMobilePos();
   const [scannerOpen, setScannerOpen] = React.useState(false);
 
   const [preloadLoading, setPreloadLoading] = React.useState(false);
@@ -258,45 +258,80 @@ export function ProductForm({
         {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
       </div>
 
-      <form action={action} className="mt-5 grid gap-4">
+      <form action={action} className="mt-5 flex flex-col gap-4 lg:grid lg:gap-4">
         {defaults?.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
 
-        {isMobileAssist ? (
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-            <p className="text-sm font-medium text-foreground">Asistido (celular)</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Escané el código para cargar el EAN y, si está en la base, nombre y precio sugerido. Después
-              completá compra, margen y stock como siempre.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-3 h-12 w-full gap-2 rounded-xl border-emerald-600/40 bg-background font-semibold"
-              onClick={() => setScannerOpen(true)}
+        {/* Móvil: mismo patrón que ventas — botón Escanear arriba */}
+        <div className="flex flex-col gap-2 lg:hidden">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            Paso 1 · Código de barras
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-14 w-full shrink-0 gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10"
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanLine className="size-5" />
+            Escanear
+          </Button>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Abrimos la cámara como en el POS. Al leer, se completa el EAN y, si está en tu base de referencia,
+            nombre y precio sugerido. Después te llevamos a <strong className="text-foreground">precio de compra</strong>{" "}
+            y stock.
+          </p>
+        </div>
+
+        <div className="hidden border-t border-[var(--pos-border)] lg:block" />
+
+        <div>
+          <div className="mb-2 lg:hidden">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Paso 2 · Datos del producto
+            </span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-2 md:col-span-1">
+              <Label htmlFor="barcode">Código de barras</Label>
+              <Input
+                id="barcode"
+                name="barcode"
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="O escribilo a mano"
+              />
+              {preloadLoading ? (
+                <p className="text-[11px] text-muted-foreground">Buscando datos en la base…</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 md:col-span-2">
+              <Label htmlFor="name">Nombre</Label>
+              <Input id="name" name="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} required />
+            </div>
+          </div>
+
+          {preload && !defaults?.id ? (
+            <div
+              className={cn(
+                "mt-3 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.07] p-3 text-left lg:hidden",
+                "dark:bg-emerald-950/25"
+              )}
             >
-              <ScanLine className="size-5" />
-              Escanear código de barras
-            </Button>
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="grid gap-2 md:col-span-1">
-            <Label htmlFor="barcode">Código de barras</Label>
-            <Input
-              id="barcode"
-              name="barcode"
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-              inputMode="numeric"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="grid gap-2 md:col-span-2">
-            <Label htmlFor="name">Nombre</Label>
-            <Input id="name" name="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} required />
-          </div>
+              <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">Datos sugeridos</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {preloadCategoryPath ? <span className="block">{preloadCategoryPath}</span> : null}
+                {preloadSuggestedPrice != null ? (
+                  <span className="mt-0.5 block">Precio referencia venta: ${preloadSuggestedPrice}</span>
+                ) : null}
+                <span className="mt-1 block text-emerald-700/90 dark:text-emerald-300/90">
+                  Revisá precio de compra y stock abajo antes de guardar.
+                </span>
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -332,6 +367,11 @@ export function ProductForm({
           </div>
         </div>
 
+        <div className="mb-2 lg:hidden">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Paso 3 · Compra, venta y stock
+          </span>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="grid gap-2">
             <Label htmlFor="cost">Precio compra</Label>
@@ -464,8 +504,10 @@ export function ProductForm({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2">
-          <Button type="submit">Guardar</Button>
+        <div className="flex items-center justify-end gap-2 pt-2 lg:pt-0">
+          <Button type="submit" className="h-12 w-full rounded-2xl text-base font-semibold lg:h-10 lg:w-auto">
+            Guardar producto
+          </Button>
         </div>
       </form>
 
@@ -476,7 +518,19 @@ export function ProductForm({
         onClose={() => setScannerOpen(false)}
         onDecoded={(raw) => {
           const code = raw.replace(/\s+/g, "").trim();
-          if (code) setBarcodeInput(code);
+          if (!code) return true;
+          setBarcodeInput(code);
+          if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+            toast.success("Código leído", {
+              description: "Revisá precio de compra, margen y stock.",
+              duration: 2800,
+            });
+            window.setTimeout(() => {
+              const el = document.getElementById("cost");
+              el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              (el as HTMLInputElement | null)?.focus({ preventScroll: true });
+            }, 400);
+          }
           return true;
         }}
       />

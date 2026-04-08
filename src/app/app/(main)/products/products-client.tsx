@@ -335,7 +335,7 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
       <AnimatePresence>
         {openCreate ? (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 max-lg:p-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -347,25 +347,33 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
             aria-labelledby="modal-create-title"
           >
             <motion.div
-              className="w-full max-w-3xl rounded-2xl border border-[var(--pos-border)] bg-card shadow-xl"
+              className={cn(
+                "flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-card shadow-xl",
+                "max-lg:fixed max-lg:inset-0 max-lg:h-[100dvh] max-lg:max-h-none max-lg:max-w-none max-lg:rounded-none max-lg:border-0"
+              )}
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 16, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18 }}
             >
-              <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 max-lg:pt-[max(1rem,env(safe-area-inset-top))]">
                 <div>
-                  <div id="modal-create-title" className="text-sm font-semibold tracking-tight">
+                  <div id="modal-create-title" className="text-base font-semibold tracking-tight max-lg:text-lg">
                     Nuevo producto
                   </div>
-                  <div className="text-xs text-muted-foreground">Cargá datos, precio y stock.</div>
+                  <div className="text-xs text-muted-foreground max-lg:hidden">
+                    Cargá datos, precio y stock.
+                  </div>
+                  <div className="text-[11px] text-muted-foreground lg:hidden">
+                    Escanear primero, después completá compra y stock.
+                  </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setOpenCreate(false)}>
                   <X className="size-4" />
                 </Button>
               </div>
 
-              <div className="p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                 <div className={cn(pending ? "pointer-events-none opacity-80" : "")}>
                   <ProductForm
                     title=""
@@ -385,7 +393,7 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
       <AnimatePresence>
         {editProduct ? (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 max-lg:p-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -397,25 +405,33 @@ export function ProductsClient({ products, canEditPrice = true, canEditStock = t
             aria-labelledby="modal-edit-title"
           >
             <motion.div
-              className="max-h-[min(90vh,920px)] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[var(--pos-border)] bg-card shadow-xl"
+              className={cn(
+                "flex max-h-[min(90vh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-card shadow-xl",
+                "max-lg:fixed max-lg:inset-0 max-lg:h-[100dvh] max-lg:max-h-none max-lg:max-w-none max-lg:rounded-none max-lg:border-0"
+              )}
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 16, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18 }}
             >
-              <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 max-lg:pt-[max(1rem,env(safe-area-inset-top))]">
                 <div>
-                  <div id="modal-edit-title" className="text-sm font-semibold tracking-tight">
+                  <div id="modal-edit-title" className="text-base font-semibold tracking-tight max-lg:text-lg">
                     Editar producto
                   </div>
-                  <div className="text-xs text-muted-foreground">Actualizá precios, stock y código.</div>
+                  <div className="text-xs text-muted-foreground max-lg:hidden">
+                    Actualizá precios, stock y código.
+                  </div>
+                  <div className="text-[11px] text-muted-foreground lg:hidden">
+                    Podés escanear para cambiar el código o ajustar stock.
+                  </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setEditProduct(null)}>
                   <X className="size-4" />
                 </Button>
               </div>
 
-              <div className="p-5">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                 <div className={cn(pending ? "pointer-events-none opacity-80" : "")}>
                   <ProductForm
                     key={editProduct.id}
