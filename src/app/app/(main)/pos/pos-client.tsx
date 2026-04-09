@@ -243,6 +243,9 @@ export function PosClient({
     }) => {
       if (cart.items.length === 0) return;
 
+      // Abrir ya (mismo tick que el click). Si se hace después de `await`, Chrome móvil bloquea el popup.
+      const printWin = p.print_ticket ? window.open("about:blank", "_blank") : null;
+
       startTransition(() => {
         (async () => {
           try {
@@ -273,17 +276,23 @@ export function PosClient({
               | undefined;
 
             if (p.print_ticket) {
-              printTicket({
-                kind: "sale",
-                business,
-                items: cart.items,
-                total: promo?.total_after ?? cart.total,
-                saleId: res.saleId,
-                paymentMethod: p.payment_method,
-                paymentMethodLabels: paymentLabelMap,
-                cashReceived: p.cash_received,
-                promotion: promo ?? null,
-              });
+              const ok = printTicket(
+                {
+                  kind: "sale",
+                  business,
+                  items: cart.items,
+                  total: promo?.total_after ?? cart.total,
+                  saleId: res.saleId,
+                  paymentMethod: p.payment_method,
+                  paymentMethodLabels: paymentLabelMap,
+                  cashReceived: p.cash_received,
+                  promotion: promo ?? null,
+                },
+                { preOpenedWindow: printWin }
+              );
+              if (!ok && printWin && !printWin.closed) printWin.close();
+            } else if (printWin && !printWin.closed) {
+              printWin.close();
             }
 
             cart.clear();
@@ -294,6 +303,7 @@ export function PosClient({
                 : `ID ${res.saleId.slice(0, 8)}`,
             });
           } catch (err) {
+            if (printWin && !printWin.closed) printWin.close();
             toast.error("No se pudo cobrar", {
               description: err instanceof Error ? err.message : "Error",
             });
@@ -307,22 +317,30 @@ export function PosClient({
   const onMercadoPagoAutoPaid = React.useCallback(
     ({ saleId, printTicket: shouldPrint }: { saleId: string; printTicket: boolean }) => {
       if (cart.items.length === 0) return;
-      if (shouldPrint) {
-        printTicket({
-          kind: "sale",
-          business,
-          items: cart.items,
-          total: cart.total,
-          saleId,
-          paymentMethod: "mercadopago",
-          paymentMethodLabels: paymentLabelMap,
-          cashReceived: undefined,
-        });
-      }
+      const ticketPayload = shouldPrint
+        ? {
+            kind: "sale" as const,
+            business,
+            items: cart.items,
+            total: cart.total,
+            saleId,
+            paymentMethod: "mercadopago",
+            paymentMethodLabels: paymentLabelMap,
+            cashReceived: undefined,
+          }
+        : null;
       cart.clear();
       closePayment();
       toast.success("Pago acreditado — venta registrada", {
         description: `ID ${saleId.slice(0, 8)}`,
+        ...(ticketPayload && {
+          action: {
+            label: "Imprimir ticket",
+            onClick: () => {
+              printTicket(ticketPayload);
+            },
+          },
+        }),
       });
       router.refresh();
     },

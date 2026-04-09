@@ -210,13 +210,35 @@ export function generateTicketHtml(data: TicketData) {
   </body></html>`;
 }
 
-export function printTicket(data: TicketData) {
-  if (typeof window === "undefined") return;
+export type PrintTicketOptions = {
+  /**
+   * Ventana abierta en el mismo instante del click (antes de cualquier `await`).
+   * En Chrome móvil, si no hacés esto, el popup se bloquea y no aparece el diálogo de impresión.
+   */
+  preOpenedWindow?: Window | null;
+};
+
+/**
+ * Escribe el HTML del ticket en una ventana y dispara el diálogo de impresión del sistema.
+ * Devuelve false si no se pudo abrir ventana (popup bloqueado).
+ */
+export function printTicket(data: TicketData, options?: PrintTicketOptions): boolean {
+  if (typeof window === "undefined") return false;
   const html = generateTicketHtml(data);
-  const popup = window.open("", "_blank", "width=420,height=720");
-  if (!popup) {
+  const pre = options?.preOpenedWindow;
+  let popup: Window | null = null;
+  if (pre !== undefined) {
+    if (pre && !pre.closed) popup = pre;
+    else {
+      alert("Por favor permite los popups para imprimir el ticket.");
+      return false;
+    }
+  } else {
+    popup = window.open("", "_blank", "width=420,height=720");
+  }
+  if (!popup || popup.closed) {
     alert("Por favor permite los popups para imprimir el ticket.");
-    return;
+    return false;
   }
 
   popup.document.write(html);
@@ -224,7 +246,12 @@ export function printTicket(data: TicketData) {
   popup.focus();
 
   setTimeout(() => {
-    popup.print();
-    popup.close();
+    try {
+      popup.print();
+      popup.close();
+    } catch {
+      /* noop */
+    }
   }, 250);
+  return true;
 }
