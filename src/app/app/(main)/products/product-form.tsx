@@ -2,13 +2,14 @@
 
 import * as React from "react";
 
-import { ScanLine } from "lucide-react";
+import { Hash, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { generateInternalEan13, INTERNAL_PRODUCT_DEFAULTS } from "@/lib/internal-barcode";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -282,15 +283,50 @@ export function ProductForm({
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2 md:col-span-1">
               <Label htmlFor="barcode">Código de barras</Label>
-              <Input
-                id="barcode"
-                name="barcode"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="O escribilo a mano"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="barcode"
+                  name="barcode"
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="O escribilo a mano"
+                  className="min-w-0 flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title={
+                    barcodeInput.trim()
+                      ? "Vacía el campo para generar un EAN interno"
+                      : "Generar EAN interno (sin código de fabricante)"
+                  }
+                  disabled={Boolean(barcodeInput.trim())}
+                  onClick={() => {
+                    const code = generateInternalEan13();
+                    setBarcodeInput(code);
+                    setExpiresAtInput(INTERNAL_PRODUCT_DEFAULTS.expiresAt);
+                    if (soldByWeight) {
+                      setStockDecimalInput(INTERNAL_PRODUCT_DEFAULTS.stockKg);
+                      setLowStockThresholdDecimalInput(INTERNAL_PRODUCT_DEFAULTS.lowStockKg);
+                    } else {
+                      setStockInput(INTERNAL_PRODUCT_DEFAULTS.stockUnits);
+                      setLowStockThresholdInput(INTERNAL_PRODUCT_DEFAULTS.lowStockUnits);
+                    }
+                    toast.success("Código interno generado", {
+                      description: soldByWeight
+                        ? `${code} · Stock ${INTERNAL_PRODUCT_DEFAULTS.stockKg} kg · Mín. ${INTERNAL_PRODUCT_DEFAULTS.lowStockKg} kg · Vto. ${INTERNAL_PRODUCT_DEFAULTS.expiresAt}`
+                        : `${code} · Stock ${INTERNAL_PRODUCT_DEFAULTS.stockUnits} u. · Mín. ${INTERNAL_PRODUCT_DEFAULTS.lowStockUnits} u. · Vto. ${INTERNAL_PRODUCT_DEFAULTS.expiresAt}`,
+                    });
+                  }}
+                >
+                  <Hash className="size-4" />
+                  <span className="sr-only">Generar código interno</span>
+                </Button>
+              </div>
               {preloadLoading ? (
                 <p className="text-[11px] text-muted-foreground">Buscando datos en la base…</p>
               ) : null}

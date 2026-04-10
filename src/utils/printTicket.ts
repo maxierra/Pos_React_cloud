@@ -30,18 +30,28 @@ export function isAndroidUserAgent(): boolean {
 
 /**
  * Envía texto plano a RawBT (solo Android). En otros entornos solo registra en consola.
+ *
+ * `ticketPlainText` debe ser **solo el cuerpo del ticket** (p. ej. `formatSaleTicketPlainText`).
+ * Nunca pasar la URL completa `rawbt://...` ni asignar `ticket = url` — eso imprimiría el link en el papel.
  */
-export function printTicket(ticket: string): void {
+export function printTicket(ticketPlainText: string): void {
   if (typeof window === "undefined") return;
 
   if (!isAndroidUserAgent()) {
     if (typeof console !== "undefined") {
-      console.log("[RawBT] omitido (no Android). Ticket:\n", ticket);
+      console.log("[RawBT] omitido (no Android). Ticket:\n", ticketPlainText);
     }
     return;
   }
 
-  const encoded = encodeURIComponent(ticket);
+  if (process.env.NODE_ENV === "development" && (ticketPlainText.includes("rawbt://") || /\bprint\?text=/i.test(ticketPlainText))) {
+    console.warn(
+      "[RawBT] El texto del ticket parece incluir una URL. Revisá `formatSaleTicketPlainText` / datos del negocio.",
+      ticketPlainText.slice(0, 240),
+    );
+  }
+
+  const encoded = encodeURIComponent(ticketPlainText);
   window.location.href = `rawbt://print?text=${encoded}`;
 }
 
