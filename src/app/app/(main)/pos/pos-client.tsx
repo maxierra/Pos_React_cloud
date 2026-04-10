@@ -16,7 +16,8 @@ import { useProducts, type PosProduct } from "@/app/app/(main)/pos/hooks/use-pro
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { beep } from "@/app/app/(main)/pos/utils/beep";
 import { buildPaymentLabelMap, sortPaymentMethods, type BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
-import { printTicket } from "@/lib/ticket-utils";
+import { formatSaleTicketPlainText, printTicket as printTicketInBrowser } from "@/lib/ticket-utils";
+import { isAndroidUserAgent, printTicket as printTicketRawBt } from "@/utils/printTicket";
 import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { Button } from "@/components/ui/button";
 import { ScanLine } from "lucide-react";
@@ -243,8 +244,9 @@ export function PosClient({
     }) => {
       if (cart.items.length === 0) return;
 
-      // Abrir ya (mismo tick que el click). Si se hace después de `await`, Chrome móvil bloquea el popup.
-      const printWin = p.print_ticket ? window.open("about:blank", "_blank") : null;
+      // RawBT (Android): deep link tras el cobro; no hace falta popup. Resto: ventana para window.print().
+      const useRawBt = Boolean(p.print_ticket && isAndroidUserAgent());
+      const printWin = p.print_ticket && !useRawBt ? window.open("about:blank", "_blank") : null;
 
       startTransition(() => {
         (async () => {
@@ -276,21 +278,23 @@ export function PosClient({
               | undefined;
 
             if (p.print_ticket) {
-              const ok = printTicket(
-                {
-                  kind: "sale",
-                  business,
-                  items: cart.items,
-                  total: promo?.total_after ?? cart.total,
-                  saleId: res.saleId,
-                  paymentMethod: p.payment_method,
-                  paymentMethodLabels: paymentLabelMap,
-                  cashReceived: p.cash_received,
-                  promotion: promo ?? null,
-                },
-                { preOpenedWindow: printWin }
-              );
-              if (!ok && printWin && !printWin.closed) printWin.close();
+              const ticketData = {
+                kind: "sale" as const,
+                business,
+                items: cart.items,
+                total: promo?.total_after ?? cart.total,
+                saleId: res.saleId,
+                paymentMethod: p.payment_method,
+                paymentMethodLabels: paymentLabelMap,
+                cashReceived: p.cash_received,
+                promotion: promo ?? null,
+              };
+              if (useRawBt) {
+                printTicketRawBt(formatSaleTicketPlainText(ticketData));
+              } else {
+                const ok = printTicketInBrowser(ticketData, { preOpenedWindow: printWin });
+                if (!ok && printWin && !printWin.closed) printWin.close();
+              }
             } else if (printWin && !printWin.closed) {
               printWin.close();
             }
@@ -337,7 +341,11 @@ export function PosClient({
           action: {
             label: "Imprimir ticket",
             onClick: () => {
-              printTicket(ticketPayload);
+              if (isAndroidUserAgent()) {
+                printTicketRawBt(formatSaleTicketPlainText(ticketPayload));
+              } else {
+                printTicketInBrowser(ticketPayload);
+              }
             },
           },
         }),

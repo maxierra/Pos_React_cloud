@@ -69,6 +69,95 @@ export function getPaymentMethodLabel(method: string, custom?: Record<string, st
   return method;
 }
 
+const PLAIN_SEP = "----------------";
+
+/**
+ * Ticket en texto plano con saltos `\n` (RawBT, TSV, etc.).
+ * Incluye ventas con ítems; otros `kind` generan un resumen mínimo.
+ */
+export function formatSaleTicketPlainText(data: TicketData): string {
+  const {
+    business,
+    items,
+    total,
+    saleId,
+    movementId,
+    paymentMethod,
+    paymentMethodLabels,
+    cashReceived,
+    reason,
+    notes,
+    kind,
+    created_at,
+    promotion,
+  } = data;
+  const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
+  const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
+  const idValue = (saleId || movementId || "").slice(0, 8);
+  const lines: string[] = ["***"];
+
+  lines.push((business?.name ?? "Mi Negocio").toUpperCase());
+  if (business?.address) lines.push(business.address);
+  if (business?.phone) lines.push(`Tel: ${business.phone}`);
+  if (business?.cuit) lines.push(`CUIT: ${business.cuit}`);
+  if (business?.ticket_header) lines.push(business.ticket_header);
+  lines.push(PLAIN_SEP);
+  lines.push(`${idLabel}: #${idValue}`);
+  lines.push(`Fecha: ${printedAt}`);
+
+  if (kind === "manual" || kind === "opening" || kind === "void") {
+    lines.push(PLAIN_SEP);
+    lines.push(`MOTIVO: ${reason || "Movimiento manual"}`);
+    if (notes) lines.push(`Nota: ${notes}`);
+    lines.push(PLAIN_SEP);
+    lines.push(`TOTAL: $${total.toFixed(2)}`);
+    lines.push("***");
+    return lines.join("\n");
+  }
+
+  if (kind === "closure" && data.closureData) {
+    lines.push(PLAIN_SEP);
+    lines.push("CIERRE DE CAJA");
+    lines.push(PLAIN_SEP);
+    lines.push(`TOTAL: $${total.toFixed(2)}`);
+    if (notes) lines.push(`Notas: ${notes}`);
+    lines.push("***");
+    return lines.join("\n");
+  }
+
+  if (items && items.length > 0) {
+    lines.push(PLAIN_SEP);
+    for (const it of items) {
+      const subtotal = Math.round((it.quantity * it.unit_price + Number.EPSILON) * 100) / 100;
+      lines.push(`${it.name} x${it.quantity}  $${subtotal.toFixed(2)}`);
+    }
+  }
+
+  const promo = promotion && promotion.amount > 0 ? promotion : null;
+  const baseTotal = promo ? promo.total_before : total;
+  const finalTotal = promo ? promo.total_after : total;
+  const change = cashReceived ? Math.max(0, cashReceived - finalTotal) : 0;
+
+  lines.push(PLAIN_SEP);
+  if (promo) {
+    lines.push(`Subtotal: $${baseTotal.toFixed(2)}`);
+    lines.push(`Promo ${promo.name} (${promo.percent.toFixed(1)}%): -$${promo.amount.toFixed(2)}`);
+  }
+  lines.push(`TOTAL: $${finalTotal.toFixed(2)}`);
+  if (paymentMethod) {
+    lines.push(`Pago: ${getPaymentMethodLabel(paymentMethod, paymentMethodLabels)}`);
+  }
+  if (cashReceived != null) {
+    lines.push(`Recibido: $${cashReceived.toFixed(2)}`);
+    lines.push(`Vuelto: $${change.toFixed(2)}`);
+  }
+  if (business?.ticket_footer) lines.push(business.ticket_footer);
+  lines.push(kind === "closure" ? "Fin de turno" : "Gracias por su compra");
+  lines.push("***");
+
+  return lines.join("\n");
+}
+
 export function generateTicketHtml(data: TicketData) {
   const {
     business,
