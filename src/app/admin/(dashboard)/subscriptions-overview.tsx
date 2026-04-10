@@ -1,7 +1,11 @@
-import { AdminQuickActivateButton } from "@/app/admin/(dashboard)/admin-quick-activate";
-import { AdminQuickDeactivateButton } from "@/app/admin/(dashboard)/admin-quick-deactivate";
+import { AdminSubscriptionRowActions } from "@/app/admin/(dashboard)/admin-subscription-row-actions";
 import type { AdminSubscriptionListItem } from "@/app/admin/(dashboard)/data";
 import { parseDbTimestamptzToDate } from "@/lib/parse-db-timestamp";
+
+function shortUuid(id: string) {
+  if (id.length <= 10) return id;
+  return `${id.slice(0, 8)}…`;
+}
 
 function badgeForSummary(s: AdminSubscriptionListItem["billingSummary"]) {
   switch (s) {
@@ -86,99 +90,119 @@ export function AdminSubscriptionsOverview({ rows, billingDays }: Props) {
       <div className="rounded-3xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4 shadow-sm">
         <h2 className="text-lg font-semibold tracking-tight">Todas las suscripciones</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Hasta 300 negocios por última actualización. <strong>+{billingDays} días</strong> habilita;{" "}
-          <strong>Desactivar</strong> corta el acceso al POS. El campo <strong>Cobro</strong> indica MP automático vs
-          manual.
+          Hasta 300 negocios por última actualización. <strong>+{billingDays}d</strong> habilita; el ícono de prohibido corta el
+          acceso al POS. El regalo genera un código −50% (plan 1m / 6m / 12m) y se copia al portapapeles.
         </p>
 
         <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--pos-border)]">
-          <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[1320px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--pos-border)] bg-[var(--pos-surface-2)]/80 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <th className="px-3 py-3">Negocio</th>
-                <th className="px-3 py-3">Estado</th>
-                <th className="px-3 py-3">Cobro</th>
-                <th className="px-3 py-3">Provider (DB)</th>
-                <th className="px-3 py-3">POS</th>
-                <th className="px-3 py-3">Fin período</th>
-                <th className="px-3 py-3">Último pago</th>
-                <th className="px-3 py-3 min-w-[140px]">Acción</th>
+                <th className="px-3 py-2.5">Negocio</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">Estado</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">Cobro</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">Provider (DB)</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">POS</th>
+                <th className="px-3 py-2.5 whitespace-nowrap">Fin período</th>
+                <th className="px-3 py-2.5 min-w-[140px]">Último pago</th>
+                <th className="min-w-[22rem] whitespace-nowrap px-3 py-2.5">Acción</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.subscriptionId}
-                  className="border-b border-[var(--pos-border)]/80 hover:bg-[var(--pos-surface-2)]/40"
-                >
-                  <td className="px-3 py-2.5 align-top">
-                    <div className="font-medium">{r.businessName}</div>
-                    <div className="text-xs text-muted-foreground">{r.businessSlug}</div>
-                    <div className="mt-1 font-mono text-[10px] text-muted-foreground break-all">{r.businessId}</div>
-                  </td>
-                  <td className="px-3 py-2.5 align-top">
-                    <span className="font-medium">{statusLabel(r.status)}</span>
-                  </td>
-                  <td className="px-3 py-2.5 align-top">{badgeForSummary(r.billingSummary)}</td>
-                  <td className="px-3 py-2.5 align-top font-mono text-xs">{providerLabel(r.provider)}</td>
-                  <td className="px-3 py-2.5 align-top">
-                    {r.hasAppAccess ? (
-                      <span className="text-emerald-600 dark:text-emerald-400">OK</span>
-                    ) : (
-                      <div>
-                        <span className="font-medium text-destructive">Bloqueado</span>
-                        {r.status === "trialing" &&
-                        r.currentPeriodEndMs != null &&
-                        r.currentPeriodEndMs < Date.now() ? (
-                          <span className="mt-1 block max-w-[140px] text-[10px] leading-snug text-muted-foreground">
-                            La prueba ya pasó su fecha fin (misma regla que el POS). Pulsá{" "}
-                            <strong className="text-foreground">+{billingDays} días</strong>.
-                          </span>
-                        ) : null}
+              {rows.map((r) => {
+                const trialExpiredBlocked =
+                  !r.hasAppAccess &&
+                  r.status === "trialing" &&
+                  r.currentPeriodEndMs != null &&
+                  r.currentPeriodEndMs < Date.now();
+                const posTitle = !r.hasAppAccess
+                  ? trialExpiredBlocked
+                    ? `Prueba vencida (misma regla que el POS). Usá +${billingDays}d para habilitar.`
+                    : "Sin acceso al POS hasta reactivar o pagar."
+                  : undefined;
+
+                const lastPayLine = r.lastPayment
+                  ? `${r.lastPayment.provider} ${r.lastPayment.amount} ${r.lastPayment.currency} · ${r.lastPayment.status} · ${new Date(r.lastPayment.created_at).toLocaleString("es-AR", {
+                      timeZone: "America/Argentina/Buenos_Aires",
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}`
+                  : "";
+
+                return (
+                  <tr
+                    key={r.subscriptionId}
+                    className="border-b border-[var(--pos-border)]/80 hover:bg-[var(--pos-surface-2)]/40"
+                  >
+                    <td className="max-w-[min(22rem,32vw)] px-3 py-2 align-middle">
+                      <div
+                        className="truncate text-sm"
+                        title={`${r.businessName} · ${r.businessSlug} · ${r.businessId}`}
+                      >
+                        <span className="font-medium">{r.businessName}</span>
+                        <span className="text-muted-foreground"> · </span>
+                        <span className="text-muted-foreground">{r.businessSlug}</span>
+                        <span className="text-muted-foreground"> · </span>
+                        <span className="font-mono text-[10px] text-muted-foreground">{shortUuid(r.businessId)}</span>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-xs whitespace-nowrap">
-                    {r.currentPeriodEnd
-                      ? (() => {
-                          const d = parseDbTimestamptzToDate(r.currentPeriodEnd);
-                          return d
-                            ? d.toLocaleString("es-AR", {
-                                timeZone: "America/Argentina/Buenos_Aires",
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              })
-                            : r.currentPeriodEnd;
-                        })()
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2.5 align-top text-xs">
-                    {r.lastPayment ? (
-                      <div>
-                        <div className="font-mono">{r.lastPayment.provider}</div>
-                        <div className="text-muted-foreground">
-                          {r.lastPayment.amount} {r.lastPayment.currency} · {r.lastPayment.status}
-                        </div>
-                        <div className="text-muted-foreground">
+                    </td>
+                    <td className="px-3 py-2 align-middle whitespace-nowrap">
+                      <span className="font-medium">{statusLabel(r.status)}</span>
+                    </td>
+                    <td className="px-3 py-2 align-middle whitespace-nowrap">{badgeForSummary(r.billingSummary)}</td>
+                    <td className="px-3 py-2 align-middle font-mono text-xs whitespace-nowrap">
+                      {providerLabel(r.provider)}
+                    </td>
+                    <td className="px-3 py-2 align-middle whitespace-nowrap">
+                      {r.hasAppAccess ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">OK</span>
+                      ) : (
+                        <span className="cursor-help font-medium text-destructive underline decoration-dotted" title={posTitle}>
+                          Bloqueado
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 align-middle text-xs whitespace-nowrap">
+                      {r.currentPeriodEnd
+                        ? (() => {
+                            const d = parseDbTimestamptzToDate(r.currentPeriodEnd);
+                            return d
+                              ? d.toLocaleString("es-AR", {
+                                  timeZone: "America/Argentina/Buenos_Aires",
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })
+                              : r.currentPeriodEnd;
+                          })()
+                        : "—"}
+                    </td>
+                    <td className="max-w-[200px] px-3 py-2 align-middle text-xs">
+                      {r.lastPayment ? (
+                        <div className="truncate" title={lastPayLine}>
+                          {r.lastPayment.provider} {r.lastPayment.amount} {r.lastPayment.currency} · {r.lastPayment.status}{" "}
+                          ·{" "}
                           {new Date(r.lastPayment.created_at).toLocaleString("es-AR", {
                             timeZone: "America/Argentina/Buenos_Aires",
                             dateStyle: "short",
                             timeStyle: "short",
                           })}
                         </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 align-middle">
+                      <div className="flex justify-end">
+                        <AdminSubscriptionRowActions
+                        businessId={r.businessId}
+                        businessName={r.businessName}
+                        billingDays={billingDays}
+                        />
                       </div>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 align-top">
-                    <div className="flex flex-col gap-2">
-                      <AdminQuickActivateButton businessId={r.businessId} billingDays={billingDays} />
-                      <AdminQuickDeactivateButton businessId={r.businessId} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

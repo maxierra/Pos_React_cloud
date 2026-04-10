@@ -11,7 +11,12 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 
 
 import { getAppBaseUrl } from "@/lib/app-base-url";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  discountedPlanAmount,
+  normalizeSubscriptionPromoCode,
+} from "@/lib/subscription-promo";
 
 
 
@@ -109,9 +114,98 @@ export async function getAllPlansConfig() {
 
 }
 
+export type ValidatedSubscriptionPromo = {
+  planKey: PlanKey;
+  discountPercent: number;
+  listAmount: number;
+  payAmount: number;
+  promoId: string;
+};
 
+/**
+ * Valida un código de descuento (bono) para el negocio activo. No requiere elegir plan: el código ya está asociado a un plan.
+ */
+export async function validateSubscriptionPromoCode(
+  rawCode: string
+): Promise<{ ok: true; data: ValidatedSubscriptionPromo } | { ok: false; error: string }> {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) {
+    return { ok: false, error: "No hay negocio activo." };
+  }
 
-export async function startMercadoPagoCheckout(planKey: PlanKey = "monthly"): Promise<{ checkoutUrl: string } | { error: string }> {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return { ok: false, error: "Sesión inválida." };
+  }
+
+  const { data: membership, error: memErr } = await supabase
+    .from("memberships")
+    .select("business_id")
+    .eq("business_id", businessId)
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (memErr || !membership) {
+    return { ok: false, error: "No tenés acceso a este negocio." };
+  }
+
+  const code = normalizeSubscriptionPromoCode(rawCode);
+  if (code.length < 4) {
+    return { ok: false, error: "Ingresá un código válido." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: "Configuración del servidor incompleta." };
+  }
+
+  const { data: row, error: qErr } = await admin
+    .from("subscription_promo_codes")
+    .select("id, discount_percent, plan_key, expires_at, used_at")
+    .eq("code", code)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (qErr) {
+    return { ok: false, error: qErr.message };
+  }
+  if (!row) {
+    return { ok: false, error: "Código no encontrado o no corresponde a este negocio." };
+  }
+  if (row.used_at) {
+    return { ok: false, error: "Este código ya fue usado." };
+  }
+  if (row.expires_at && new Date(row.expires_at) < new Date()) {
+    return { ok: false, error: "Este código venció." };
+  }
+
+  const planKey = row.plan_key as PlanKey;
+  const { amount: listAmount } = await getPlanConfig(planKey);
+  const payAmount = discountedPlanAmount(listAmount, Number(row.discount_percent));
+  if (payAmount < 1) {
+    return { ok: false, error: "Monto con descuento inválido." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      planKey,
+      discountPercent: Number(row.discount_percent),
+      listAmount,
+      payAmount,
+      promoId: row.id as string,
+    },
+  };
+}
+
+export async function startMercadoPagoCheckout(
+  planKey: PlanKey = "monthly",
+  promoCodeRaw?: string | null
+): Promise<{ checkoutUrl: string } | { error: string }> {
 
   const token = (process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim();
 
@@ -167,9 +261,49 @@ export async function startMercadoPagoCheckout(planKey: PlanKey = "monthly"): Pr
 
   }
 
+  const { amount: listAmount, currency, title } = await getPlanConfig(planKey);
+  let unitPrice = listAmount;
+  let itemTitle = title;
+  let promoId: string | null = null;
 
+  const trimmedPromo = (promoCodeRaw ?? "").trim();
+  if (trimmedPromo) {
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      return { error: "Configuración del servidor incompleta." };
+    }
+    const code = normalizeSubscriptionPromoCode(trimmedPromo);
+    const { data: row, error: pErr } = await admin
+      .from("subscription_promo_codes")
+      .select("id, discount_percent, plan_key, expires_at, used_at")
+      .eq("code", code)
+      .eq("business_id", businessId)
+      .maybeSingle();
 
-  const { amount, currency, title } = await getPlanConfig(planKey);
+    if (pErr) {
+      return { error: pErr.message };
+    }
+    if (!row) {
+      return { error: "Código no encontrado o no corresponde a este negocio." };
+    }
+    if (row.used_at) {
+      return { error: "Este código ya fue usado." };
+    }
+    if (row.expires_at && new Date(row.expires_at) < new Date()) {
+      return { error: "Este código venció." };
+    }
+    if ((row.plan_key as PlanKey) !== planKey) {
+      return { error: "Este código aplica a otro plan. Elegí el plan correcto o quitá el código." };
+    }
+    unitPrice = discountedPlanAmount(listAmount, Number(row.discount_percent));
+    if (unitPrice < 1) {
+      return { error: "Monto con descuento inválido." };
+    }
+    promoId = row.id as string;
+    itemTitle = `${title} (−${Number(row.discount_percent)}%)`;
+  }
 
   const base = getAppBaseUrl();
   const notificationUrl = `${base}/api/webhooks/mercadopago`;
@@ -177,18 +311,26 @@ export async function startMercadoPagoCheckout(planKey: PlanKey = "monthly"): Pr
   const client = new MercadoPagoConfig({ accessToken: token });
   const preference = new Preference(client);
 
+  const metadata: Record<string, string> = {
+    business_id: businessId,
+    plan_key: planKey,
+    list_price: String(listAmount),
+    final_price: String(unitPrice),
+    promo_code_id: promoId ?? "",
+  };
+
   const body = {
     items: [
       {
         id: `${planKey}-plan`,
 
-        title,
+        title: itemTitle,
 
         quantity: 1,
 
         currency_id: currency,
 
-        unit_price: amount,
+        unit_price: unitPrice,
 
       },
 
@@ -196,7 +338,7 @@ export async function startMercadoPagoCheckout(planKey: PlanKey = "monthly"): Pr
 
     external_reference: businessId,
 
-    metadata: { business_id: businessId, plan_key: planKey },
+    metadata,
 
     notification_url: notificationUrl,
 

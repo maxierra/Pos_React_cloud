@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { emailIsPlatformAdmin } from "@/lib/platform-admin";
+import { getPlatformAdminSessionEmail } from "@/lib/platform-admin-session";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -17,22 +16,12 @@ function billingDays(): number {
   return Number.isFinite(d) && d > 0 ? Math.floor(d) : 30;
 }
 
-async function getSessionAdminEmail(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const email = user?.email ?? null;
-  if (!email || !emailIsPlatformAdmin(email)) return null;
-  return email;
-}
-
 export type AdminActivateResult =
   | { error: "forbidden" | "invalid_uuid" | "not_found" | "config"; message?: string }
   | { ok: true; current_period_end: string };
 
 async function adminActivateSubscriptionImpl(businessId: string): Promise<AdminActivateResult> {
-  const adminEmail = await getSessionAdminEmail();
+  const adminEmail = await getPlatformAdminSessionEmail();
   if (!adminEmail) return { error: "forbidden" };
 
   const id = businessId.trim();
@@ -123,7 +112,7 @@ export type AdminDeactivateResult =
  * Estado `canceled` + provider `admin_suspended` para distinguir en el panel.
  */
 async function adminDeactivateSubscriptionImpl(businessId: string): Promise<AdminDeactivateResult> {
-  const adminEmail = await getSessionAdminEmail();
+  const adminEmail = await getPlatformAdminSessionEmail();
   if (!adminEmail) return { error: "forbidden" };
 
   const id = businessId.trim();

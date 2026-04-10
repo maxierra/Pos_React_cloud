@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
+import { notifyAdminUserSignup } from "@/lib/admin-alerts-send";
 import { getAppBaseUrl } from "@/lib/app-base-url";
 import { firstAllowedMemberPath } from "@/lib/employee-permissions";
 import { createClient } from "@/lib/supabase/server";
@@ -201,6 +202,11 @@ async function signUpImpl(formData: FormData) {
 
   if (error) {
     redirect(`/auth/register?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const registeredEmail = data.user?.email?.trim();
+  if (registeredEmail) {
+    void notifyAdminUserSignup(registeredEmail);
   }
 
   const confirmed = data.user?.email_confirmed_at != null;

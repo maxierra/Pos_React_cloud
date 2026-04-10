@@ -5,7 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
-  CreditCard, Activity, Menu, Shield, Users, ChevronLeft, ChevronRight
+  Bell,
+  CreditCard,
+  Activity,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { adminSignOut } from "@/app/admin/actions";
@@ -21,7 +26,8 @@ type NavItem = {
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Suscripciones", icon: CreditCard },
-  { href: "/admin/payments", label: "Pagos", icon: CreditCard }, // Added payments route
+  { href: "/admin/payments", label: "Pagos", icon: CreditCard },
+  { href: "/admin/alertas", label: "Alertas", icon: Bell },
   { href: "/admin/monitoring", label: "Monitoreo", icon: Activity },
 ];
 

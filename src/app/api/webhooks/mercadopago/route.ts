@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 
+import { notifyAdminSubscriptionPayment } from "@/lib/admin-alerts-send";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   extractPosCompletionFromOrderJson,
@@ -172,6 +173,33 @@ async function processSubscriptionApproved(payment: MpPayment, paymentId: string
     console.error("subscriptions upsert", subErr);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+
+  const meta = payment.metadata as Record<string, unknown> | undefined;
+  const promoRaw = meta?.promo_code_id;
+  const promoId = typeof promoRaw === "string" ? promoRaw.trim() : "";
+  if (promoId && /^[0-9a-f-]{36}$/i.test(promoId)) {
+    const { error: promoErr } = await admin
+      .from("subscription_promo_codes")
+      .update({ used_at: now.toISOString() })
+      .eq("id", promoId)
+      .eq("business_id", businessId)
+      .is("used_at", null);
+    if (promoErr) {
+      console.warn("[mp-webhook] subscription_promo_codes update", promoErr.message);
+    }
+  }
+
+  const { data: bizRow } = await admin.from("businesses").select("name").eq("id", businessId).maybeSingle();
+  const businessName = String((bizRow as { name?: string } | null)?.name ?? "Sin nombre");
+  void notifyAdminSubscriptionPayment({
+    businessId,
+    businessName,
+    amount: Number(payment.transaction_amount ?? 0),
+    currency: String(payment.currency_id ?? "ARS"),
+    mpPaymentId: providerPaymentId,
+  });
+
+  revalidatePath("/app/subscription");
 
   return NextResponse.json({ ok: true });
 }

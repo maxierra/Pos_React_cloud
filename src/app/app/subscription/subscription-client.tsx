@@ -14,8 +14,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { startMercadoPagoCheckout, type PlanKey } from "@/app/app/subscription/actions";
+import {
+  startMercadoPagoCheckout,
+  validateSubscriptionPromoCode,
+  type PlanKey,
+  type ValidatedSubscriptionPromo,
+} from "@/app/app/subscription/actions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TrialCountdown } from "@/components/trial-countdown";
 import { parseDbTimestamptzToDate } from "@/lib/parse-db-timestamp";
 import { businessHasAppAccess, type SubscriptionRow } from "@/lib/subscription";
@@ -62,6 +69,9 @@ export function SubscriptionClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPlanKey, setLoadingPlanKey] = React.useState<PlanKey | null>(null);
+  const [promoInput, setPromoInput] = React.useState("");
+  const [promoApplied, setPromoApplied] = React.useState<ValidatedSubscriptionPromo | null>(null);
+  const [promoValidating, setPromoValidating] = React.useState(false);
 
   const { mpAlias, phoneDisplay, whatsappDigits, cbu, transferHolder, transferNote } = manualContact;
   const hasManualDetails = Boolean(
@@ -125,10 +135,17 @@ export function SubscriptionClient({
       ? parseDbTimestamptzToDate(subscription.current_period_end)
       : null;
 
+  const planLabelEs = React.useCallback((k: PlanKey) => {
+    if (k === "monthly") return "mensual";
+    if (k === "semester") return "semestral";
+    return "anual";
+  }, []);
+
   const onPayPlan = async (key: PlanKey) => {
     setLoadingPlanKey(key);
     try {
-      const res = await startMercadoPagoCheckout(key);
+      const usePromo = Boolean(promoApplied && promoApplied.planKey === key && promoInput.trim());
+      const res = await startMercadoPagoCheckout(key, usePromo ? promoInput : undefined);
       if ("error" in res) {
         toast.error("No se pudo iniciar el pago", { description: res.error });
         return;
@@ -138,6 +155,24 @@ export function SubscriptionClient({
       setLoadingPlanKey(null);
     }
   };
+
+  const onValidatePromo = React.useCallback(async () => {
+    setPromoValidating(true);
+    try {
+      const res = await validateSubscriptionPromoCode(promoInput);
+      if (!res.ok) {
+        toast.error(res.error);
+        setPromoApplied(null);
+        return;
+      }
+      setPromoApplied(res.data);
+      toast.success("Código aplicado", {
+        description: `Plan ${planLabelEs(res.data.planKey)} · −${res.data.discountPercent}%`,
+      });
+    } finally {
+      setPromoValidating(false);
+    }
+  }, [planLabelEs, promoInput]);
 
   const planItems = [
     {
@@ -330,16 +365,84 @@ export function SubscriptionClient({
           </p>
         </div>
 
+        {mercadoPagoConfigured ? (
+          <div className="mx-auto max-w-5xl rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)]/40 p-4">
+            <Label htmlFor="sub-promo-code" className="text-xs font-semibold text-muted-foreground">
+              Código promocional (opcional)
+            </Label>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Si recibiste un bono de bienvenida u oferta, ingresalo y validá antes de pagar el plan que corresponda.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                id="sub-promo-code"
+                value={promoInput}
+                onChange={(e) => {
+                  setPromoInput(e.target.value);
+                  setPromoApplied(null);
+                }}
+                placeholder="Ej. código que te envió el administrador"
+                className="h-10 flex-1 rounded-xl font-mono text-sm uppercase"
+                autoComplete="off"
+              />
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-10 rounded-xl"
+                  disabled={promoValidating || !promoInput.trim()}
+                  onClick={() => void onValidatePromo()}
+                >
+                  {promoValidating ? (
+                    <>
+                      <Loader2 className="mr-2 size-3.5 animate-spin" />
+                      Validando…
+                    </>
+                  ) : (
+                    "Validar"
+                  )}
+                </Button>
+                {promoApplied ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 rounded-xl"
+                    onClick={() => {
+                      setPromoApplied(null);
+                      setPromoInput("");
+                    }}
+                  >
+                    Quitar
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            {promoApplied ? (
+              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+                Aplica al plan <strong className="font-semibold">{planLabelEs(promoApplied.planKey)}</strong>: listado{" "}
+                <span className="tabular-nums">${promoApplied.listAmount.toLocaleString("es-AR")}</span> → pagás{" "}
+                <span className="font-semibold tabular-nums">${promoApplied.payAmount.toLocaleString("es-AR")}</span>{" "}
+                (−{promoApplied.discountPercent}%)
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:gap-3 lg:grid-cols-3 lg:items-stretch">
           {planItems.map(({ key, title, months, plan, tagline, description, featured, theme }) => {
             const isLoading = loadingPlanKey === key;
+            const promoForPlan = promoApplied && promoApplied.planKey === key ? promoApplied : null;
+            const payAmount = promoForPlan ? promoForPlan.payAmount : plan.amount;
+            const listAmountCard = promoForPlan ? promoForPlan.listAmount : plan.amount;
             const fullPrice = plans.monthly.amount * months;
-            const discount =
+            const bundleDiscountPct =
               months > 1 && fullPrice > plan.amount ? Math.round(((fullPrice - plan.amount) / fullPrice) * 100) : 0;
-            const perMonth = plan.amount / months;
+            const perMonth = payAmount / months;
             const priceMain =
               months === 1
-                ? plan.amount.toLocaleString("es-AR", { maximumFractionDigits: 0 })
+                ? payAmount.toLocaleString("es-AR", { maximumFractionDigits: 0 })
                 : perMonth.toLocaleString("es-AR", { maximumFractionDigits: 0 });
 
             return (
@@ -370,6 +473,11 @@ export function SubscriptionClient({
                     className="flex flex-wrap items-baseline justify-center gap-x-1"
                     aria-label={`${priceMain} pesos argentinos`}
                   >
+                    {promoForPlan ? (
+                      <span className="mr-1 text-lg font-semibold tabular-nums line-through opacity-55">
+                        ${listAmountCard.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                      </span>
+                    ) : null}
                     <span className={cn("text-2xl font-bold tabular-nums leading-none", theme.dollar)}>$</span>
                     <span className={cn("text-4xl font-black tabular-nums tracking-tight", theme.price)}>{priceMain}</span>
                     <span
@@ -393,7 +501,7 @@ export function SubscriptionClient({
                   <p className={cn("mt-1 text-[10px] font-semibold", theme.muted)}>
                     Total del plan:{" "}
                     <span className="tabular-nums">
-                      ${plan.amount.toLocaleString("es-AR")} {plan.currency}
+                      ${payAmount.toLocaleString("es-AR")} {plan.currency}
                     </span>
                   </p>
                 ) : null}
@@ -402,13 +510,25 @@ export function SubscriptionClient({
 
                 <p className={cn("mt-1.5 text-[10px]", theme.muted)}>
                   Válido por {plan.days} días
-                  {discount > 0 ? (
-                    <span className="ml-1 font-semibold text-emerald-700 dark:text-emerald-400"> · −{discount}%</span>
+                  {promoForPlan ? (
+                    <span className="ml-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                      {" "}
+                      · −{promoForPlan.discountPercent}% con código
+                    </span>
+                  ) : bundleDiscountPct > 0 ? (
+                    <span className="ml-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                      {" "}
+                      · −{bundleDiscountPct}%
+                    </span>
                   ) : null}
                 </p>
 
-                {discount > 0 ? (
+                {!promoForPlan && bundleDiscountPct > 0 ? (
                   <p className="mt-0.5 text-[10px] line-through opacity-70">{fullPrice.toLocaleString("es-AR")} sin dto.</p>
+                ) : promoForPlan ? (
+                  <p className="mt-0.5 text-[10px] line-through opacity-70">
+                    {listAmountCard.toLocaleString("es-AR")} sin código
+                  </p>
                 ) : null}
 
                 <Button

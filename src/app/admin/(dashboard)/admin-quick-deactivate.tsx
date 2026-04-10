@@ -2,17 +2,19 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Ban, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { adminDeactivateSubscription } from "@/app/admin/(dashboard)/actions";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Props = {
   businessId: string;
+  compact?: boolean;
 };
 
-export function AdminQuickDeactivateButton({ businessId }: Props) {
+export function AdminQuickDeactivateButton({ businessId, compact = false }: Props) {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
@@ -47,12 +49,15 @@ export function AdminQuickDeactivateButton({ businessId }: Props) {
       type="button"
       size="sm"
       variant="outline"
-      className="h-8 gap-1.5 rounded-lg border-destructive/50 text-destructive hover:bg-destructive/10"
+      title="Desactivar acceso al POS"
+      className={cn(
+        "shrink-0 border-destructive/50 text-destructive hover:bg-destructive/10",
+        compact ? "size-7 p-0" : "h-8 gap-1.5 rounded-lg"
+      )}
       disabled={loading}
       onClick={onDeactivate}
     >
-      {loading ? <Loader2 className="size-3.5 animate-spin" /> : null}
-      Desactivar
+      {loading ? <Loader2 className="size-3.5 animate-spin" /> : compact ? <Ban className="size-3.5" /> : "Desactivar"}
     </Button>
   );
 }
