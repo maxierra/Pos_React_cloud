@@ -11,10 +11,10 @@
  * - Binario pre-armado en base64 (útil para ESC/POS): rawbt://print?base64=<URI-encoded>
  *
  * @see https://play.google.com/store/apps/details?id=ru.a402d.rawbtprinter (RawBT)
+ *
+ * No mostramos alert si RawBT “no está instalado”: en Chrome Android la pestaña suele
+ * seguir `visible` y sin `blur` al abrir la app, y cualquier heurística dispara falsos positivos.
  */
-
-const RAWBT_ALERT_MS = 2800;
-const RAWBT_ALERT_MSG = "Instalá RawBT para imprimir por Bluetooth";
 
 /** UA “mobile” amplio (layout / UX); RawBT solo aplica en Android. */
 export function isMobileUserAgent(): boolean {
@@ -26,33 +26,6 @@ export function isMobileUserAgent(): boolean {
 export function isAndroidUserAgent(): boolean {
   if (typeof navigator === "undefined") return false;
   return /Android/i.test(navigator.userAgent);
-}
-
-function scheduleRawBtMissingAlert(): void {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-
-  let cleared = false;
-  const clear = () => {
-    if (cleared) return;
-    cleared = true;
-    window.clearTimeout(timer);
-    document.removeEventListener("visibilitychange", onVis);
-    window.removeEventListener("pagehide", onVis);
-  };
-
-  const onVis = () => {
-    if (document.visibilityState === "hidden") clear();
-  };
-
-  const timer = window.setTimeout(() => {
-    if (document.visibilityState === "visible") {
-      alert(RAWBT_ALERT_MSG);
-    }
-    clear();
-  }, RAWBT_ALERT_MS);
-
-  document.addEventListener("visibilitychange", onVis);
-  window.addEventListener("pagehide", onVis);
 }
 
 /**
@@ -69,7 +42,6 @@ export function printTicket(ticket: string): void {
   }
 
   const encoded = encodeURIComponent(ticket);
-  scheduleRawBtMissingAlert();
   window.location.href = `rawbt://print?text=${encoded}`;
 }
 
@@ -88,6 +60,5 @@ export function printTicketBase64(base64: string): void {
   }
 
   const encoded = encodeURIComponent(base64);
-  scheduleRawBtMissingAlert();
   window.location.href = `rawbt://print?base64=${encoded}`;
 }
