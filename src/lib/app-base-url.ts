@@ -48,8 +48,14 @@ export function getAppBaseUrl(): string {
   ];
 
   for (const raw of ordered) {
-    const v = norm(raw ?? "");
-    if (v) return normalizeAppOrigin(v);
+    let v = norm(raw ?? "");
+    if (v) {
+      // Fix para Render: RENDER_EXTERNAL_URL incluye :10000 que es interno
+      if (v.includes(':10000')) {
+        v = v.replace(':10000', '');
+      }
+      return normalizeAppOrigin(v);
+    }
   }
 
   const vercel = norm(process.env.VERCEL_URL ?? "");

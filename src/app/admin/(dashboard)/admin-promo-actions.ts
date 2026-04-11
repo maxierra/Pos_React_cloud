@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
+import { randomSubscriptionPromoCode } from "@/lib/promo-code";
 import { normalizeSubscriptionPromoCode } from "@/lib/subscription-promo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformAdminSessionEmail } from "@/lib/platform-admin-session";
@@ -11,17 +12,6 @@ import type { PlanKey } from "@/app/app/subscription/actions";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function randomPromoCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(10);
-  crypto.getRandomValues(bytes);
-  let s = "";
-  for (let i = 0; i < 10; i++) {
-    s += alphabet[bytes[i] % alphabet.length];
-  }
-  return s;
-}
 
 export type AdminCreatePromoResult =
   | { ok: true; code: string; businessId: string }
@@ -63,7 +53,7 @@ async function adminCreateSubscriptionPromoImpl(input: {
       : null;
 
   for (let attempt = 0; attempt < 10; attempt++) {
-    const code = randomPromoCode();
+    const code = randomSubscriptionPromoCode();
     const { error: insErr } = await admin.from("subscription_promo_codes").insert({
       code,
       business_id: id,

@@ -1,17 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePlatformAdminEmails } from "@/lib/platform-admin";
+import { sendTransactionalEmail } from "@/lib/resend-server";
 
 export type AdminAlertSettingsRow = {
   admin_alert_email: string | null;
   alert_on_user_signup: boolean;
   alert_on_subscription_payment: boolean;
+  welcome_promo_enabled: boolean;
+  welcome_promo_discount_percent: number;
+  welcome_promo_plan_key: "monthly" | "semester" | "annual";
 };
-
-function resendFromAddress(): string {
-  const raw = (process.env.RESEND_FROM ?? "").trim();
-  if (raw) return raw;
-  return "POS <onboarding@resend.dev>";
-}
 
 /** Destino: email en BD; si está vacío, primer mail de PLATFORM_ADMIN_EMAILS. */
 export function resolveAdminAlertRecipient(settingsEmail: string | null | undefined): string | null {
@@ -19,6 +17,18 @@ export function resolveAdminAlertRecipient(settingsEmail: string | null | undefi
   if (e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return e;
   const fb = parsePlatformAdminEmails()[0];
   return fb ?? null;
+}
+
+export function parseAlertSettingsRow(data: Record<string, unknown>): AdminAlertSettingsRow {
+  const plan = String(data.welcome_promo_plan_key ?? "monthly");
+  return {
+    admin_alert_email: (data.admin_alert_email as string | null) ?? null,
+    alert_on_user_signup: Boolean(data.alert_on_user_signup),
+    alert_on_subscription_payment: Boolean(data.alert_on_subscription_payment),
+    welcome_promo_enabled: Boolean(data.welcome_promo_enabled),
+    welcome_promo_discount_percent: Math.min(100, Math.max(1, Number(data.welcome_promo_discount_percent ?? 50))),
+    welcome_promo_plan_key: plan === "semester" || plan === "annual" ? plan : "monthly",
+  };
 }
 
 async function loadAlertSettings(): Promise<AdminAlertSettingsRow | null> {
@@ -30,30 +40,13 @@ async function loadAlertSettings(): Promise<AdminAlertSettingsRow | null> {
   }
   const { data, error } = await admin
     .from("platform_settings")
-    .select("admin_alert_email, alert_on_user_signup, alert_on_subscription_payment")
+    .select(
+      "admin_alert_email, alert_on_user_signup, alert_on_subscription_payment, welcome_promo_enabled, welcome_promo_discount_percent, welcome_promo_plan_key"
+    )
     .eq("id", 1)
     .maybeSingle();
   if (error || !data) return null;
-  return data as AdminAlertSettingsRow;
-}
-
-async function sendWithResend(to: string, subject: string, text: string): Promise<void> {
-  const key = (process.env.RESEND_API_KEY ?? "").trim();
-  if (!key) {
-    console.warn("[admin-alerts] RESEND_API_KEY no configurada; no se envía mail.");
-    return;
-  }
-  const { Resend } = await import("resend");
-  const resend = new Resend(key);
-  const result = await resend.emails.send({
-    from: resendFromAddress(),
-    to: [to],
-    subject,
-    text,
-  });
-  if (result.error) {
-    console.error("[admin-alerts] Resend:", result.error);
-  }
+  return parseAlertSettingsRow(data as Record<string, unknown>);
 }
 
 /** Nuevo registro (cuenta). No bloquea si falla. */
@@ -67,7 +60,7 @@ export async function notifyAdminUserSignup(newUserEmail: string): Promise<void>
       return;
     }
     const safe = newUserEmail.trim();
-    await sendWithResend(
+    await sendTransactionalEmail(
       to,
       `[POS] Nuevo registro: ${safe}`,
       `Se registró un usuario en la plataforma.\n\nEmail: ${safe}\n\n— Alerta automática (registro)`
@@ -94,7 +87,7 @@ export async function notifyAdminSubscriptionPayment(input: {
       return;
     }
     const { businessId, businessName, amount, currency, mpPaymentId } = input;
-    await sendWithResend(
+    await sendTransactionalEmail(
       to,
       `[POS] Pago de suscripción — ${businessName}`,
       [

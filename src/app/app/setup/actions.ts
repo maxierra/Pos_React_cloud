@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { createClient } from "@/lib/supabase/server";
+import { sendWelcomePromoAfterFirstBusiness } from "@/lib/welcome-promo-email";
 
 function slugify(input: string) {
   return input
@@ -83,6 +84,17 @@ async function createBusinessImpl(formData: FormData) {
     sameSite: "lax",
     path: "/",
   });
+
+  const uid = authData.user.id;
+  const uemail = authData.user.email?.trim();
+  if (uid && uemail) {
+    void sendWelcomePromoAfterFirstBusiness({
+      userId: uid,
+      userEmail: uemail,
+      businessId,
+      businessName: name,
+    });
+  }
 
   redirect("/app");
 }

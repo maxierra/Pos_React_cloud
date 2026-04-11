@@ -192,11 +192,15 @@ async function signUpImpl(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const baseUrl = getAppBaseUrl();
+  const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent("/app/setup")}`;
+  console.log("[auth] signUp redirect URL:", redirectUrl);
+  
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${getAppBaseUrl()}/auth/callback?next=${encodeURIComponent("/app/setup")}`,
+      emailRedirectTo: redirectUrl,
     },
   });
 
