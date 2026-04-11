@@ -1,16 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createServerClient } from "@supabase/ssr";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const appBaseUrl = getAppBaseUrl();
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/app";
 
   const redirectTo = type === "recovery" ? "/auth/update-password" : next;
-  const response = NextResponse.redirect(new URL(redirectTo, origin));
+  const response = NextResponse.redirect(new URL(redirectTo, appBaseUrl));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       return NextResponse.redirect(
-        new URL(`/auth/login?error=${encodeURIComponent(error.message)}`, origin)
+        new URL(`/auth/login?error=${encodeURIComponent(error.message)}`, appBaseUrl)
       );
     }
     return response;
@@ -46,11 +48,11 @@ export async function GET(request: NextRequest) {
     });
     if (error) {
       return NextResponse.redirect(
-        new URL(`/auth/reset?error=${encodeURIComponent(error.message)}`, origin)
+        new URL(`/auth/reset?error=${encodeURIComponent(error.message)}`, appBaseUrl)
       );
     }
     return response;
   }
 
-  return NextResponse.redirect(new URL("/auth/login", origin));
+  return NextResponse.redirect(new URL("/auth/login", appBaseUrl));
 }
