@@ -1,16 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { PlanKey } from "@/app/app/subscription/actions";
-import { getAppBaseUrl } from "@/lib/app-base-url";
 import { randomSubscriptionPromoCode } from "@/lib/promo-code";
-import { sendTransactionalEmail } from "@/lib/resend-server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-function planLabelEs(k: PlanKey): string {
-  if (k === "monthly") return "mensual";
-  if (k === "semester") return "semestral";
-  return "anual";
-}
 
 async function insertWelcomePromo(
   admin: SupabaseClient,
@@ -41,12 +33,11 @@ async function insertWelcomePromo(
 
 /**
  * Si está habilitado en platform_settings, genera un código de descuento para el negocio
- * y lo envía al mail del usuario (solo en el **primer** negocio de la cuenta).
- * El mail de confirmación de Supabase es independiente; este correo lo manda Resend.
+ * (solo en el **primer** negocio de la cuenta).
+ * La entrega al cliente es manual (sin envío automático por correo).
  */
 export async function sendWelcomePromoAfterFirstBusiness(input: {
   userId: string;
-  userEmail: string;
   businessId: string;
   businessName: string;
 }): Promise<void> {
@@ -93,32 +84,8 @@ export async function sendWelcomePromoAfterFirstBusiness(input: {
 
     const code = await insertWelcomePromo(admin, input.businessId, discount, planKey);
     if (!code) return;
-
-    const email = input.userEmail.trim();
-    if (!email) return;
-
-    const base = getAppBaseUrl();
-    const subUrl = `${base}/app/subscription`;
-
-    await sendTransactionalEmail(
-      email,
-      `Tu código de descuento — ${input.businessName}`,
-      [
-        "Hola,",
-        "",
-        `Gracias por crear tu negocio "${input.businessName}" en la plataforma.`,
-        "",
-        `Tu código de descuento del ${discount}% en el plan ${planLabelEs(planKey)} es:`,
-        "",
-        `  ${code}`,
-        "",
-        "Ingresá a Suscripción en la app y pegalo al contratar, o abrí:",
-        `  ${subUrl}`,
-        "",
-        "El código es solo para tu negocio y se puede usar una vez al pagar con Mercado Pago.",
-        "",
-        "—",
-      ].join("\n")
+    console.log(
+      `[welcome-promo] generado para ${input.businessName} (${input.businessId}) -> ${code} (${discount}% ${planKey})`
     );
   } catch (e) {
     console.warn("[welcome-promo]", e);

@@ -103,12 +103,11 @@ export function AdminAlertSettingsForm({ initial }: Props) {
           />
           <div className="space-y-1">
             <Label htmlFor="welcome_promo_enabled" className="cursor-pointer font-medium leading-snug">
-              Enviar código de descuento por mail al crear el primer negocio
+              Habilitar código de descuento de bienvenida (entrega manual)
             </Label>
             <p className="text-xs text-muted-foreground">
-              No usa el mail de confirmación de Supabase: es un <strong>correo aparte</strong> (Resend) con el código
-              para que lo ingresen en Suscripción al pagar. Solo aplica cuando son <strong>dueños de un solo negocio</strong>{" "}
-              (el primero que crean).
+              El código se genera para el primer negocio y luego podés pasarlo manualmente al cliente para usarlo en
+              Suscripción. No depende de envío por correo.
             </p>
           </div>
         </div>

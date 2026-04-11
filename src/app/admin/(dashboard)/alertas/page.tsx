@@ -19,11 +19,8 @@ export default async function AdminAlertasPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Alertas por correo</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Configurá alertas para vos (admin) y el <strong>código de bienvenida</strong> que recibe el usuario por mail
-            al crear su primer negocio. Todo correo transaccional usa{" "}
-            <strong>Resend</strong> (no reemplaza el mail de confirmación de Supabase): necesitás{" "}
-            <code className="rounded bg-muted px-1 text-xs">RESEND_API_KEY</code>. Opcional{" "}
-            <code className="rounded bg-muted px-1 text-xs">RESEND_FROM</code> con dominio verificado en Resend.
+            Configurá alertas para vos (admin) y el <strong>código de bienvenida</strong> para entrega manual al cliente.
+            El mail de confirmación de cuenta lo sigue enviando Supabase Auth.
           </p>
         </div>
       </div>

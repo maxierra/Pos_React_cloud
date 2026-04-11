@@ -86,11 +86,9 @@ async function createBusinessImpl(formData: FormData) {
   });
 
   const uid = authData.user.id;
-  const uemail = authData.user.email?.trim();
-  if (uid && uemail) {
+  if (uid) {
     void sendWelcomePromoAfterFirstBusiness({
       userId: uid,
-      userEmail: uemail,
       businessId,
       businessName: name,
     });
