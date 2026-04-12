@@ -76,24 +76,6 @@ export function LandingPricing({ plans }: Props) {
       cycleLabel: "Cada mes",
       featured: false,
     },
-    {
-      key: "semester" as const,
-      serifTitle: "Plan semestral",
-      months: 6,
-      plan: plans.semester,
-      blurb: "Menos vueltas de pago y mejor precio por mes.",
-      cycleLabel: "Cada 6 meses",
-      featured: false,
-    },
-    {
-      key: "annual" as const,
-      serifTitle: "Plan anual",
-      months: 12,
-      plan: plans.annual,
-      blurb: "La opción más conveniente para el día a día.",
-      cycleLabel: "Cada año",
-      featured: true,
-    },
   ];
 
   return (
@@ -109,7 +91,7 @@ export function LandingPricing({ plans }: Props) {
           </p>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-3 md:gap-5 lg:gap-8">
+        <div className="mx-auto grid w-full max-w-xl gap-6 md:gap-5 lg:gap-8">
           {rows.map(({ key, serifTitle, months, plan, blurb, cycleLabel, featured }) => {
             const theme = THEMES[key];
             const fullPrice = plans.monthly.amount * months;

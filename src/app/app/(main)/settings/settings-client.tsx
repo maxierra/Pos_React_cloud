@@ -1,19 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Percent, Users, Store, Mail, Wallet, X, QrCode } from "lucide-react";
+import { Percent, Users, Store, Wallet, X, QrCode } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { BusinessInfoForm } from "@/app/app/(main)/settings/business-info-form";
 import { MercadoPagoPosForm } from "@/app/app/(main)/settings/mercadopago-pos-form";
 import { PaymentMethodsManager } from "@/app/app/(main)/settings/payment-methods-manager";
 import { UsersManager } from "@/app/app/(main)/settings/users-manager";
 import { PromotionsManager } from "@/app/app/(main)/settings/promotions-manager";
-import { updateReportDaily, sendDailyReportNow } from "@/app/app/(main)/settings/actions";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 
 type BusinessDefaults = {
@@ -251,51 +248,7 @@ export function SettingsClient({
   const [usersOpen, setUsersOpen] = React.useState(false);
   const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [mpPosOpen, setMpPosOpen] = React.useState(false);
-  const [reportOpen, setReportOpen] = React.useState(false);
-   const [promosOpen, setPromosOpen] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [sendingNow, setSendingNow] = React.useState(false);
-  const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const handleReportSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSaving(true);
-    setMessage(null);
-
-    const formData = new FormData(e.currentTarget);
-    
-    try {
-      const result = await updateReportDaily(formData);
-      if ("error" in result && result.error) {
-        setMessage({ type: "error", text: String(result.error) });
-      } else {
-        setMessage({ type: "success", text: "Configuración guardada" });
-        setTimeout(() => setReportOpen(false), 1500);
-      }
-    } catch (err) {
-      setMessage({ type: "error", text: "Error al guardar" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSendNow = async () => {
-    setSendingNow(true);
-    setMessage(null);
-
-    try {
-      const result = await sendDailyReportNow();
-      if ("error" in result && result.error) {
-        setMessage({ type: "error", text: String(result.error) });
-      } else {
-        setMessage({ type: "success", text: "Reporte enviado exitosamente" });
-      }
-    } catch (err) {
-      setMessage({ type: "error", text: "Error al enviar" });
-    } finally {
-      setSendingNow(false);
-    }
-  };
+  const [promosOpen, setPromosOpen] = React.useState(false);
 
   return (
     <>
@@ -344,19 +297,6 @@ export function SettingsClient({
           hint={mercadoPagoQrReady ? "QR activo" : "Pendiente de configurar"}
           tooltip="Cargá el token y la caja de Mercado Pago para mostrar el QR al cobrar desde el POS."
           onClick={() => setMpPosOpen(true)}
-        />
-        <SettingsCard
-          accent="amber"
-          icon={Mail}
-          title="Reporte diario"
-          description="Resumen diario por email."
-          hint={
-            defaults?.report_daily_enabled
-              ? `Activo · ${defaults.report_daily_email || "sin email"}`
-              : "Configurar envío automático"
-          }
-          tooltip="Activá un mail automático con resumen de ventas, caja e inventario para cada día."
-          onClick={() => setReportOpen(true)}
         />
       </div>
 
@@ -415,88 +355,6 @@ export function SettingsClient({
           qrReady={mercadoPagoQrReady}
           canEdit={canEditPaymentMethods}
         />
-      </ModalShell>
-
-      <ModalShell
-        open={reportOpen}
-        title="Reporte diario por email"
-        description="Recibí un resumen de ventas cada día a la mañana."
-        onClose={() => setReportOpen(false)}
-        accent="amber"
-      >
-        <form
-          onSubmit={handleReportSubmit}
-          className="space-y-4"
-          key={[
-            defaults?.report_daily_enabled ? "1" : "0",
-            defaults?.report_daily_email ?? "",
-            defaults?.report_daily_time ?? "08:00",
-          ].join("\u0001")}
-        >
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="enabled"
-              name="enabled"
-              value="true"
-              defaultChecked={defaults?.report_daily_enabled ?? false}
-              className="size-4"
-            />
-            <Label htmlFor="enabled" className="font-normal">
-              Activar reporte diario
-            </Label>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email para recibir el reporte</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="tucorreo@ejemplo.com"
-              defaultValue={defaults?.report_daily_email ?? ""}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="time">Hora de envío</Label>
-            <Input
-              id="time"
-              name="time"
-              type="time"
-              defaultValue={defaults?.report_daily_time ?? "08:00"}
-            />
-          </div>
-
-          {message && (
-            <div className={cn(
-              "rounded-lg px-3 py-2 text-sm",
-              message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
-            )}>
-              {message.text}
-            </div>
-          )}
-
-          <div className="flex justify-between gap-2">
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={handleSendNow}
-              disabled={sendingNow || !defaults?.report_daily_enabled}
-              className={defaults?.report_daily_enabled ? "border-emerald-500 text-emerald-600 hover:bg-emerald-50" : ""}
-            >
-              {sendingNow ? "Enviando..." : "📨 Enviar ahora"}
-            </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setReportOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
-            </div>
-          </div>
-        </form>
       </ModalShell>
     </>
   );

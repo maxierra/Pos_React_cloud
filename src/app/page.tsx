@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { LandingAbout } from "@/components/landing/LandingAbout";
-import { LandingCombos } from "@/components/landing/LandingCombos";
 import { LandingContact } from "@/components/landing/LandingContact";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHero } from "@/components/landing/LandingHero";
@@ -49,9 +48,6 @@ export default async function Home({ searchParams }: Props) {
               </a>
               <a href="#features" className="shrink-0 font-medium text-white/70 transition hover:text-white">
                 Funciones
-              </a>
-              <a href="#combos" className="shrink-0 font-medium text-white/70 transition hover:text-white">
-                Combos
               </a>
               <a href="#nosotros" className="shrink-0 font-medium text-white/70 transition hover:text-white">
                 Nosotros
@@ -107,8 +103,6 @@ export default async function Home({ searchParams }: Props) {
         <section id="features">
           <LandingFeatures />
         </section>
-
-        <LandingCombos />
 
         <LandingAbout />
 
