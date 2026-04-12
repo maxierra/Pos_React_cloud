@@ -166,13 +166,18 @@ export function PaymentModal({
     [paymentMethodConfig]
   );
 
-  const [method, setMethod] = React.useState<PaymentMethod>(defaultMethod);
+  const initialSplitMethod = React.useMemo<PaymentMethod>(
+    () => defaultMethod ?? (activeSorted[0]?.method_code as PaymentMethod) ?? "cash",
+    [defaultMethod, activeSorted]
+  );
+
+  const [method, setMethod] = React.useState<PaymentMethod | null>(null);
   const [receivedInput, setReceivedInput] = React.useState<string>(String(total));
   const received = React.useMemo(() => parseMoneyLoose(receivedInput), [receivedInput]);
   const receivedRef = React.useRef<HTMLInputElement | null>(null);
 
   const [mixed, setMixed] = React.useState(false);
-  const [m1, setM1] = React.useState<PaymentMethod>(defaultMethod);
+  const [m1, setM1] = React.useState<PaymentMethod>(initialSplitMethod);
   const [m2, setM2] = React.useState<PaymentMethod>("card");
   const [a1Input, setA1Input] = React.useState<string>(String(total));
   const a1 = React.useMemo(() => parseMoneyLoose(a1Input), [a1Input]);
@@ -217,10 +222,10 @@ export function PaymentModal({
       return;
     }
     paymentModalWasOpenRef.current = true;
-    setMethod(defaultMethod);
+    setMethod(null);
     setReceivedInput(String(total));
     setMixed(false);
-    setM1(defaultMethod);
+    setM1(initialSplitMethod);
     setTransferConfirmOpen(false);
     setMpQrData(null);
     setMpQrError(null);
@@ -229,9 +234,9 @@ export function PaymentModal({
     setMpExternalRef(null);
     mpAutoNotifiedRef.current = false;
     const second =
-      activeSorted.find((x) => x.method_code !== defaultMethod)?.method_code ??
+      activeSorted.find((x) => x.method_code !== initialSplitMethod)?.method_code ??
       activeSorted.find((x) => x.method_code !== activeSorted[0]?.method_code)?.method_code ??
-      defaultMethod;
+      initialSplitMethod;
     setM2(second);
     setA1Input(String(total));
     setCashReceivedInput(String(total));
@@ -239,10 +244,9 @@ export function PaymentModal({
     setCustomerId("");
     setPreviewOpen(false);
     setPendingPayload(null);
-    window.setTimeout(() => receivedRef.current?.focus(), 0);
-  }, [open, defaultMethod, total, activeSorted]);
+  }, [open, total, activeSorted, initialSplitMethod]);
 
-  const effectivePaymentMethod: PaymentMethodOrMixed = mixed ? "mixed" : method;
+  const effectivePaymentMethod: PaymentMethodOrMixed = mixed ? "mixed" : method ?? "cash";
 
   const [promoPreview, setPromoPreview] = React.useState<{
     name: string;
@@ -293,6 +297,15 @@ export function PaymentModal({
     if (method === "cash") return;
     setReceivedInput(String(total));
   }, [method, open, total]);
+
+  React.useEffect(() => {
+    if (!open || mixed) return;
+    if (method !== "cash") return;
+    window.setTimeout(() => {
+      receivedRef.current?.focus();
+      receivedRef.current?.select();
+    }, 0);
+  }, [open, mixed, method]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -804,6 +817,7 @@ export function PaymentModal({
                   disabled={
                     pending ||
                     (mixed ? splitDiff !== 0 || amountExceedsTotal : false) ||
+                    (!mixed && !method) ||
                     (!mixed && method === "cuenta_corriente" && ccFirstScreenDisabled)
                   }
                   onClick={() => {
@@ -815,6 +829,7 @@ export function PaymentModal({
                       cash_received?: number;
                     };
                     if (!mixed) {
+                      if (!method) return;
                       nextPayload = {
                         payment_method: method,
                         cash_received: method === "cash" ? received : undefined,
