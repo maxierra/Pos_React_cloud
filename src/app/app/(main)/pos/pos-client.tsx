@@ -92,19 +92,22 @@ export function PosClient({
         toast.success("Agregado", { description: p.name, duration: 900 });
       }
 
+      const shouldAutoFocusInputs = !(isMobilePos && scannerOpen);
+
       if (p.sold_by_weight) {
         setTimeout(() => {
+          if (!shouldAutoFocusInputs) return;
           const input = document.getElementById(`qty-input-${p.id}`) as HTMLInputElement;
           if (input) {
             input.focus();
             input.select();
           }
         }, 50);
-      } else {
+      } else if (shouldAutoFocusInputs) {
         searchRef.current?.focus();
       }
     },
-    [cart, searchRef]
+    [cart, isMobilePos, scannerOpen, searchRef]
   );
 
   const procesarCodigo = React.useCallback(
