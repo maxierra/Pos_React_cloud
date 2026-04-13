@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { emailIsPlatformAdmin } from "@/lib/platform-admin";
 import { parseDbTimestamptzMs } from "@/lib/parse-db-timestamp";
+import { DESKTOP_DOWNLOAD_ASSET_KEY } from "@/lib/desktop-download";
 import { businessHasAppAccess, type SubscriptionRow } from "@/lib/subscription";
 
 export type AdminLastPayment = {
@@ -51,6 +52,17 @@ function billingSummaryFromRow(
 export type LoadAdminSubscriptionsResult =
   | { ok: false; error: "forbidden" | "config"; message?: string }
   | { ok: true; rows: AdminSubscriptionListItem[] };
+
+export type AdminDownloadStats = {
+  total: number;
+  last7d: number;
+  last24h: number;
+  lastEventAt: string | null;
+};
+
+export type LoadAdminDownloadStatsResult =
+  | { ok: false; error: "forbidden" | "config"; message?: string }
+  | { ok: true; stats: AdminDownloadStats };
 
 /**
  * Solo llamar desde Server Components después de comprobar admin en UI,
@@ -154,4 +166,67 @@ export async function loadAdminSubscriptionList(): Promise<LoadAdminSubscription
   });
 
   return { ok: true, rows };
+}
+
+/**
+ * Métricas de descargas del instalador desktop (landing -> redirect API).
+ */
+export async function loadAdminDownloadStats(): Promise<LoadAdminDownloadStatsResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email || !emailIsPlatformAdmin(user.email)) {
+    return { ok: false, error: "forbidden" };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: "config", message: "Falta SUPABASE_SERVICE_ROLE_KEY." };
+  }
+
+  const now = Date.now();
+  const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [totalRes, dayRes, weekRes, lastRes] = await Promise.all([
+    admin
+      .from("download_events")
+      .select("id", { count: "exact", head: true })
+      .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY),
+    admin
+      .from("download_events")
+      .select("id", { count: "exact", head: true })
+      .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
+      .gte("created_at", since24h),
+    admin
+      .from("download_events")
+      .select("id", { count: "exact", head: true })
+      .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
+      .gte("created_at", since7d),
+    admin
+      .from("download_events")
+      .select("created_at")
+      .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const firstError = totalRes.error ?? dayRes.error ?? weekRes.error ?? lastRes.error;
+  if (firstError) {
+    return { ok: false, error: "config", message: firstError.message };
+  }
+
+  return {
+    ok: true,
+    stats: {
+      total: totalRes.count ?? 0,
+      last24h: dayRes.count ?? 0,
+      last7d: weekRes.count ?? 0,
+      lastEventAt: (lastRes.data as { created_at: string } | null)?.created_at ?? null,
+    },
+  };
 }

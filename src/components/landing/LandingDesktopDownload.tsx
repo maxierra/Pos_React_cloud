@@ -1,7 +1,6 @@
 import { AlertTriangle, Download, KeyRound, PlayCircle, ShieldAlert } from "lucide-react";
+import { DESKTOP_DOWNLOAD_TRACKED_PATH } from "@/lib/desktop-download";
 
-const DOWNLOAD_URL =
-  "https://github.com/maxierra/sistema-punto-venta-demo/releases/download/v1.0.0/POS_Flet_7dias.zip";
 const LOOM_URL = "https://www.loom.com/share/de56ee8fc0bc4724a80ec739ae89da2e";
 
 export function LandingDesktopDownload() {
@@ -28,7 +27,7 @@ export function LandingDesktopDownload() {
               Descargá el sistema desde GitHub Releases y empezá a probarlo en minutos.
             </p>
             <a
-              href={DOWNLOAD_URL}
+              href={`${DESKTOP_DOWNLOAD_TRACKED_PATH}?source=landing`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 transition hover:opacity-90"

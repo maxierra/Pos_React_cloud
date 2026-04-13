@@ -1,9 +1,9 @@
-import { loadAdminSubscriptionList } from "@/app/admin/(dashboard)/data";
+import { loadAdminDownloadStats, loadAdminSubscriptionList } from "@/app/admin/(dashboard)/data";
 import { AdminSubscriptionsOverview } from "@/app/admin/(dashboard)/subscriptions-overview";
 import { AdminWithMonitoring } from "@/components/admin-with-monitoring";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { emailIsPlatformAdmin, parsePlatformAdminEmails } from "@/lib/platform-admin";
+import { emailIsPlatformAdmin } from "@/lib/platform-admin";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,11 @@ export default async function AdminPage() {
 }
 
 async function AdminAdminBody({ billingDays }: { billingDays: number }) {
-  const loaded = await loadAdminSubscriptionList();
+  const [loaded, downloadStatsLoaded] = await Promise.all([
+    loadAdminSubscriptionList(),
+    loadAdminDownloadStats(),
+  ]);
+
   if (!loaded.ok) {
     return (
       <Card className="border-destructive/40">
@@ -66,5 +70,22 @@ async function AdminAdminBody({ billingDays }: { billingDays: number }) {
     );
   }
 
-  return <AdminSubscriptionsOverview rows={loaded.rows} billingDays={billingDays} />;
+  const downloadStats = downloadStatsLoaded.ok ? downloadStatsLoaded.stats : null;
+
+  return (
+    <>
+      {!downloadStatsLoaded.ok && downloadStatsLoaded.error !== "forbidden" ? (
+        <Card className="border-amber-400/40">
+          <CardHeader>
+            <CardTitle>Métrica de descargas no disponible</CardTitle>
+            <CardDescription>
+              {downloadStatsLoaded.message ?? "Revisá si aplicaste la migración de download_events."}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <AdminSubscriptionsOverview rows={loaded.rows} billingDays={billingDays} downloadStats={downloadStats} />
+    </>
+  );
 }

@@ -1,5 +1,5 @@
 import { AdminSubscriptionRowActions } from "@/app/admin/(dashboard)/admin-subscription-row-actions";
-import type { AdminSubscriptionListItem } from "@/app/admin/(dashboard)/data";
+import type { AdminDownloadStats, AdminSubscriptionListItem } from "@/app/admin/(dashboard)/data";
 import { parseDbTimestamptzToDate } from "@/lib/parse-db-timestamp";
 
 function shortUuid(id: string) {
@@ -60,16 +60,24 @@ function providerLabel(provider: string) {
 type Props = {
   rows: AdminSubscriptionListItem[];
   billingDays: number;
+  downloadStats: AdminDownloadStats | null;
 };
 
-export function AdminSubscriptionsOverview({ rows, billingDays }: Props) {
+export function AdminSubscriptionsOverview({ rows, billingDays, downloadStats }: Props) {
   const sinAcceso = rows.filter((r) => !r.hasAppAccess).length;
   const mpAuto = rows.filter((r) => r.billingSummary === "mp_automatico").length;
   const manual = rows.filter((r) => r.billingSummary === "manual_admin").length;
+  const lastDownload = downloadStats?.lastEventAt
+    ? new Date(downloadStats.lastEventAt).toLocaleString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : "Sin eventos";
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sin acceso al POS</p>
           <p className="mt-1 text-2xl font-bold text-destructive">{sinAcceso}</p>
@@ -84,6 +92,14 @@ export function AdminSubscriptionsOverview({ rows, billingDays }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Activado manual</p>
           <p className="mt-1 text-2xl font-bold text-violet-600 dark:text-violet-300">{manual}</p>
           <p className="mt-1 text-xs text-muted-foreground">Transferencia / panel admin</p>
+        </div>
+        <div className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Descargas instalador</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-300">
+            {downloadStats?.total ?? 0}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">24h: {downloadStats?.last24h ?? 0} · 7d: {downloadStats?.last7d ?? 0}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Última: {lastDownload}</p>
         </div>
       </div>
 
