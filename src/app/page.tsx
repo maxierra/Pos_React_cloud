@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { LandingAbout } from "@/components/landing/LandingAbout";
 import { LandingContact } from "@/components/landing/LandingContact";
+import { LandingDesktopDownload } from "@/components/landing/LandingDesktopDownload";
 import { LandingFeatures } from "@/components/landing/LandingFeatures";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingPricing } from "@/components/landing/LandingPricing";
@@ -58,6 +59,9 @@ export default async function Home({ searchParams }: Props) {
               <a href="#contacto" className="shrink-0 font-medium text-white/70 transition hover:text-white">
                 Contacto
               </a>
+              <a href="#descarga" className="shrink-0 font-medium text-white/70 transition hover:text-white">
+                Descarga
+              </a>
               <a href="#planes" className="shrink-0 font-medium text-white/70 transition hover:text-white">
                 Planes
               </a>
@@ -109,6 +113,8 @@ export default async function Home({ searchParams }: Props) {
         <LandingVideoTutorials />
 
         <LandingContact />
+
+        <LandingDesktopDownload />
 
         <LandingPricing plans={plans} />
 
