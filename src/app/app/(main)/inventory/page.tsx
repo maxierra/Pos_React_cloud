@@ -36,7 +36,7 @@ export default async function InventoryPage() {
     )
     .eq("business_id", businessId)
     .order("name", { ascending: true })
-    .limit(1500);
+    .limit(5000);
 
   if (error) {
     return (

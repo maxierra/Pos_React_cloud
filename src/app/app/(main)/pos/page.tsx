@@ -47,7 +47,7 @@ export default async function PosPage() {
     .eq("business_id", businessId)
     .eq("active", true)
     .order("name", { ascending: true })
-    .limit(500);
+    .limit(5000);
 
   const products = ((data ?? []) as any[]).map(
     (p): PosProduct => ({

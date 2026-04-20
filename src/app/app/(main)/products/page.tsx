@@ -54,7 +54,8 @@ export default async function ProductsPage() {
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
-    .limit(100);
+    // Antes limit(100): productos fuera del top 100 no cargaban → no aparecían en la grilla ni en búsqueda por código (ej. EAN-8 corto cargado pero “viejo”).
+    .limit(5000);
 
   const products = (data ?? []) as ProductRow[];
 
