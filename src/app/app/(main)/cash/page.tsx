@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 
 import { CashPageClient } from "@/app/app/(main)/cash/cash-page-client";
 import { CashFilter } from "@/app/app/(main)/cash/cash-filter";
+import { parseOnboardingGuideStep } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import { createClient } from "@/lib/supabase/server";
 import { effectiveSalePaymentMethod } from "@/lib/sale-payment-method-display";
 
@@ -175,7 +177,7 @@ function splitFromDetails(details: unknown) {
     .filter((x) => x.method && x.amount > 0);
 }
 
-export default async function CashPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function CashPage({ searchParams }: { searchParams: Promise<{ date?: string; ob?: string }> }) {
   const params = await searchParams;
   const filterDate = params.date;
   const cookieStore = await cookies();
@@ -254,10 +256,10 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   movements = (movementsData ?? []) as CashMovementRow[];
   customerPayments = (capData ?? []) as CustomerPaymentRow[];
 
-  const [{ data: businessData }, { data: turnsData }] = await Promise.all([
+  const [{ data: businessData, error: businessError }, { data: turnsData }] = await Promise.all([
     supabase
       .from("businesses")
-      .select("name,address,phone,cuit,ticket_header,ticket_footer")
+      .select("name,address,phone,cuit,ticket_header,ticket_footer,onboarding_completed_at")
       .eq("id", businessId)
       .single(),
     supabase
@@ -269,6 +271,10 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   ]);
 
   const business = (businessData as any) ?? null;
+  const onboardingIncomplete = isMissingOnboardingColumnError(businessError)
+    ? false
+    : !(businessData as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
+  const guideCashStep = onboardingIncomplete && parseOnboardingGuideStep(params.ob) === "cash";
   const turns = (turnsData ?? []) as CashRegisterRow[];
 
   const soldByMethod = expandSaleTotalsByMethod(sales);
@@ -590,6 +596,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
       ledgerRows={ledgerRows as any}
       historyTurns={historyTurns}
       business={business}
+      guideCashStep={guideCashStep}
     />
     </div>
   );
