@@ -135,14 +135,58 @@ export async function markOrderReceived(orderId: string) {
   const businessId = await getBusinessId();
   const supabase = await createClient();
 
+  const { data: order, error: orderErr } = await supabase
+    .from("supplier_orders")
+    .select("id,status,supplier_id")
+    .eq("id", orderId)
+    .eq("business_id", businessId)
+    .single();
+  if (orderErr) throw new Error(orderErr.message);
+
   const { data: items, error: iErr } = await supabase
     .from("supplier_order_items")
-    .select("id, quantity")
+    .select("id, product_id, quantity, quantity_received")
     .eq("order_id", orderId);
   if (iErr) throw new Error(iErr.message);
 
   for (const it of items ?? []) {
     const q = typeof it.quantity === "number" ? it.quantity : Number(it.quantity);
+    const received =
+      typeof it.quantity_received === "number" ? it.quantity_received : Number(it.quantity_received);
+    const delta = Math.max(0, q - received);
+
+    if (delta > 0 && it.product_id) {
+      const { data: currentProduct, error: currentErr } = await supabase
+        .from("products")
+        .select("stock,stock_decimal,sold_by_weight")
+        .eq("id", it.product_id)
+        .eq("business_id", businessId)
+        .single();
+      if (currentErr) throw new Error(currentErr.message);
+
+      const nextProductPatch = currentProduct.sold_by_weight
+        ? {
+            stock_decimal:
+              (typeof currentProduct.stock_decimal === "number"
+                ? currentProduct.stock_decimal
+                : Number(currentProduct.stock_decimal ?? 0)) + delta,
+            updated_at: new Date().toISOString(),
+          }
+        : {
+            stock:
+              (typeof currentProduct.stock === "number" ? currentProduct.stock : Number(currentProduct.stock ?? 0)) +
+              Math.ceil(delta),
+            updated_at: new Date().toISOString(),
+          };
+
+      const { error: stockErr } = await supabase
+        .from("products")
+        .update(nextProductPatch)
+        .eq("id", it.product_id)
+        .eq("business_id", businessId);
+      if (stockErr) throw new Error(stockErr.message);
+    }
+
     const { error } = await supabase
       .from("supplier_order_items")
       .update({ quantity_received: q })
@@ -154,7 +198,7 @@ export async function markOrderReceived(orderId: string) {
   const { data: ord, error: oErr } = await supabase
     .from("supplier_orders")
     .update({
-      status: "received",
+      status: order.status === "paid" ? "paid" : "received",
       received_at: now,
       updated_at: now,
     })

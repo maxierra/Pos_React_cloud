@@ -5,6 +5,7 @@ import { ProductsClient } from "@/app/app/(main)/products/products-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { normalizeBusinessType } from "@/lib/business-types";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
+import { fetchAllPages } from "@/lib/supabase/fetch-all-pages";
 import { createClient } from "@/lib/supabase/server";
 
 type MembershipRow = {
@@ -44,7 +45,7 @@ export default async function ProductsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Productos</CardTitle>
-            <CardDescription>Primero tenés que crear o seleccionar un negocio.</CardDescription>
+            <CardDescription>Primero tenes que crear o seleccionar un negocio.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link className="text-sm underline" href="/app/setup">
@@ -69,19 +70,18 @@ export default async function ProductsPage() {
     ? false
     : !(bizOnb as { onboarding_completed_at?: string | null } | null)?.onboarding_completed_at;
 
-  const { data } = await supabase
-    .from("products")
-    .select(
-      "id,name,image_path,image_url,barcode,scale_code,category,variant_group,size,color,price,cost,sold_by_weight,stock,stock_decimal,low_stock_threshold,low_stock_threshold_decimal,expires_at,active"
-    )
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    // Antes limit(100): productos fuera del top 100 no cargaban → no aparecían en la grilla ni en búsqueda por código (ej. EAN-8 corto cargado pero “viejo”).
-    .limit(5000);
+  const products = await fetchAllPages<ProductRow>(async (from, to) =>
+    await supabase
+      .from("products")
+      .select(
+        "id,name,image_path,image_url,barcode,scale_code,category,variant_group,size,color,price,cost,sold_by_weight,stock,stock_decimal,low_stock_threshold,low_stock_threshold_decimal,expires_at,active"
+      )
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      // Supabase puede responder como maximo 1000 filas por request aunque pidamos mas.
+      .range(from, to)
+  );
 
-  const products = (data ?? []) as ProductRow[];
-
-  /** Sin productos y onboarding pendiente: siempre guía en esta página (no depende de ?ob=). */
   const guideProductStep = onboardingIncomplete && products.length === 0;
 
   let canEditPrice = true;
@@ -107,7 +107,7 @@ export default async function ProductsPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
-        <p className="text-sm text-muted-foreground">Alta, edición y control de stock.</p>
+        <p className="text-sm text-muted-foreground">Alta, edicion y control de stock.</p>
       </div>
 
       <ProductsClient

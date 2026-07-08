@@ -26,6 +26,14 @@ services/fiscal-api/dist
 # misc
 .DS_Store
 *.pem
+*.crt
+*.key
+*.csr
+*.sqlite3
+__pycache__/
+reports/
+certificado/
+db gika/
 
 # debug
 npm-debug.log*

@@ -798,6 +798,10 @@ export function PosClient({
             } | null }).fiscal;
 
             if (p.print_ticket) {
+              const customerName =
+                p.customer_id != null
+                  ? posCustomers.find((customer) => customer.id === p.customer_id)?.name ?? null
+                  : null;
               const ticketData = {
                 kind: "sale" as const,
                 business,
@@ -805,6 +809,13 @@ export function PosClient({
                 total: promo?.total_after ?? cart.total,
                 saleId: res.saleId,
                 paymentMethod: p.payment_method,
+                paymentSplit: p.payment_details?.split
+                  ? p.payment_details.split.map((part) => ({
+                      method: part.method,
+                      amount: Number(part.amount) || 0,
+                    }))
+                  : undefined,
+                customerName,
                 paymentMethodLabels: paymentLabelMap,
                 cashReceived: p.cash_received,
                 promotion: promo ?? null,
@@ -879,6 +890,7 @@ export function PosClient({
             total: cart.total,
             saleId,
             paymentMethod: "mercadopago",
+            paymentSplit: undefined,
             paymentMethodLabels: paymentLabelMap,
             cashReceived: undefined,
           }

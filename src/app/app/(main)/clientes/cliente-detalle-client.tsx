@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-import { recordCustomerPayment } from "@/app/app/(main)/clientes/actions";
+import { recordCustomerPayment, updateCustomerPayment } from "@/app/app/(main)/clientes/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,8 @@ const METHOD_LABEL: Record<string, string> = {
   mercadopago: "Mercado Pago",
 };
 
+type PaymentMethod = "cash" | "card" | "transfer" | "mercadopago";
+
 type Props = {
   customer: {
     id: string;
@@ -73,20 +76,14 @@ function parseMoneyLoose(raw: string) {
 export function ClienteDetalleClient({ customer, sales, payments }: Props) {
   const router = useRouter();
   const [payMode, setPayMode] = React.useState<"total" | "partial">("total");
-  const [amount, setAmount] = React.useState("");
-  const [method, setMethod] = React.useState<"cash" | "card" | "transfer" | "mercadopago">("cash");
+  const [amount, setAmount] = React.useState(() => (customer.balance > 0 ? String(round2(customer.balance)) : ""));
+  const [method, setMethod] = React.useState<PaymentMethod>("cash");
   const [notes, setNotes] = React.useState("");
   const [pending, startTransition] = React.useTransition();
-
-  React.useEffect(() => {
-    if (payMode === "partial") {
-      setAmount("");
-      return;
-    }
-    if (customer.balance > 0) {
-      setAmount(String(round2(customer.balance)));
-    }
-  }, [payMode, customer.balance]);
+  const [editingPaymentId, setEditingPaymentId] = React.useState<string | null>(null);
+  const [editAmount, setEditAmount] = React.useState("");
+  const [editMethod, setEditMethod] = React.useState<PaymentMethod>("cash");
+  const [editNotes, setEditNotes] = React.useState("");
 
   const onPay = React.useCallback(
     (e: React.FormEvent) => {
@@ -98,7 +95,7 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
       }
       const n = payMode === "total" ? max : round2(parseMoneyLoose(amount));
       if (!Number.isFinite(n) || n <= 0) {
-        toast.error("Importe inválido");
+        toast.error("Importe invalido");
         return;
       }
       if (n > max + 0.01) {
@@ -131,7 +128,15 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
   const timeline = React.useMemo(() => {
     type T =
       | { kind: "sale"; at: string; label: string; amount: number }
-      | { kind: "pay"; at: string; label: string; amount: number };
+      | {
+          kind: "pay";
+          id: string;
+          at: string;
+          label: string;
+          amount: number;
+          method: PaymentMethod;
+          notes: string | null;
+        };
     const out: T[] = [];
     for (const s of sales) {
       if (s.status !== "paid") continue;
@@ -145,17 +150,69 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
     }
     for (const p of payments) {
       const t = typeof p.amount === "number" ? p.amount : Number(p.amount);
-      const ml = METHOD_LABEL[p.payment_method] ?? p.payment_method;
+      const rawMethod = String(p.payment_method ?? "");
+      const paymentMethod: PaymentMethod =
+        rawMethod === "card" || rawMethod === "transfer" || rawMethod === "mercadopago" ? rawMethod : "cash";
+      const ml = METHOD_LABEL[rawMethod] ?? rawMethod;
       out.push({
         kind: "pay",
+        id: p.id,
         at: p.created_at,
         label: `Cobro · ${ml}`,
         amount: Number.isFinite(t) ? t : 0,
+        method: paymentMethod,
+        notes: p.notes,
       });
     }
     out.sort((a, b) => (a.at < b.at ? 1 : -1));
     return out;
   }, [payments, sales]);
+
+  const openEditPayment = React.useCallback((payment: Extract<(typeof timeline)[number], { kind: "pay" }>) => {
+    setEditingPaymentId(payment.id);
+    setEditAmount(String(round2(payment.amount)));
+    setEditMethod(payment.method);
+    setEditNotes(payment.notes ?? "");
+  }, []);
+
+  const closeEditPayment = React.useCallback(() => {
+    setEditingPaymentId(null);
+    setEditAmount("");
+    setEditMethod("cash");
+    setEditNotes("");
+  }, []);
+
+  const onUpdatePayment = React.useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingPaymentId) return;
+      const n = round2(parseMoneyLoose(editAmount));
+      if (!Number.isFinite(n) || n <= 0) {
+        toast.error("Importe invalido");
+        return;
+      }
+
+      startTransition(() => {
+        void (async () => {
+          try {
+            await updateCustomerPayment({
+              payment_id: editingPaymentId,
+              customer_id: customer.id,
+              amount: n,
+              payment_method: editMethod,
+              notes: editNotes.trim() || null,
+            });
+            toast.success("Cobro actualizado");
+            closeEditPayment();
+            router.refresh();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Error");
+          }
+        })();
+      });
+    },
+    [closeEditPayment, customer.id, editAmount, editMethod, editNotes, editingPaymentId, router]
+  );
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
@@ -210,7 +267,10 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
                     type="radio"
                     name="detalle_pay"
                     checked={payMode === "total"}
-                    onChange={() => setPayMode("total")}
+                    onChange={() => {
+                      setPayMode("total");
+                      setAmount(customer.balance > 0 ? String(round2(customer.balance)) : "");
+                    }}
                     className="accent-primary"
                   />
                   Pago total ({moneyAr(customer.balance)})
@@ -220,7 +280,10 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
                     type="radio"
                     name="detalle_pay"
                     checked={payMode === "partial"}
-                    onChange={() => setPayMode("partial")}
+                    onChange={() => {
+                      setPayMode("partial");
+                      setAmount("");
+                    }}
                     disabled={customer.balance <= 0.01}
                     className="accent-primary"
                   />
@@ -253,7 +316,7 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
               <select
                 id="pay_m"
                 value={method}
-                onChange={(e) => setMethod(e.target.value as typeof method)}
+                onChange={(e) => setMethod(e.target.value as PaymentMethod)}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="cash">Efectivo</option>
@@ -268,7 +331,7 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
             </div>
             <div className="md:col-span-2">
               <Button type="submit" disabled={pending || customer.balance <= 0.01}>
-                {pending ? "Registrando…" : "Registrar cobro"}
+                {pending ? "Registrando..." : "Registrar cobro"}
               </Button>
               {customer.balance <= 0.01 ? (
                 <p className="mt-2 text-xs text-muted-foreground">No hay deuda para cobrar.</p>
@@ -294,14 +357,21 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
                     <div className="font-medium">{row.label}</div>
                     <div className="text-xs text-muted-foreground">{formatAr(row.at)}</div>
                   </div>
-                  <div
-                    className={
-                      "tabular-nums font-semibold " +
-                      (row.kind === "sale" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")
-                    }
-                  >
-                    {row.kind === "sale" ? "+" : "−"}
-                    {moneyAr(row.amount)}
+                  <div className="flex items-center gap-2">
+                    {row.kind === "pay" ? (
+                      <Button type="button" variant="outline" size="sm" onClick={() => openEditPayment(row)}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    ) : null}
+                    <div
+                      className={
+                        "tabular-nums font-semibold " +
+                        (row.kind === "sale" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")
+                      }
+                    >
+                      {row.kind === "sale" ? "+" : "-"}
+                      {moneyAr(row.amount)}
+                    </div>
                   </div>
                 </li>
               ))
@@ -309,6 +379,63 @@ export function ClienteDetalleClient({ customer, sales, payments }: Props) {
           </ul>
         </CardContent>
       </Card>
+
+      {editingPaymentId ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeEditPayment();
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+            <h2 className="text-lg font-semibold">Editar cobro</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Corregí el importe, el medio o la nota del pago registrado.</p>
+            <form className="mt-4 grid gap-3" onSubmit={onUpdatePayment}>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit_pay_amt">Importe</Label>
+                <Input
+                  id="edit_pay_amt"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min={0.01}
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit_pay_m">Medio</Label>
+                <select
+                  id="edit_pay_m"
+                  value={editMethod}
+                  onChange={(e) => setEditMethod(e.target.value as PaymentMethod)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="cash">Efectivo</option>
+                  <option value="card">Tarjeta</option>
+                  <option value="transfer">Transferencia</option>
+                  <option value="mercadopago">Mercado Pago</option>
+                </select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit_pay_n">Notas</Label>
+                <Input id="edit_pay_n" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Opcional" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={closeEditPayment}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

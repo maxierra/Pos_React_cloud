@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "fiscal-api:dev": "npm --prefix services/fiscal-api run dev",
+    "fiscal-api:install": "npm --prefix services/fiscal-api install",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -28,6 +28,7 @@ type SaleRow = {
   total: number | string;
   status: string;
   created_at: string;
+  payment_method?: string | null;
 };
 
 type SaleItemRow = {
@@ -168,6 +169,50 @@ async function loadSaleItemsChunked(
     }
 
     rows.push(...((data ?? []) as unknown as SaleItemRow[]));
+  }
+
+  return { rows, errorMessage: null };
+}
+
+async function loadSalesChunked(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  businessId: string,
+  startIso: string,
+  endIso: string,
+  selectClause: string,
+  status?: string
+) {
+  const rows: SaleRow[] = [];
+  const pageSize = 1000;
+
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase
+      .from("sales")
+      .select(selectClause)
+      .eq("business_id", businessId)
+      .gte("created_at", startIso)
+      .lt("created_at", endIso)
+      .order("created_at", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return {
+        rows: [] as SaleRow[],
+        errorMessage: `No se pudieron cargar todas las ventas del período (${error.message}).`,
+      };
+    }
+
+    const chunk = ((data ?? []) as unknown) as SaleRow[];
+    rows.push(...chunk);
+
+    if (chunk.length < pageSize) {
+      break;
+    }
   }
 
   return { rows, errorMessage: null };
@@ -452,26 +497,27 @@ export default async function ReportsPage({
   const productPeriodConfig = getProductPeriodConfig(productsPeriod, productsAnchorDate);
 
   const supabase = await createClient();
-  const [{ data: salesData }, { data: fixedExpensesData }, { data: productSalesData }, { data: productsListData }] = await Promise.all([
-    supabase
-      .from("sales")
-      .select("id,total,status,created_at")
-      .eq("business_id", businessId)
-      .gte("created_at", periodStartIso)
-      .lt("created_at", periodEndIso),
+  const [
+    salesLoadResult,
+    { data: fixedExpensesData },
+    productSalesLoadResult,
+    { data: productsListData },
+  ] = await Promise.all([
+    loadSalesChunked(supabase, businessId, periodStartIso, periodEndIso, "id,total,status,created_at"),
     supabase
       .from("fixed_expenses")
       .select("id,name,amount,frequency,category,active")
       .eq("business_id", businessId)
       .eq("active", true)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("sales")
-      .select("id,status")
-      .eq("business_id", businessId)
-      .eq("status", "paid")
-      .gte("created_at", productPeriodConfig.startIso)
-      .lt("created_at", productPeriodConfig.endIso),
+    loadSalesChunked(
+      supabase,
+      businessId,
+      productPeriodConfig.startIso,
+      productPeriodConfig.endIso,
+      "id,status,created_at",
+      "paid"
+    ),
     supabase
       .from("products")
       .select("id,name,active")
@@ -480,7 +526,7 @@ export default async function ReportsPage({
       .order("name", { ascending: true }),
   ]);
 
-  const sales = (salesData ?? []) as SaleRow[];
+  const sales = salesLoadResult.rows;
   const paidSales = sales.filter((s) => s.status === "paid");
   const paidSaleIds = paidSales.map((s) => s.id);
   const { rows: items, errorMessage: itemsLoadError } = await loadSaleItemsChunked(
@@ -490,7 +536,7 @@ export default async function ReportsPage({
     "sale_id,product_id,quantity,total,created_at"
   );
   const fixedExpenses = (fixedExpensesData ?? []) as FixedExpenseRow[];
-  const productSales = (productSalesData ?? []) as Array<{ id: string; status: string }>;
+  const productSales = (productSalesLoadResult.rows as Array<{ id: string; status: string }>) ?? [];
   const productsList = (productsListData ?? []) as ProductListRow[];
 
   const productPaidSaleIds = productSales.map((sale) => sale.id);
@@ -602,6 +648,24 @@ export default async function ReportsPage({
           <p className="font-medium">No se pudo cargar el detalle de ventas para este período</p>
           <p className="mt-1 text-destructive/90">
             {itemsLoadError} Sin ese detalle, el costo de mercadería puede verse en cero.
+          </p>
+        </div>
+      ) : null}
+
+      {salesLoadResult.errorMessage ? (
+        <div className="mt-4 rounded-2xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p className="font-medium">No se pudieron cargar todas las ventas del período</p>
+          <p className="mt-1 text-destructive/90">
+            {salesLoadResult.errorMessage}
+          </p>
+        </div>
+      ) : null}
+
+      {productSalesLoadResult.errorMessage ? (
+        <div className="mt-4 rounded-2xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p className="font-medium">No se pudieron cargar todas las ventas del ranking de productos</p>
+          <p className="mt-1 text-destructive/90">
+            {productSalesLoadResult.errorMessage}
           </p>
         </div>
       ) : null}

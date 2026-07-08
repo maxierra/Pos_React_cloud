@@ -37,6 +37,7 @@ export type SalesDisplayRow = {
   showActions: boolean;
   saleId: string;
   canVoid: boolean;
+  splitSummary?: string | null;
 };
 
 function moneyAr(value: number) {
@@ -167,7 +168,14 @@ export function SalesResultsClient({
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={row.paymentClassName}>{row.paymentLabel}</span>
+                              <div className="space-y-1">
+                                <span className={row.paymentClassName}>{row.paymentLabel}</span>
+                                {row.splitSummary ? (
+                                  <div className="max-w-[280px] text-[11px] leading-snug text-muted-foreground">
+                                    {row.splitSummary}
+                                  </div>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               <span className={row.statusClassName}>{row.statusLabel}</span>

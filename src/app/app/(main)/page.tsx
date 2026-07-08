@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AlertTriangle, Banknote, CreditCard, Landmark, Receipt, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { formatArgentinaShortDate, getArgentinaDayRangeUtcIso, nextArgentinaDateYmd } from "@/lib/argentina-time";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import { DateSelector } from "./date-selector";
@@ -83,6 +84,11 @@ function splitFromDetails(details: unknown): Array<{ method: string; amount: num
 function addSaleToMethodTotals(s: SaleRow, acc: MethodTotals) {
   if (s.status !== "paid") return;
   const total = toNum(s.total);
+  const ccAmount = saleCuentaCorrienteAmount({
+    paymentMethod: s.payment_method,
+    paymentDetails: s.payment_details,
+    total: s.total,
+  });
   if (s.payment_method === "mixed") {
     const split = splitFromDetails(s.payment_details);
     for (const part of split) {
@@ -90,6 +96,7 @@ function addSaleToMethodTotals(s: SaleRow, acc: MethodTotals) {
     }
     return;
   }
+  if (s.payment_method === "cuenta_corriente" || ccAmount > 0) return;
   if (s.payment_method in acc) (acc as any)[s.payment_method] += total;
 }
 

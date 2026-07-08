@@ -81,6 +81,7 @@ def is_weight_product(sale_unit: str | None) -> bool:
 
 
 MAX_PG_INT = 2_147_483_647
+MAX_PG_NUMERIC_12_3 = Decimal("999999999.999")
 
 
 def safe_unit_stock(stock_value: Decimal, barcode: str | None) -> int:
@@ -107,6 +108,13 @@ def safe_unit_threshold(value: Decimal) -> int:
     return 0
 
 
+def safe_decimal_12_3(value: Decimal) -> Decimal:
+    quantized = value.quantize(Decimal("0.001"))
+    if abs(quantized) > MAX_PG_NUMERIC_12_3:
+        return Decimal("0.000")
+    return quantized
+
+
 def map_product(row: ProductRow, business_id: str) -> dict[str, object]:
     sold_by_weight = is_weight_product(row.sale_unit)
     stock_value = Decimal(str(row.stock or 0))
@@ -124,10 +132,10 @@ def map_product(row: ProductRow, business_id: str) -> dict[str, object]:
         "price": str(to_decimal(row.price)),
         "cost": str(to_decimal(row.purchase_price)),
         "stock": 0 if sold_by_weight else safe_unit_stock(stock_value, barcode),
-        "stock_decimal": "0.000" if not sold_by_weight else f"{stock_value.quantize(Decimal('0.001'))}",
+        "stock_decimal": "0.000" if not sold_by_weight else f"{safe_decimal_12_3(stock_value)}",
         "low_stock_threshold": 0 if sold_by_weight else safe_unit_threshold(min_stock_value),
         "low_stock_threshold_decimal": (
-            "0.000" if not sold_by_weight else f"{min_stock_value.quantize(Decimal('0.001'))}"
+            "0.000" if not sold_by_weight else f"{safe_decimal_12_3(min_stock_value)}"
         ),
         "sold_by_weight": sold_by_weight,
         "expires_at": normalize_text(row.expiry_date),

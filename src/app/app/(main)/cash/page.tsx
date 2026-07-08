@@ -6,6 +6,7 @@ import { CashFilter } from "@/app/app/(main)/cash/cash-filter";
 import { parseOnboardingGuideStep } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatArgentinaDateTime, getArgentinaDayRangeUtcIso } from "@/lib/argentina-time";
+import { getSaleSplitParts, saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import { createClient } from "@/lib/supabase/server";
 import { effectiveSalePaymentMethod } from "@/lib/sale-payment-method-display";
@@ -98,7 +99,11 @@ function sumCuentaCorrienteSales(sales: SaleRow[]) {
   let t = 0;
   for (const s of sales) {
     if (s.status !== "paid") continue;
-    if (s.payment_method === "cuenta_corriente") t += toNum(s.total);
+    t += saleCuentaCorrienteAmount({
+      paymentMethod: s.payment_method,
+      paymentDetails: s.payment_details,
+      total: s.total,
+    });
   }
   return t;
 }
@@ -152,18 +157,7 @@ function cashReceivedFromDetails(details: unknown) {
 }
 
 function splitFromDetails(details: unknown) {
-  if (!details || typeof details !== "object") return [];
-  const raw = (details as Record<string, unknown>)["split"];
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((x) => {
-      const obj = x as Record<string, unknown>;
-      return {
-        method: String(obj?.method ?? ""),
-        amount: toNum(obj?.amount as number | string | null | undefined),
-      };
-    })
-    .filter((x) => x.method && x.amount > 0);
+  return getSaleSplitParts(details);
 }
 
 export default async function CashPage({ searchParams }: { searchParams: Promise<{ date?: string; ob?: string }> }) {
@@ -323,12 +317,42 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
         ]
       : []),
     ...(sales
-      .filter((s) => s.status === "paid" && s.payment_method !== "cuenta_corriente")
+      .filter((s) => s.status === "paid")
       .flatMap((s) => {
         const total = toNum(s.total);
         const saleIdShort = s.id.slice(0, 8);
         const cashReceived = cashReceivedFromDetails(s.payment_details);
         const sItems = itemsBySale.get(s.id) || [];
+        const ccAmount = saleCuentaCorrienteAmount({
+          paymentMethod: s.payment_method,
+          paymentDetails: s.payment_details,
+          total: s.total,
+        });
+
+        if (s.payment_method === "mixed") {
+          const split = splitFromDetails(s.payment_details);
+          if (split.length > 0) {
+            return split.map((part, idx) => ({
+              id: `${s.id}-mixed-${idx}`,
+              sale_id: s.id,
+              created_at: s.created_at,
+              kind: part.method === "cuenta_corriente" ? ("cc_sale" as const) : ("sale" as const),
+              movement_type: part.method === "cuenta_corriente" ? ("neutral" as const) : ("in" as const),
+              method: part.method,
+              amount: part.amount,
+              reason:
+                part.method === "cuenta_corriente"
+                  ? `Venta #${saleIdShort} · Sin ingreso (cuenta corriente)`
+                  : `Venta #${saleIdShort} · ${part.method}`,
+              items: sItems,
+              cashReceived: part.method === "cash" ? cashReceived ?? undefined : undefined,
+            })) as any[];
+          }
+        }
+
+        if (s.payment_method === "cuenta_corriente" || ccAmount > 0) {
+          return [] as any[];
+        }
 
         if (s.payment_method === "cash" && cashReceived && cashReceived > total) {
           const change = Math.max(0, cashReceived - total);
@@ -378,7 +402,12 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
     ...(sales
       .filter((s) => s.status === "paid" && s.payment_method === "cuenta_corriente")
       .map((s) => {
-        const total = toNum(s.total);
+        const total = saleCuentaCorrienteAmount({
+          paymentMethod: s.payment_method,
+          paymentDetails: s.payment_details,
+          total: s.total,
+        });
+        if (total <= 0) return null;
         const saleIdShort = s.id.slice(0, 8);
         const sItems = itemsBySale.get(s.id) || [];
         return {
@@ -393,7 +422,8 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
           notes: "",
           items: sItems,
         };
-      })),
+      })
+      .filter(Boolean) as any[]),
     ...customerPayments.map((p) => ({
       id: p.id,
       created_at: p.created_at,

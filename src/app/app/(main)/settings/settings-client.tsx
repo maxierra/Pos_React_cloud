@@ -328,13 +328,13 @@ export function SettingsClient({
           accent="emerald"
           icon={FileText}
           title="Facturación ARCA"
-          description="Certificados, punto de venta y CAE."
+          description="Factura C para monotributistas, paso a paso."
           hint={
             fiscalActive
-              ? `Activa · cert ${fiscalCertStatus ?? "—"}`
-              : "Monotributo · configurar"
+              ? `${fiscalSettings?.config?.environment === "prod" ? "Producción" : "Prueba"} · cert ${fiscalCertStatus ?? "—"}`
+              : "Configurar en 4 pasos"
           }
-          tooltip="Generá CSR, subí certificados ARCA/AFIP y activá Factura C en el POS."
+          tooltip="Elegí prueba o producción, cargá punto de venta, certificado ARCA y activá Factura C en el POS."
           onClick={() => setFiscalOpen(true)}
         />
       </div>
@@ -398,8 +398,8 @@ export function SettingsClient({
 
       <ModalShell
         open={fiscalOpen}
-        title="Facturación ARCA"
-        description="Monotributo — Factura C y Notas de Crédito. Certificados por ambiente (test/prod)."
+        title="Facturación electrónica"
+        description="Configurá ARCA paso a paso: ambiente de prueba o producción, punto de venta, certificado y Factura C."
         onClose={() => setFiscalOpen(false)}
         maxWidthClass="max-w-3xl"
         accent="emerald"

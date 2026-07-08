@@ -11,6 +11,7 @@ import {
   ChevronRight,
   History,
   Loader2,
+  Pencil,
   ShoppingCart,
   Wallet,
   X,
@@ -19,6 +20,7 @@ import {
 import {
   getCustomerLedger,
   recordCustomerPayment,
+  updateCustomerPayment,
   type CustomerLedgerData,
 } from "@/app/app/(main)/clientes/actions";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,8 @@ const METHOD_LABEL: Record<string, string> = {
   mercadopago: "Mercado Pago",
 };
 
+type PaymentMethod = "cash" | "card" | "transfer" | "mercadopago";
+
 type Props = {
   open: boolean;
   summary: ClienteRow | null;
@@ -71,24 +75,41 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
 
   const [payMode, setPayMode] = React.useState<"total" | "partial">("total");
   const [partialAmount, setPartialAmount] = React.useState("");
-  const [payMethod, setPayMethod] = React.useState<"cash" | "card" | "transfer" | "mercadopago">("cash");
+  const [payMethod, setPayMethod] = React.useState<PaymentMethod>("cash");
   const [payNotes, setPayNotes] = React.useState("");
   const [payPending, startPayTransition] = React.useTransition();
 
+  const [editingPaymentId, setEditingPaymentId] = React.useState<string | null>(null);
+  const [editAmount, setEditAmount] = React.useState("");
+  const [editMethod, setEditMethod] = React.useState<PaymentMethod>("cash");
+  const [editNotes, setEditNotes] = React.useState("");
+
   const customerId = summary?.id ?? null;
 
+  const resetModalState = React.useCallback(() => {
+    setData(null);
+    setPartialAmount("");
+    setPayNotes("");
+    setPayMode("total");
+    setExpandedSales(new Set());
+    setEditingPaymentId(null);
+    setEditAmount("");
+    setEditMethod("cash");
+    setEditNotes("");
+  }, []);
+
+  const handleClose = React.useCallback(() => {
+    resetModalState();
+    onClose();
+  }, [onClose, resetModalState]);
+
   React.useEffect(() => {
-    if (!open || !customerId) {
-      setData(null);
-      setPartialAmount("");
-      setPayNotes("");
-      setPayMode("total");
-      setExpandedSales(new Set());
-      return;
-    }
+    if (!open || !customerId) return;
 
     let cancelled = false;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
     void getCustomerLedger(customerId)
       .then((d) => {
         if (!cancelled) setData(d);
@@ -107,16 +128,6 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
 
   const balance = data?.balance ?? summary?.balance ?? 0;
 
-  React.useEffect(() => {
-    if (payMode === "partial") {
-      setPartialAmount("");
-      return;
-    }
-    if (balance > 0) {
-      setPartialAmount(String(round2(balance)));
-    }
-  }, [payMode, balance, open]);
-
   const onPay = React.useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -132,7 +143,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
       amount = round2(amount);
 
       if (amount <= 0) {
-        toast.error("Indicá un importe válido");
+        toast.error("Indica un importe valido");
         return;
       }
       if (amount > max + 0.01) {
@@ -152,7 +163,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
             toast.success("Cobro registrado correctamente", {
               description: `${moneyAr(amount)} · ${METHOD_LABEL[payMethod] ?? payMethod}`,
             });
-            setPayNotes("");
+            resetModalState();
             onClose();
             router.refresh();
           } catch (err) {
@@ -161,7 +172,64 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
         })();
       });
     },
-    [customerId, data, onClose, partialAmount, payMethod, payMode, payNotes, router]
+    [customerId, data, onClose, partialAmount, payMethod, payMode, payNotes, resetModalState, router]
+  );
+
+  const openEditPayment = React.useCallback(
+    (payment: Extract<CustomerLedgerData["timeline"][number], { kind: "payment" }>) => {
+      setEditingPaymentId(payment.paymentId);
+      setEditAmount(String(round2(payment.amount)));
+      setEditMethod(
+        payment.method === "card" || payment.method === "transfer" || payment.method === "mercadopago"
+          ? payment.method
+          : "cash"
+      );
+      setEditNotes(payment.notes ?? "");
+    },
+    []
+  );
+
+  const closeEditPayment = React.useCallback(() => {
+    setEditingPaymentId(null);
+    setEditAmount("");
+    setEditMethod("cash");
+    setEditNotes("");
+  }, []);
+
+  const onUpdatePayment = React.useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!customerId || !editingPaymentId) return;
+
+      const amount = round2(parseMoneyLoose(editAmount));
+      if (amount <= 0) {
+        toast.error("Indica un importe valido");
+        return;
+      }
+
+      startPayTransition(() => {
+        void (async () => {
+          try {
+            await updateCustomerPayment({
+              payment_id: editingPaymentId,
+              customer_id: customerId,
+              amount,
+              payment_method: editMethod,
+              notes: editNotes.trim() || null,
+            });
+            toast.success("Cobro actualizado correctamente", {
+              description: `${moneyAr(amount)} · ${METHOD_LABEL[editMethod] ?? editMethod}`,
+            });
+            resetModalState();
+            onClose();
+            router.refresh();
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Error");
+          }
+        })();
+      });
+    },
+    [customerId, editAmount, editMethod, editNotes, editingPaymentId, onClose, resetModalState, router]
   );
 
   if (!open || !summary) return null;
@@ -176,7 +244,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
       aria-modal="true"
       aria-labelledby="cliente-historial-title"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div className="flex max-h-[min(94vh,920px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
@@ -199,7 +267,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
               <Link
                 href={`/app/clientes/${summary.id}`}
                 className="font-medium text-primary underline-offset-4 hover:underline"
-                onClick={onClose}
+                onClick={handleClose}
               >
                 Ficha completa del cliente
               </Link>
@@ -210,7 +278,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
             variant="ghost"
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Cerrar"
           >
             <X className="size-4" />
@@ -221,7 +289,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
               <Loader2 className="size-6 animate-spin text-primary" />
-              <span className="text-sm">Cargando movimientos…</span>
+              <span className="text-sm">Cargando movimientos...</span>
             </div>
           ) : data ? (
             <div className="space-y-8">
@@ -278,9 +346,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                 </div>
                 <ul className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
                   {data.timeline.length === 0 ? (
-                    <li className="px-5 py-12 text-center text-sm text-muted-foreground">
-                      Sin movimientos todavía.
-                    </li>
+                    <li className="px-5 py-12 text-center text-sm text-muted-foreground">Sin movimientos todavía.</li>
                   ) : (
                     data.timeline.map((row) => (
                       <li
@@ -357,9 +423,14 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                                 </div>
                               ) : null}
                             </div>
-                            <span className="shrink-0 tabular-nums text-base font-semibold text-emerald-600 dark:text-emerald-400">
-                              −{moneyAr(row.amount)}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="outline" size="sm" onClick={() => openEditPayment(row)}>
+                                <Pencil className="size-3.5" />
+                              </Button>
+                              <span className="shrink-0 tabular-nums text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                                -{moneyAr(row.amount)}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </li>
@@ -384,7 +455,10 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                           type="radio"
                           name="payMode"
                           checked={payMode === "total"}
-                          onChange={() => setPayMode("total")}
+                          onChange={() => {
+                            setPayMode("total");
+                            setPartialAmount(balance > 0 ? String(round2(balance)) : "");
+                          }}
                           className="accent-primary"
                         />
                         <span>
@@ -402,7 +476,10 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                           type="radio"
                           name="payMode"
                           checked={payMode === "partial"}
-                          onChange={() => setPayMode("partial")}
+                          onChange={() => {
+                            setPayMode("partial");
+                            setPartialAmount("");
+                          }}
                           disabled={data.balance <= 0.01}
                           className="accent-primary"
                         />
@@ -441,7 +518,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                       <select
                         id="pay-m"
                         value={payMethod}
-                        onChange={(e) => setPayMethod(e.target.value as typeof payMethod)}
+                        onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
                         className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm ring-offset-background transition-[box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         <option value="cash">Efectivo</option>
@@ -467,7 +544,7 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
                   </p>
 
                   <Button type="submit" size="lg" className="w-full sm:w-auto sm:min-w-[200px]" disabled={payPending || data.balance <= 0.01}>
-                    {payPending ? "Registrando…" : "Registrar cobro"}
+                    {payPending ? "Registrando..." : "Registrar cobro"}
                   </Button>
                 </form>
               </div>
@@ -477,6 +554,70 @@ export function ClienteHistorialModal({ open, summary, onClose }: Props) {
           )}
         </div>
       </div>
+
+      {editingPaymentId ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-4"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeEditPayment();
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold tracking-tight">Editar cobro</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Corregí importe, medio o nota del pago registrado.</p>
+            <form className="mt-4 grid gap-3" onSubmit={onUpdatePayment}>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit-pay-amt">Importe</Label>
+                <Input
+                  id="edit-pay-amt"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min={0.01}
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit-pay-method">Medio de pago</Label>
+                <select
+                  id="edit-pay-method"
+                  value={editMethod}
+                  onChange={(e) => setEditMethod(e.target.value as PaymentMethod)}
+                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm ring-offset-background transition-[box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="cash">Efectivo</option>
+                  <option value="card">Tarjeta</option>
+                  <option value="transfer">Transferencia</option>
+                  <option value="mercadopago">Mercado Pago</option>
+                </select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit-pay-notes">Notas</Label>
+                <Input
+                  id="edit-pay-notes"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Opcional"
+                  className="h-11"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={closeEditPayment}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={payPending}>
+                  {payPending ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

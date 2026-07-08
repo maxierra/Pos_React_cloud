@@ -5,19 +5,43 @@ const FISCAL_API_KEY = process.env.FISCAL_API_KEY ?? "";
 
 type FiscalEnvironment = "homolog" | "prod";
 
+function fiscalConnectionError(cause: unknown): Error {
+  const devHint =
+    process.env.NODE_ENV !== "production"
+      ? " En otra terminal: cd services/fiscal-api && npm install && npm run dev"
+      : "";
+  const message =
+    `No se pudo conectar al servicio fiscal (${FISCAL_API_URL}). ` +
+    `¿Está corriendo fiscal-api?${devHint}`;
+  if (cause instanceof Error && /fetch failed|ECONNREFUSED|ENOTFOUND/i.test(cause.message)) {
+    return new Error(message);
+  }
+  if (cause instanceof TypeError) {
+    return new Error(message);
+  }
+  return cause instanceof Error ? cause : new Error(message);
+}
+
 async function fiscalFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!FISCAL_API_KEY) {
-    throw new Error("FISCAL_API_KEY no configurada en el servidor");
+    throw new Error(
+      "FISCAL_API_KEY no configurada en .env del servidor. Debe coincidir con la clave en services/fiscal-api/.env"
+    );
   }
-  const res = await fetch(`${FISCAL_API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${FISCAL_API_KEY}`,
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${FISCAL_API_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${FISCAL_API_KEY}`,
+        ...(init?.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+  } catch (e) {
+    throw fiscalConnectionError(e);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error((data as { error?: string }).error ?? `Error fiscal API (${res.status})`);
@@ -106,12 +130,21 @@ export async function downloadFiscalCsr(params: {
   businessId: string;
   environment: FiscalEnvironment;
 }): Promise<ArrayBuffer> {
-  if (!FISCAL_API_KEY) throw new Error("FISCAL_API_KEY no configurada");
+  if (!FISCAL_API_KEY) {
+    throw new Error(
+      "FISCAL_API_KEY no configurada en .env del servidor. Debe coincidir con la clave en services/fiscal-api/.env"
+    );
+  }
   const q = new URLSearchParams(params);
-  const res = await fetch(`${FISCAL_API_URL}/cert/download-csr?${q}`, {
-    headers: { Authorization: `Bearer ${FISCAL_API_KEY}` },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${FISCAL_API_URL}/cert/download-csr?${q}`, {
+      headers: { Authorization: `Bearer ${FISCAL_API_KEY}` },
+      cache: "no-store",
+    });
+  } catch (e) {
+    throw fiscalConnectionError(e);
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error((data as { error?: string }).error ?? "Error descargando CSR");

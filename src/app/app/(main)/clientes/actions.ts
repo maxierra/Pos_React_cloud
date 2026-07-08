@@ -102,9 +102,45 @@ async function recordCustomerPaymentImpl(input: {
   revalidatePath("/app/cash");
 }
 
+async function updateCustomerPaymentImpl(input: {
+  payment_id: string;
+  customer_id: string;
+  amount: number;
+  payment_method: "cash" | "card" | "transfer" | "mercadopago";
+  notes?: string | null;
+}) {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) throw new Error("missing_active_business_id");
+
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("invalid_amount");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customer_account_payments")
+    .update({
+      amount: input.amount,
+      payment_method: input.payment_method,
+      notes: input.notes ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.payment_id)
+    .eq("customer_id", input.customer_id)
+    .eq("business_id", businessId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/app/clientes");
+  revalidatePath(`/app/clientes/${input.customer_id}`);
+  revalidatePath("/app/cash");
+}
+
 export const saveCustomer = createMonitoredAction(saveCustomerImpl, "clientes/saveCustomer");
 export const deleteCustomer = createMonitoredAction(deleteCustomerImpl, "clientes/deleteCustomer");
 export const recordCustomerPayment = createMonitoredAction(recordCustomerPaymentImpl, "clientes/recordCustomerPayment");
+export const updateCustomerPayment = createMonitoredAction(updateCustomerPaymentImpl, "clientes/updateCustomerPayment");
 
 export type CustomerLedgerTimelineSale = {
   kind: "sale";
@@ -118,6 +154,7 @@ export type CustomerLedgerTimelineSale = {
 export type CustomerLedgerTimelinePayment = {
   kind: "payment";
   key: string;
+  paymentId: string;
   at: string;
   amount: number;
   method: string;
@@ -221,6 +258,7 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
     timeline.push({
       kind: "payment",
       key: `pay-${String(row.id ?? "")}`,
+      paymentId: String(row.id ?? ""),
       at: String(row.created_at ?? ""),
       amount: toNum(row.amount),
       method: String(row.payment_method ?? ""),

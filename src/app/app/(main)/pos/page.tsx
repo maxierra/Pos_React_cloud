@@ -3,8 +3,10 @@ import { cookies } from "next/headers";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
+import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { normalizeBusinessType } from "@/lib/business-types";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
+import { fetchAllPages } from "@/lib/supabase/fetch-all-pages";
 import { createClient } from "@/lib/supabase/server";
 
 import { PosClient, type PosCustomerCredit, type PosProduct } from "@/app/app/(main)/pos/pos-client";
@@ -109,15 +111,17 @@ export default async function PosPage({
     .eq("active", true)
     .order("name", { ascending: true });
 
-  const { data } = await supabase
-    .from("products")
-    .select("id,name,category,size,color,image_url,price,barcode,scale_code,sold_by_weight,stock,stock_decimal")
-    .eq("business_id", businessId)
-    .eq("active", true)
-    .order("name", { ascending: true })
-    .limit(5000);
+  const productRows = await fetchAllPages<PosProductRow>(async (from, to) =>
+    await supabase
+      .from("products")
+      .select("id,name,category,size,color,image_url,price,barcode,scale_code,sold_by_weight,stock,stock_decimal")
+      .eq("business_id", businessId)
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .range(from, to)
+  );
 
-  const products = ((data ?? []) as PosProductRow[]).map(
+  const products = productRows.map(
     (p): PosProduct => ({
       id: String(p.id),
       name: String(p.name),
@@ -173,9 +177,8 @@ export default async function PosPage({
       .order("name", { ascending: true }),
     supabase
       .from("sales")
-      .select("customer_id,total")
+      .select("customer_id,total,payment_method,payment_details")
       .eq("business_id", businessId)
-      .eq("payment_method", "cuenta_corriente")
       .eq("status", "paid")
       .not("customer_id", "is", null),
     supabase.from("customer_account_payments").select("customer_id,amount").eq("business_id", businessId),
@@ -185,7 +188,14 @@ export default async function PosPage({
   for (const s of ccSales ?? []) {
     const id = String((s as { customer_id: string | null }).customer_id ?? "");
     if (!id) continue;
-    charges.set(id, (charges.get(id) ?? 0) + toNum((s as { total: unknown }).total));
+    const row = s as { payment_method: string; payment_details?: unknown; total: unknown };
+    const ccAmount = saleCuentaCorrienteAmount({
+      paymentMethod: row.payment_method,
+      paymentDetails: row.payment_details,
+      total: row.total as number | string | null | undefined,
+    });
+    if (ccAmount <= 0) continue;
+    charges.set(id, (charges.get(id) ?? 0) + ccAmount);
   }
   const pays = new Map<string, number>();
   for (const p of capPayments ?? []) {

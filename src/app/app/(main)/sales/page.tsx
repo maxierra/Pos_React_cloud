@@ -6,6 +6,7 @@ import { SalesFilter } from "@/app/app/(main)/sales/sales-filter";
 import { SalesResultsClient, type SalesDayRow, type SalesDisplayRow } from "@/app/app/(main)/sales/sales-results-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatArgentinaDateTime, getArgentinaDayRangeUtcIso } from "@/lib/argentina-time";
+import { getSaleSplitParts } from "@/lib/customer-account";
 import { effectiveSalePaymentMethod } from "@/lib/sale-payment-method-display";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,17 +45,7 @@ type CashRegisterOption = {
 };
 
 function getSplitDetails(details: unknown): Array<{ method: string; amount: number }> {
-  if (!details || typeof details !== "object") return [];
-  const d = details as Record<string, unknown>;
-  const split = d?.split;
-  if (!Array.isArray(split)) return [];
-
-  return split
-    .map((x) => {
-      const part = x as { method?: unknown; amount?: unknown };
-      return { method: String(part.method ?? ""), amount: Number(part.amount ?? 0) };
-    })
-    .filter((x) => x.method && Number.isFinite(x.amount) && x.amount > 0);
+  return getSaleSplitParts(details);
 }
 
 function expandSalesRows(sales: SaleRow[]): DisplaySaleRow[] {
@@ -103,6 +94,25 @@ function moneyAr(value: string | number) {
     currency: "ARS",
     maximumFractionDigits: 2,
   }).format(n);
+}
+
+function methodLabel(method: string) {
+  switch (method) {
+    case "cash":
+      return "Efectivo";
+    case "card":
+      return "Tarjeta";
+    case "mercadopago":
+      return "Mercado Pago";
+    case "transfer":
+      return "Transferencia";
+    case "cuenta_corriente":
+      return "Cuenta corriente";
+    case "mixed":
+      return "Mixto";
+    default:
+      return method;
+  }
 }
 
 function badgeClass(kind: "success" | "warning" | "neutral") {
@@ -282,18 +292,14 @@ export default async function SalesPage({
       rows: [],
     };
     const turn = turns.find((entry) => entry.id === row.cash_register_id);
-    const methodLabel =
-      row.payment_method === "cash"
-        ? "Efectivo"
-        : row.payment_method === "card"
-          ? "Tarjeta"
-          : row.payment_method === "mercadopago"
-            ? "Mercado Pago"
-            : row.payment_method === "transfer"
-              ? "Transferencia"
-              : row.payment_method === "cuenta_corriente"
-                ? "Cuenta corriente"
-                : row.payment_method;
+    const paymentLabel = methodLabel(row.payment_method);
+    const originalSale = sales.find((sale) => sale.id === row.id);
+    const splitSummary =
+      originalSale?.payment_method === "mixed"
+        ? getSplitDetails(originalSale.payment_details)
+            .map((part) => `${methodLabel(part.method)} ${moneyAr(part.amount)}`)
+            .join(" + ")
+        : null;
     const statusLabel = row.status === "paid" ? "Pagada" : row.status === "voided" ? "Anulada" : row.status;
     const statusKind = row.status === "paid" ? "success" : row.status === "voided" ? "warning" : "neutral";
 
@@ -308,10 +314,11 @@ export default async function SalesPage({
             ? `${row.matchedProducts[0]} (+${row.matchedProducts.length - 1})`
             : row.matchedProducts[0]
           : "Todos los productos",
-      paymentLabel: methodLabel,
+      paymentLabel,
       paymentClassName:
         "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium " +
         methodBadgeClass(row.payment_method),
+      splitSummary,
       statusLabel,
       statusClassName:
         "inline-flex items-center rounded-lg border px-2 py-1 text-[11px] font-medium " +

@@ -2,6 +2,14 @@ import forge from "node-forge";
 import { supabaseAdmin, FISCAL_CERTS_BUCKET } from "./supabase.js";
 import { normalizeCuit, storagePrefix, type FiscalEnvironment } from "./config.js";
 
+function storageError(context: string, err: { message: string }): string {
+  const msg = `Error ${context}: ${err.message}`;
+  if (/bucket not found/i.test(err.message)) {
+    return `${msg}. Creá el bucket "${FISCAL_CERTS_BUCKET}" en Supabase Storage (SQL Editor del proyecto).`;
+  }
+  return msg;
+}
+
 export type CertPaths = {
   keyPath: string;
   csrPath: string;
@@ -49,13 +57,13 @@ export async function generateCsrAndKey(params: {
     contentType: "text/plain",
     upsert: true,
   });
-  if (keyErr) throw new Error(`Error guardando clave: ${keyErr.message}`);
+  if (keyErr) throw new Error(storageError("guardando clave", keyErr));
 
   const { error: csrErr } = await supabaseAdmin.storage.from(FISCAL_CERTS_BUCKET).upload(paths.csrPath, csrBytes, {
     contentType: "application/pkcs10",
     upsert: true,
   });
-  if (csrErr) throw new Error(`Error guardando CSR: ${csrErr.message}`);
+  if (csrErr) throw new Error(storageError("guardando CSR", csrErr));
 
   const { error: dbErr } = await supabaseAdmin.from("fiscal_certificates").upsert(
     {
@@ -77,8 +85,19 @@ export async function generateCsrAndKey(params: {
 }
 
 export async function downloadCsr(businessId: string, environment: FiscalEnvironment): Promise<string> {
-  const paths = getCertPaths(businessId, environment);
-  const { data, error } = await supabaseAdmin.storage.from(FISCAL_CERTS_BUCKET).download(paths.csrPath);
+  // Read storage_path_csr from the DB record so we fetch from the exact path
+  // that was written during CSR generation, regardless of any businessId
+  // mismatch between sessions.
+  const { data: certRow } = await supabaseAdmin
+    .from("fiscal_certificates")
+    .select("storage_path_csr")
+    .eq("business_id", businessId)
+    .eq("environment", environment)
+    .maybeSingle();
+
+  const csrPath = certRow?.storage_path_csr ?? getCertPaths(businessId, environment).csrPath;
+
+  const { data, error } = await supabaseAdmin.storage.from(FISCAL_CERTS_BUCKET).download(csrPath);
   if (error || !data) throw new Error("CSR no encontrado. Generá una solicitud primero.");
   return await data.text();
 }
@@ -89,42 +108,76 @@ export async function uploadCertificate(params: {
   certPem: string;
   uploadedBy?: string;
 }) {
-  const cuit = normalizeCuit(
-    (
-      await supabaseAdmin
-        .from("fiscal_certificates")
-        .select("cuit")
-        .eq("business_id", params.businessId)
-        .eq("environment", params.environment)
-        .maybeSingle()
-    ).data?.cuit ?? ""
-  );
+  // Fetch the DB record to get the actual stored key path and cuit together.
+  // We deliberately use storage_path_key from the DB instead of recomputing it
+  // from params.businessId: if the CSR was generated in a session where a
+  // different active_business_id cookie was set (producing a different storage
+  // prefix), getCertPaths() would derive the wrong path and the download fails
+  // with "Clave privada no encontrada".
+  const { data: certRow } = await supabaseAdmin
+    .from("fiscal_certificates")
+    .select("cuit, storage_path_key")
+    .eq("business_id", params.businessId)
+    .eq("environment", params.environment)
+    .maybeSingle();
 
+  if (!certRow?.storage_path_key) {
+    throw new Error(
+      "No se encontró una solicitud de certificado (CSR) activa para este negocio y ambiente. " +
+      "Generá primero una nueva solicitud (CSR) y luego subí el certificado que emitió ARCA."
+    );
+  }
+
+  const cuit = normalizeCuit(certRow.cuit ?? "");
   const cert = forge.pki.certificateFromPem(params.certPem);
   const paths = getCertPaths(params.businessId, params.environment);
 
+  // Use the path recorded in the DB (not recomputed from businessId) so we
+  // always read the key from where it was actually written.
   const { data: keyBlob, error: keyErr } = await supabaseAdmin.storage
     .from(FISCAL_CERTS_BUCKET)
-    .download(paths.keyPath);
-  if (keyErr || !keyBlob) throw new Error("Clave privada no encontrada");
+    .download(certRow.storage_path_key);
+  if (keyErr || !keyBlob) {
+    throw new Error(
+      `Clave privada no encontrada en storage (${certRow.storage_path_key}). ` +
+      "Es posible que el archivo haya sido eliminado manualmente del bucket. " +
+      "Generá una nueva solicitud CSR para regenerar la clave."
+    );
+  }
 
   const keyPem = await keyBlob.text();
   const privateKey = forge.pki.privateKeyFromPem(keyPem);
-  const certPublicKey = cert.publicKey as forge.pki.rsa.PublicKey;
-  const test = certPublicKey.encrypt("test", "RSAES-PKCS1-V1_5");
-  privateKey.decrypt(test, "RSAES-PKCS1-V1_5");
 
+  // Validate cert ↔ private-key pair by comparing RSA modulus (n).
+  // This is more reliable than encrypt/decrypt round-trip, which can fail on
+  // non-standard ARCA cert padding and produces cryptic error messages.
+  const certPublicKey = cert.publicKey as forge.pki.rsa.PublicKey;
+  const certModulus = certPublicKey.n?.toString(16);
+  const keyModulus = (privateKey as forge.pki.rsa.PrivateKey).n?.toString(16);
+  if (!certModulus || !keyModulus || certModulus !== keyModulus) {
+    throw new Error(
+      "El certificado no corresponde a la clave privada almacenada. " +
+      "Subí el certificado que ARCA emitió exactamente para la solicitud (CSR) vigente. " +
+      "Si ya regeneraste una nueva solicitud, volvé a pedirle el certificado a ARCA."
+    );
+  }
+
+  // PEM content → plain text upload (avoids server-side MIME-detection conflicts
+  // with application/x-x509-ca-cert; text/plain is already in the bucket allow-list).
   const certBytes = Buffer.from(params.certPem, "utf8");
   const { error: uploadErr } = await supabaseAdmin.storage.from(FISCAL_CERTS_BUCKET).upload(paths.certPath, certBytes, {
-    contentType: "application/x-x509-ca-cert",
+    contentType: "text/plain",
     upsert: true,
   });
-  if (uploadErr) throw new Error(`Error subiendo certificado: ${uploadErr.message}`);
+  if (uploadErr) throw new Error(storageError("subiendo certificado", uploadErr));
 
   const notAfter = cert.validity.notAfter;
   const notBefore = cert.validity.notBefore;
 
-  const { error: dbErr } = await supabaseAdmin
+  // .select() is required so Supabase returns the updated row count;
+  // without it, 0-rows-matched returns { error: null } and we'd never know
+  // the certificate row didn't exist (e.g., CSR was never generated first).
+  const { data: updated, error: dbErr } = await supabaseAdmin
     .from("fiscal_certificates")
     .update({
       storage_path_cert: paths.certPath,
@@ -135,8 +188,16 @@ export async function uploadCertificate(params: {
       updated_at: new Date().toISOString(),
     })
     .eq("business_id", params.businessId)
-    .eq("environment", params.environment);
+    .eq("environment", params.environment)
+    .select("id");
   if (dbErr) throw new Error(`Error actualizando certificado: ${dbErr.message}`);
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      "No se encontró el registro de certificado en la base de datos. " +
+      "Asegurate de haber generado primero una Solicitud de certificado (CSR) " +
+      "para este ambiente antes de subir el .crt."
+    );
+  }
 
   return { cuit, expiresAt: notAfter.toISOString() };
 }

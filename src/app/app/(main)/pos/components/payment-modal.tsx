@@ -147,10 +147,6 @@ export function PaymentModal({
     () => sortPaymentMethods(paymentMethodConfig.filter((m) => m.is_active)),
     [paymentMethodConfig]
   );
-  const activeSortedNonCC = React.useMemo(
-    () => activeSorted.filter((m) => m.method_code !== "cuenta_corriente"),
-    [activeSorted]
-  );
   const labelMap = React.useMemo(() => buildPaymentLabelMap(paymentMethodConfig), [paymentMethodConfig]);
 
   const resolveLabel = React.useCallback(
@@ -315,11 +311,11 @@ export function PaymentModal({
   }, [mixed, open, a1, a2, m1, m2, total]);
 
   React.useEffect(() => {
-    if (!open || !mixed || activeSortedNonCC.length < 2) return;
+    if (!open || !mixed || activeSorted.length < 2) return;
     if (m2 !== m1) return;
-    const other = activeSortedNonCC.find((x) => x.method_code !== m1)?.method_code;
+    const other = activeSorted.find((x) => x.method_code !== m1)?.method_code;
     if (other) setM2(other as PaymentMethod);
-  }, [open, mixed, m1, m2, activeSortedNonCC]);
+  }, [open, mixed, m1, m2, activeSorted]);
 
   const mpCartFingerprint = React.useMemo(
     () =>
@@ -446,14 +442,36 @@ export function PaymentModal({
     [customers, customerId]
   );
 
+  const mixedIncludesCc = mixed && (m1 === "cuenta_corriente" || m2 === "cuenta_corriente");
+  const ccAmount = React.useMemo(() => {
+    if (mixed) {
+      return round2((m1 === "cuenta_corriente" ? a1 : 0) + (m2 === "cuenta_corriente" ? a2 : 0));
+    }
+    return method === "cuenta_corriente" ? round2(total) : 0;
+  }, [mixed, m1, m2, a1, a2, method, total]);
+  const ccCustomerRequired = (!mixed && method === "cuenta_corriente") || mixedIncludesCc;
+
   const ccFirstScreenDisabled = React.useMemo(() => {
-    if (method !== "cuenta_corriente" || mixed) return false;
+    if (!ccCustomerRequired) return false;
     if (!customerId || customers.length === 0) return true;
     if (!selectedCc) return true;
     if (selectedCc.credit_limit <= 0) return true;
-    if (round2(total) > selectedCc.available_to_spend + 0.009) return true;
+    if (ccAmount > selectedCc.available_to_spend + 0.009) return true;
     return false;
-  }, [method, mixed, customerId, customers.length, selectedCc, total]);
+  }, [ccAmount, ccCustomerRequired, customerId, customers.length, selectedCc]);
+
+  const payloadUsesCuentaCorriente = React.useCallback(
+    (payload: {
+      payment_method: PaymentMethodOrMixed;
+      payment_details?: {
+        split: Array<{ method: PaymentMethod; amount: number }>;
+      };
+    }) => {
+      if (payload.payment_method === "cuenta_corriente") return true;
+      return payload.payment_details?.split.some((part) => part.method === "cuenta_corriente" && part.amount > 0) ?? false;
+    },
+    []
+  );
 
   React.useEffect(() => {
     if (open) return;
@@ -529,13 +547,13 @@ export function PaymentModal({
                     type="button"
                     role="switch"
                     aria-checked={mixed}
-                    disabled={activeSortedNonCC.length < 2}
+                    disabled={activeSorted.length < 2}
                     onClick={() => {
                       setMixed((v) => {
                         const next = !v;
-                        if (next && activeSortedNonCC.length >= 2) {
-                          setM1(activeSortedNonCC[0]!.method_code as PaymentMethod);
-                          setM2(activeSortedNonCC[1]!.method_code as PaymentMethod);
+                        if (next && activeSorted.length >= 2) {
+                          setM1(activeSorted[0]!.method_code as PaymentMethod);
+                          setM2(activeSorted[1]!.method_code as PaymentMethod);
                         }
                         return next;
                       });
@@ -576,7 +594,7 @@ export function PaymentModal({
                             onChange={(e) => setM1(e.target.value as PaymentMethod)}
                             className="h-10 w-full rounded-lg border border-input bg-transparent pl-9 pr-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                           >
-                            {activeSortedNonCC.map((r) => (
+                            {activeSorted.map((r) => (
                               <option key={r.method_code} value={r.method_code}>
                                 {r.label}
                               </option>
@@ -617,7 +635,7 @@ export function PaymentModal({
                             onChange={(e) => setM2(e.target.value as PaymentMethod)}
                             className="h-10 w-full rounded-lg border border-input bg-transparent pl-9 pr-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                           >
-                            {activeSortedNonCC.map((r) => (
+                            {activeSorted.map((r) => (
                               <option key={r.method_code} value={r.method_code}>
                                 {r.label}
                               </option>
@@ -716,10 +734,10 @@ export function PaymentModal({
                   </button>
                 </div>
 
-                {!mixed && method === "cuenta_corriente" ? (
+                {ccCustomerRequired ? (
                   <div className="grid gap-2 rounded-xl border border-slate-500/30 bg-slate-500/5 p-4">
                     <Label htmlFor="pos-cc-customer" className="text-xs font-semibold">
-                      Cliente (obligatorio)
+                      Cliente para cuenta corriente (obligatorio)
                     </Label>
                     <select
                       id="pos-cc-customer"
@@ -769,10 +787,9 @@ export function PaymentModal({
                             Sin límite de crédito: asigná un límite en Clientes para poder vender en cuenta corriente.
                           </p>
                         ) : null}
-                        {selectedCc.credit_limit > 0 && round2(total) > selectedCc.available_to_spend + 0.009 ? (
+                        {selectedCc.credit_limit > 0 && ccAmount > selectedCc.available_to_spend + 0.009 ? (
                           <p className="text-[11px] leading-snug text-destructive">
-                            El total ({formatMoneyAr(total)}) supera lo disponible ({formatMoneyAr(selectedCc.available_to_spend)}
-                            ). Reducí el carrito o cobrá parte de la deuda primero.
+                            El tramo en cuenta corriente ({formatMoneyAr(ccAmount)}) supera lo disponible ({formatMoneyAr(selectedCc.available_to_spend)}). Reducí ese monto o cobrá parte de la deuda primero.
                           </p>
                         ) : null}
                       </div>
@@ -818,7 +835,7 @@ export function PaymentModal({
                     pending ||
                     (mixed ? splitDiff !== 0 || amountExceedsTotal : false) ||
                     (!mixed && !method) ||
-                    (!mixed && method === "cuenta_corriente" && ccFirstScreenDisabled)
+                    (ccCustomerRequired && ccFirstScreenDisabled)
                   }
                   onClick={() => {
                     let nextPayload: {
@@ -946,7 +963,7 @@ export function PaymentModal({
                     <span>Pago</span>
                     <span>{resolveLabel(pendingPayload.payment_method)}</span>
                   </div>
-                  {pendingPayload.payment_method === "cuenta_corriente" && customerId ? (
+                  {payloadUsesCuentaCorriente(pendingPayload) && customerId ? (
                     <>
                       <div className="mt-1 flex items-center justify-between text-left">
                         <span>Cliente</span>
@@ -954,13 +971,17 @@ export function PaymentModal({
                           {customers.find((c) => c.id === customerId)?.name ?? ""}
                         </span>
                       </div>
+                      <div className="mt-1 flex items-center justify-between text-left">
+                        <span>Monto en cuenta corriente</span>
+                        <span className="font-medium">{formatMoneyAr(ccAmount)}</span>
+                      </div>
                       {selectedCc ? (
                         <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>Disponible p/ esta venta</span>
                           <span
                             className={cn(
                               "tabular-nums font-semibold",
-                              round2(total) > selectedCc.available_to_spend + 0.009
+                              ccAmount > selectedCc.available_to_spend + 0.009
                                 ? "text-destructive"
                                 : "text-emerald-600 dark:text-emerald-400"
                             )}
@@ -1088,12 +1109,11 @@ export function PaymentModal({
                         onConfirm({
                           ...pendingPayload,
                           print_ticket: printTicket,
-                          customer_id:
-                            pendingPayload.payment_method === "cuenta_corriente" ? customerId || null : null,
+                          customer_id: payloadUsesCuentaCorriente(pendingPayload) ? customerId || null : null,
                         });
                       })();
                     }}
-                    disabled={pending || (pendingPayload.payment_method === "cuenta_corriente" && ccFirstScreenDisabled)}
+                    disabled={pending || (payloadUsesCuentaCorriente(pendingPayload) && ccFirstScreenDisabled)}
                     variant={mpQrFlowActive ? "outline" : "default"}
                   >
                     {pending
@@ -1162,8 +1182,7 @@ export function PaymentModal({
                       onConfirm({
                         ...pendingPayload,
                         print_ticket: printTicket,
-                        customer_id:
-                          pendingPayload.payment_method === "cuenta_corriente" ? customerId || null : null,
+                        customer_id: payloadUsesCuentaCorriente(pendingPayload) ? customerId || null : null,
                       });
                       setTransferConfirmOpen(false);
                     })();

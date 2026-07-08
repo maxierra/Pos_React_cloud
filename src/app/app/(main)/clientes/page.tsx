@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { ClientesClient, type ClienteRow } from "@/app/app/(main)/clientes/clientes-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { createClient } from "@/lib/supabase/server";
 
 function toNum(v: unknown) {
@@ -42,9 +43,8 @@ export default async function ClientesPage() {
       .order("name", { ascending: true }),
     supabase
       .from("sales")
-      .select("customer_id,total")
+      .select("customer_id,total,payment_method,payment_details")
       .eq("business_id", businessId)
-      .eq("payment_method", "cuenta_corriente")
       .eq("status", "paid")
       .not("customer_id", "is", null),
     supabase.from("customer_account_payments").select("customer_id,amount").eq("business_id", businessId),
@@ -54,7 +54,14 @@ export default async function ClientesPage() {
   for (const s of ccSales ?? []) {
     const id = String((s as { customer_id: string | null }).customer_id ?? "");
     if (!id) continue;
-    charges.set(id, (charges.get(id) ?? 0) + toNum((s as { total: unknown }).total));
+    const row = s as { payment_method: string; payment_details?: unknown; total: unknown };
+    const ccAmount = saleCuentaCorrienteAmount({
+      paymentMethod: row.payment_method,
+      paymentDetails: row.payment_details,
+      total: row.total as number | string | null | undefined,
+    });
+    if (ccAmount <= 0) continue;
+    charges.set(id, (charges.get(id) ?? 0) + ccAmount);
   }
 
   const pays = new Map<string, number>();

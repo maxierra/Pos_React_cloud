@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { SalesRowActions } from "@/app/app/(main)/sales/sales-row-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSaleSplitParts } from "@/lib/customer-account";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -63,6 +64,25 @@ type SaleItemRow = {
   total: string | number;
 };
 
+function paymentMethodLabel(method: string) {
+  switch (method) {
+    case "cash":
+      return "Efectivo";
+    case "card":
+      return "Tarjeta";
+    case "transfer":
+      return "Transferencia";
+    case "mercadopago":
+      return "Mercado Pago";
+    case "cuenta_corriente":
+      return "Cuenta corriente";
+    case "mixed":
+      return "Mixto";
+    default:
+      return method;
+  }
+}
+
 export default async function SaleDetailPage({ params }: Props) {
   const { id } = await params;
 
@@ -120,6 +140,7 @@ export default async function SaleDetailPage({ params }: Props) {
     sale.payment_details && typeof sale.payment_details === "object"
       ? (((sale.payment_details as Record<string, unknown>).promotion as SalePromotionDetails | undefined) ?? null)
       : null;
+  const splitDetails = getSaleSplitParts(sale.payment_details);
 
   const { data: itemsData } = await supabase
     .from("sale_items")
@@ -171,6 +192,35 @@ export default async function SaleDetailPage({ params }: Props) {
             <div className="text-xs text-muted-foreground">Total</div>
             <div className="font-numeric text-lg font-semibold">{moneyAr(sale.total)}</div>
           </div>
+        </div>
+
+        <div className="border-b bg-[var(--pos-surface-2)]/50 px-5 py-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <div className="text-xs text-muted-foreground">Medio principal</div>
+              <div className="text-sm font-medium">{paymentMethodLabel(sale.payment_method)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Estado</div>
+              <div className="text-sm font-medium">{sale.status === "paid" ? "Pagada" : sale.status === "voided" ? "Anulada" : sale.status}</div>
+            </div>
+          </div>
+
+          {splitDetails.length > 0 ? (
+            <div className="mt-4 rounded-xl border bg-background px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Desglose del cobro
+              </div>
+              <div className="mt-3 grid gap-2">
+                {splitDetails.map((part, idx) => (
+                  <div key={`${part.method}-${idx}`} className="flex items-center justify-between gap-3 text-sm">
+                    <span>{paymentMethodLabel(part.method)}</span>
+                    <span className="font-semibold tabular-nums">{moneyAr(part.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {promotion && Number(promotion.amount ?? 0) > 0 ? (

@@ -90,6 +90,26 @@ export const VOUCHER_TYPE_LABELS: Record<number, string> = {
   13: "Nota de Crédito C",
 };
 
+/** Comprobantes habilitados para monotributo (Fase 1). */
+export const MONOTRIBUTO_VOUCHER_OPTIONS: Array<{
+  type: number;
+  label: string;
+  description: string;
+  recommended?: boolean;
+}> = [
+  {
+    type: 11,
+    label: "Factura C",
+    description: "La factura que emitís en cada venta del POS.",
+    recommended: true,
+  },
+  {
+    type: 13,
+    label: "Nota de Crédito C",
+    description: "Para anular o corregir una Factura C ya emitida.",
+  },
+];
+
 export function voucherTypeLabel(type: number): string {
   return VOUCHER_TYPE_LABELS[type] ?? `Comprobante ${type}`;
 }

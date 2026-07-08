@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ClienteDetalleClient } from "@/app/app/(main)/clientes/cliente-detalle-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ClienteDetallePage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,10 +47,10 @@ export default async function ClienteDetallePage({ params }: { params: Promise<{
 
   const { data: sales } = await supabase
     .from("sales")
-    .select("id,total,created_at,status")
+    .select("id,total,created_at,status,payment_method,payment_details")
     .eq("business_id", businessId)
     .eq("customer_id", customerId)
-    .eq("payment_method", "cuenta_corriente")
+    .eq("status", "paid")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -72,7 +73,25 @@ export default async function ClienteDetallePage({ params }: { params: Promise<{
         credit_limit: Number(customer.credit_limit) || 0,
         balance: Number.isFinite(balance) ? balance : 0,
       }}
-      sales={(sales ?? []) as Array<{ id: string; total: number | string; created_at: string; status: string }>}
+      sales={((sales ?? []) as Array<{
+        id: string;
+        total: number | string;
+        created_at: string;
+        status: string;
+        payment_method: string;
+        payment_details?: unknown;
+      }>)
+        .map((sale) => ({
+          id: sale.id,
+          created_at: sale.created_at,
+          status: sale.status,
+          total: saleCuentaCorrienteAmount({
+            paymentMethod: sale.payment_method,
+            paymentDetails: sale.payment_details,
+            total: sale.total,
+          }),
+        }))
+        .filter((sale) => sale.total > 0)}
       payments={
         (pays ?? []) as Array<{
           id: string;

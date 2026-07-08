@@ -66,6 +66,8 @@ export async function saveFiscalConfig(input: {
   is_active: boolean;
   pos_number_homolog?: number;
   pos_number_prod?: number;
+  voucher_types_homolog?: number[];
+  voucher_types_prod?: number[];
 }) {
   const { businessId, supabase } = await getBusinessContext();
 
@@ -88,13 +90,17 @@ export async function saveFiscalConfig(input: {
 
   await supabase.from("businesses").update({ cuit: input.cuit.replace(/\D/g, "") }).eq("id", businessId);
 
+  const homologVoucherTypes =
+    input.voucher_types_homolog?.length ? input.voucher_types_homolog : [11, 13];
+  const prodVoucherTypes = input.voucher_types_prod?.length ? input.voucher_types_prod : [11, 13];
+
   if (input.pos_number_homolog) {
     await supabase.from("fiscal_points_of_sale").upsert(
       {
         business_id: businessId,
         environment: "homolog",
         pos_number: input.pos_number_homolog,
-        voucher_types: [11, 13],
+        voucher_types: homologVoucherTypes,
         is_default: input.environment === "homolog",
         updated_at: new Date().toISOString(),
       },
@@ -107,7 +113,7 @@ export async function saveFiscalConfig(input: {
         business_id: businessId,
         environment: "prod",
         pos_number: input.pos_number_prod,
-        voucher_types: [11, 13],
+        voucher_types: prodVoucherTypes,
         is_default: input.environment === "prod",
         updated_at: new Date().toISOString(),
       },

@@ -22,6 +22,8 @@ export type TicketData = {
   items?: TicketItem[];
   total: number;
   paymentMethod?: string;
+  paymentSplit?: Array<{ method: string; amount: number }>;
+  customerName?: string | null;
   /** Etiquetas personalizadas por código (desde configuración del negocio). */
   paymentMethodLabels?: Record<string, string>;
   cashReceived?: number;
@@ -92,6 +94,8 @@ export function formatSaleTicketPlainText(data: TicketData): string {
     saleId,
     movementId,
     paymentMethod,
+    paymentSplit,
+    customerName,
     paymentMethodLabels,
     cashReceived,
     reason,
@@ -156,6 +160,14 @@ export function formatSaleTicketPlainText(data: TicketData): string {
   if (paymentMethod) {
     lines.push(`Pago: ${getPaymentMethodLabel(paymentMethod, paymentMethodLabels)}`);
   }
+  if (customerName && ((paymentMethod === "cuenta_corriente") || (paymentSplit && paymentSplit.some((part) => part.method === "cuenta_corriente")))) {
+    lines.push(`Cliente CC: ${customerName}`);
+  }
+  if (paymentSplit && paymentSplit.length > 0) {
+    for (const part of paymentSplit) {
+      lines.push(` - ${getPaymentMethodLabel(part.method, paymentMethodLabels)}: $${part.amount.toFixed(2)}`);
+    }
+  }
   if (cashReceived != null) {
     lines.push(`Recibido: $${cashReceived.toFixed(2)}`);
     lines.push(`Vuelto: $${change.toFixed(2)}`);
@@ -183,6 +195,8 @@ export function generateTicketHtml(data: TicketData) {
     saleId,
     movementId,
     paymentMethod,
+    paymentSplit,
+    customerName,
     paymentMethodLabels,
     cashReceived,
     reason,
@@ -308,6 +322,27 @@ export function generateTicketHtml(data: TicketData) {
       }
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;"><span>TOTAL</span><span>$${finalTotal.toFixed(2)}</span></div>
       ${paymentMethod ? `<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px;"><span>Pago</span><span>${escapeHtml(getPaymentMethodLabel(paymentMethod, paymentMethodLabels))}</span></div>` : ""}
+      ${
+        customerName &&
+        (paymentMethod === "cuenta_corriente" || (paymentSplit && paymentSplit.some((part) => part.method === "cuenta_corriente")))
+          ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Cliente CC</span><span>${escapeHtml(customerName)}</span></div>`
+          : ""
+      }
+      ${
+        paymentSplit && paymentSplit.length > 0
+          ? `<div style="margin-top:6px;font-size:11px;">
+              ${paymentSplit
+                .map(
+                  (part) =>
+                    `<div style="display:flex;justify-content:space-between;gap:8px;">
+                      <span>${escapeHtml(getPaymentMethodLabel(part.method, paymentMethodLabels))}</span>
+                      <span>$${part.amount.toFixed(2)}</span>
+                    </div>`
+                )
+                .join("")}
+            </div>`
+          : ""
+      }
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Recibido</span><span>$${cashReceived.toFixed(2)}</span></div>` : ""}
       ${cashReceived ? `<div style="font-size:12px;display:flex;justify-content:space-between"><span>Vuelto</span><span>$${change.toFixed(2)}</span></div>` : ""}
       ${
