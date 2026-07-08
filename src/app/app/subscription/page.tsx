@@ -2,13 +2,12 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { getPlanConfig } from "@/app/app/subscription/actions";
 import { SubscriptionClient } from "@/app/app/subscription/subscription-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { fetchSubscriptionWithAutoTrial } from "@/lib/supabase/ensure-subscription-trial";
-import { getStoreEnvPrice, getStoreEnvTitle } from "@/lib/store-products";
 
-/** Valores por defecto si no configurás env (transferencia / alias fijos de la tienda). */
 const DEFAULT_MANUAL_MP_ALIAS = "tienda360.mp";
 const DEFAULT_MANUAL_PHONE = "11 2314-5742";
 
@@ -29,20 +28,19 @@ export default async function SubscriptionPage() {
   const businessId = cookieStore.get("active_business_id")?.value;
   const manualContact = manualContactFromEnv();
   const mercadoPagoConfigured = Boolean((process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim());
-  const lifetimePrice = getStoreEnvPrice("software_lifetime");
-  const lifetimeTitle = getStoreEnvTitle("software_lifetime");
+  const monthlyPlan = await getPlanConfig("monthly");
 
   if (!businessId) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 py-10">
         <Card>
           <CardHeader>
-            <CardTitle>Suscripción</CardTitle>
-            <CardDescription>Seleccioná o creá un negocio primero.</CardDescription>
+            <CardTitle>Suscripcion</CardTitle>
+            <CardDescription>Selecciona o crea un negocio primero.</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/app/setup" className="text-sm underline">
-              Ir a configuración
+              Ir a configuracion
             </Link>
           </CardContent>
         </Card>
@@ -69,15 +67,15 @@ export default async function SubscriptionPage() {
 
       <div className="mx-auto w-full max-w-5xl px-4 py-10">
         <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--pos-accent)]">Facturación</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--pos-accent)]">Facturacion</p>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Mi{" "}
             <span className="bg-gradient-to-r from-[var(--pos-accent)] via-teal-500 to-[var(--sub-sky)] bg-clip-text text-transparent">
-              suscripción
+              suscripcion
             </span>
           </h1>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Gestioná tu prueba gratis y activá la licencia de por vida con un pago único por Mercado Pago.
+            Gestiona tu prueba gratis y activa tu plan mensual con Mercado Pago segun la configuracion del entorno.
           </p>
         </header>
 
@@ -85,15 +83,15 @@ export default async function SubscriptionPage() {
           <Suspense
             fallback={
               <div className="flex h-32 items-center justify-center rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] text-sm text-muted-foreground">
-                Cargando…
+                Cargando...
               </div>
             }
           >
             <SubscriptionClient
               businessId={businessId}
               subscription={subscription}
-              lifetimePrice={lifetimePrice}
-              lifetimeTitle={lifetimeTitle}
+              monthlyPrice={monthlyPlan.amount}
+              monthlyTitle={monthlyPlan.title}
               loadError={subErrorMessage ?? null}
               mercadoPagoConfigured={mercadoPagoConfigured}
               manualContact={manualContact}
