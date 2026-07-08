@@ -76,41 +76,43 @@ function ProductChart({
   fill: string;
 }) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 56 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.28)" />
-        <XAxis
-          dataKey="name"
-          angle={-25}
-          textAnchor="end"
-          height={64}
-          interval={0}
-          tick={{ fontSize: 11, fill: "currentColor" }}
-          className="text-slate-600 dark:text-slate-300"
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: "currentColor" }}
-          className="text-slate-600 dark:text-slate-300"
-        />
-        <Tooltip
-          cursor={{ fill: "rgba(148, 163, 184, 0.10)" }}
-          contentStyle={{
-            backgroundColor: "rgba(15, 23, 42, 0.96)",
-            border: "1px solid rgba(148, 163, 184, 0.28)",
-            borderRadius: "12px",
-            color: "#f8fafc",
-            boxShadow: "0 12px 30px rgba(2, 6, 23, 0.35)",
-          }}
-          labelStyle={{ color: "#f8fafc", fontWeight: 700 }}
-          itemStyle={{ color: "#e2e8f0" }}
-          formatter={(value, name) => [
-            dataKey === "Facturacion" ? moneyAr(Number(value ?? 0)) : qtyAr(Number(value ?? 0)),
-            String(name ?? ""),
-          ]}
-        />
-        <Bar dataKey={dataKey} fill={fill} radius={[6, 6, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="h-full min-h-[320px] w-full min-w-0">
+      <ResponsiveContainer width="100%" height="100%" minWidth={280} minHeight={320}>
+        <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 56 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.28)" />
+          <XAxis
+            dataKey="name"
+            angle={-25}
+            textAnchor="end"
+            height={64}
+            interval={0}
+            tick={{ fontSize: 11, fill: "currentColor" }}
+            className="text-slate-600 dark:text-slate-300"
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: "currentColor" }}
+            className="text-slate-600 dark:text-slate-300"
+          />
+          <Tooltip
+            cursor={{ fill: "rgba(148, 163, 184, 0.10)" }}
+            contentStyle={{
+              backgroundColor: "rgba(15, 23, 42, 0.96)",
+              border: "1px solid rgba(148, 163, 184, 0.28)",
+              borderRadius: "12px",
+              color: "#f8fafc",
+              boxShadow: "0 12px 30px rgba(2, 6, 23, 0.35)",
+            }}
+            labelStyle={{ color: "#f8fafc", fontWeight: 700 }}
+            itemStyle={{ color: "#e2e8f0" }}
+            formatter={(value, name) => [
+              dataKey === "Facturacion" ? moneyAr(Number(value ?? 0)) : qtyAr(Number(value ?? 0)),
+              String(name ?? ""),
+            ]}
+          />
+          <Bar dataKey={dataKey} fill={fill} radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
