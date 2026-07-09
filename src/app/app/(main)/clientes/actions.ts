@@ -124,7 +124,6 @@ async function updateCustomerPaymentImpl(input: {
       amount: input.amount,
       payment_method: input.payment_method,
       notes: input.notes ?? null,
-      updated_at: new Date().toISOString(),
     })
     .eq("id", input.payment_id)
     .eq("customer_id", input.customer_id)
