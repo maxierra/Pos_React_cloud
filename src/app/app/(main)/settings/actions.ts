@@ -545,6 +545,119 @@ export const restoreBusinessUser = createMonitoredAction(restoreBusinessUserImpl
 export const updateBusinessUser = createMonitoredAction(updateBusinessUserImpl, "settings/updateBusinessUser");
 export const removeBusinessUser = createMonitoredAction(removeBusinessUserImpl, "settings/removeBusinessUser");
 
+async function createQuickSaleCategoryImpl(formData: FormData) {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) return { error: "No hay negocio activo" } as const;
+
+  try {
+    await assertSettingsOwner(businessId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "not_authorized" } as const;
+  }
+
+  const name = String(formData.get("name") ?? "").trim();
+  const sortOrder = Number(String(formData.get("sort_order") ?? "0").trim() || "0");
+  const active = String(formData.get("active") ?? "true") !== "false";
+
+  if (!name) return { error: "El nombre es obligatorio" } as const;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("quick_sale_categories")
+    .insert({
+      business_id: businessId,
+      name,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      active,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id,business_id,name,active,sort_order")
+    .single();
+
+  if (error) return { error: error.message } as const;
+
+  revalidatePath("/app/settings");
+  revalidatePath("/app/pos");
+  return { success: true, row: data } as const;
+}
+
+async function updateQuickSaleCategoryImpl(formData: FormData) {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) return { error: "No hay negocio activo" } as const;
+
+  try {
+    await assertSettingsOwner(businessId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "not_authorized" } as const;
+  }
+
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const sortOrder = Number(String(formData.get("sort_order") ?? "0").trim() || "0");
+  const active = String(formData.get("active") ?? "true") !== "false";
+
+  if (!id) return { error: "Falta la categoría" } as const;
+  if (!name) return { error: "El nombre es obligatorio" } as const;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("quick_sale_categories")
+    .update({
+      name,
+      active,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select("id,business_id,name,active,sort_order")
+    .single();
+
+  if (error) return { error: error.message } as const;
+
+  revalidatePath("/app/settings");
+  revalidatePath("/app/pos");
+  return { success: true, row: data } as const;
+}
+
+async function deleteQuickSaleCategoryImpl(formData: FormData) {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) return { error: "No hay negocio activo" } as const;
+
+  try {
+    await assertSettingsOwner(businessId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "not_authorized" } as const;
+  }
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return { error: "Falta la categoría" } as const;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("quick_sale_categories").delete().eq("id", id).eq("business_id", businessId);
+  if (error) return { error: error.message } as const;
+
+  revalidatePath("/app/settings");
+  revalidatePath("/app/pos");
+  return { success: true, id } as const;
+}
+
+export const createQuickSaleCategory = createMonitoredAction(
+  createQuickSaleCategoryImpl,
+  "settings/createQuickSaleCategory"
+);
+export const updateQuickSaleCategory = createMonitoredAction(
+  updateQuickSaleCategoryImpl,
+  "settings/updateQuickSaleCategory"
+);
+export const deleteQuickSaleCategory = createMonitoredAction(
+  deleteQuickSaleCategoryImpl,
+  "settings/deleteQuickSaleCategory"
+);
+
 async function sendDailyReportNowImpl() {
   const cookieStore = await cookies();
   const businessId = cookieStore.get("active_business_id")?.value;

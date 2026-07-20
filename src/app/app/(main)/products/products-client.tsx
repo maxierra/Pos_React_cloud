@@ -60,6 +60,8 @@ type CreateGuideConfirm = {
   lowStock: boolean;
 };
 
+const PRODUCTS_PER_PAGE = 100;
+
 function resolveProductCreateOnboardingGuide(confirm: CreateGuideConfirm): {
   target: Element | null;
   phase: CreateGuidePhase;
@@ -233,6 +235,7 @@ export function ProductsClient({
 
   const [nameQuery, setNameQuery] = React.useState("");
   const [barcodeQuery, setBarcodeQuery] = React.useState("");
+  const [page, setPage] = React.useState(1);
   const barcodeSearchRef = React.useRef<HTMLInputElement>(null);
 
   const filtered = React.useMemo(() => {
@@ -251,6 +254,18 @@ export function ProductsClient({
   }, [products, nameQuery, barcodeQuery]);
 
   const hasActiveFilters = Boolean(nameQuery.trim() || normCode(barcodeQuery));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const currentPage = hasActiveFilters ? 1 : Math.min(page, totalPages);
+
+  const paginatedProducts = React.useMemo(() => {
+    if (hasActiveFilters) return filtered;
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filtered.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [filtered, hasActiveFilters, currentPage]);
+
+  const showingFrom = filtered.length === 0 ? 0 : hasActiveFilters ? 1 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
+  const showingTo =
+    filtered.length === 0 ? 0 : hasActiveFilters ? filtered.length : Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length);
 
   const onCreate = React.useCallback(
     async (formData: FormData) => {
@@ -477,8 +492,8 @@ export function ProductsClient({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {hasActiveFilters
-            ? `Mostrando ${filtered.length} de ${products.length} productos`
-            : `${products.length} productos`}
+            ? `Mostrando ${filtered.length} resultados`
+            : `${products.length} productos · página ${page} de ${totalPages}`}
         </div>
         <span
           ref={newProductHighlightRef}
@@ -521,7 +536,10 @@ export function ProductsClient({
             type="search"
             placeholder="Ej: oreo, leche…"
             value={nameQuery}
-            onChange={(e) => setNameQuery(e.target.value)}
+            onChange={(e) => {
+              setNameQuery(e.target.value);
+              setPage(1);
+            }}
             className="h-10 rounded-xl"
             autoComplete="off"
           />
@@ -539,7 +557,10 @@ export function ProductsClient({
               inputMode="numeric"
               placeholder="Filtrar o escanear y Enter"
               value={barcodeQuery}
-              onChange={(e) => setBarcodeQuery(e.target.value)}
+              onChange={(e) => {
+                setBarcodeQuery(e.target.value);
+                setPage(1);
+              }}
               onKeyDown={handleBarcodeKeyDown}
               className="h-10 rounded-xl pl-9"
               autoComplete="off"
@@ -570,7 +591,14 @@ export function ProductsClient({
 
       <div className="mt-4 overflow-hidden rounded-2xl border bg-card">
         <div className="overflow-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
+            <colgroup>
+              <col className="w-[46%]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[14%]" />
+            </colgroup>
             <thead className="bg-[var(--pos-surface-2)] text-muted-foreground">
               <tr className="border-b">
                 <th className="px-4 py-3 text-left font-medium">Producto</th>
@@ -590,7 +618,7 @@ export function ProductsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                paginatedProducts.map((p) => (
                   <tr key={p.id} className="border-b last:border-b-0">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -612,8 +640,8 @@ export function ProductsClient({
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatStock(p)}</td>
-                    <td className="px-4 py-3 font-numeric">${p.price}</td>
+                    <td className="px-4 py-3 text-sm leading-5 text-muted-foreground">{formatStock(p)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap font-numeric">${p.price}</td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -627,18 +655,26 @@ export function ProductsClient({
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex min-w-[170px] items-center justify-end gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-9 gap-2 rounded-xl border-[var(--pos-border)] bg-[var(--pos-surface)] text-xs hover:bg-[var(--pos-surface-2)]"
+                          className="h-9 gap-2 rounded-xl border-[var(--pos-border)] bg-[var(--pos-surface)] px-3 text-xs hover:bg-[var(--pos-surface-2)]"
                           onClick={() => openEdit(p)}
                         >
                           <Pencil className="size-3.5" />
                           Editar
                         </Button>
-                        <Button type="button" variant="outline" size="icon" onClick={() => onDelete(p.id)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => onDelete(p.id)}
+                          aria-label={`Eliminar ${p.name}`}
+                          title="Eliminar producto"
+                        >
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
@@ -649,6 +685,40 @@ export function ProductsClient({
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t bg-[var(--pos-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-muted-foreground">
+              {hasActiveFilters
+                ? `La búsqueda muestra todos los resultados encontrados (${filtered.length}).`
+                : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length} productos.`}
+            </div>
+            {!hasActiveFilters ? (
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <div className="min-w-[110px] text-center text-xs font-medium text-muted-foreground">
+                  Página {page} / {totalPages}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <AnimatePresence>

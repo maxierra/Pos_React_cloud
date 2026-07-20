@@ -14,7 +14,7 @@ function round2(n: number) {
 }
 
 export type MpQrCheckoutItem = {
-  product_id: string;
+  product_id: string | null;
   name: string;
   quantity: number;
   unit_price: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Percent, Users, Store, Wallet, X, QrCode, FileText } from "lucide-react";
+import { Percent, Users, Store, Wallet, X, QrCode, FileText, Tags } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { PaymentMethodsManager } from "@/app/app/(main)/settings/payment-methods
 import { UsersManager } from "@/app/app/(main)/settings/users-manager";
 import { PromotionsManager } from "@/app/app/(main)/settings/promotions-manager";
 import { FiscalConfigForm } from "@/app/app/(main)/settings/fiscal-config-form";
+import { QuickSaleCategoriesManager, type QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import type {
   BusinessFiscalConfig,
@@ -47,6 +48,7 @@ type FiscalSettingsProps = {
 type Props = {
   defaults?: BusinessDefaults;
   paymentMethods: BusinessPaymentMethodRow[];
+  quickSaleCategories: QuickSaleCategoryRow[];
   canEditPaymentMethods: boolean;
   mercadoPagoPosExternalId: string | null;
   mercadoPagoQrReady: boolean;
@@ -258,6 +260,7 @@ function SettingsCard({
 export function SettingsClient({
   defaults,
   paymentMethods,
+  quickSaleCategories,
   canEditPaymentMethods,
   mercadoPagoPosExternalId,
   mercadoPagoQrReady,
@@ -269,6 +272,7 @@ export function SettingsClient({
   const [mpPosOpen, setMpPosOpen] = React.useState(false);
   const [promosOpen, setPromosOpen] = React.useState(false);
   const [fiscalOpen, setFiscalOpen] = React.useState(false);
+  const [quickSaleOpen, setQuickSaleOpen] = React.useState(false);
 
   const fiscalActive = Boolean(fiscalSettings?.config?.is_active);
   const fiscalCertStatus =
@@ -314,6 +318,15 @@ export function SettingsClient({
           hint="Por monto, cantidad, producto o categoría."
           tooltip="Definí promociones por monto de ticket, cantidad total o cantidad de producto, filtradas por medios de pago y horarios."
           onClick={() => setPromosOpen(true)}
+        />
+        <SettingsCard
+          accent="sky"
+          icon={Tags}
+          title="Rubros rápidos POS"
+          description="Lista fija para ventas manuales por importe."
+          hint={`${quickSaleCategories.filter((row) => row.active).length} rubros visibles`}
+          tooltip="Administrá rubros rápidos como verdulería, panadería, carnes o fiambrería para cobrar sin código."
+          onClick={() => setQuickSaleOpen(true)}
         />
         <SettingsCard
           accent="cyan"
@@ -379,6 +392,17 @@ export function SettingsClient({
         accent="amber"
       >
         <PromotionsManager />
+      </ModalShell>
+
+      <ModalShell
+        open={quickSaleOpen}
+        title="Rubros rápidos del POS"
+        description="Configurá la lista fija que aparece para ventas manuales por importe."
+        onClose={() => setQuickSaleOpen(false)}
+        maxWidthClass="max-w-4xl"
+        accent="sky"
+      >
+        <QuickSaleCategoriesManager initialRows={quickSaleCategories} canEdit={canEditPaymentMethods} />
       </ModalShell>
 
       <ModalShell

@@ -53,10 +53,10 @@ export function CartPanel({
         ) : (
           <div className="grid gap-2">
             {items.map((item) => {
-              const highlight = lastAddedProductId === item.product_id;
+              const highlight = lastAddedProductId === item.line_id;
               return (
                 <div
-                  key={item.product_id}
+                  key={item.line_id}
                   className={
                     "rounded-xl border p-3 transition " +
                     (highlight ? "ring-2 ring-primary" : "")
@@ -67,7 +67,7 @@ export function CartPanel({
                       <div className="truncate text-sm font-semibold">{item.name}</div>
                       <div className="text-xs text-muted-foreground">${item.unit_price} c/u</div>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(item.product_id)}>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(item.line_id)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
@@ -79,7 +79,7 @@ export function CartPanel({
                       </Button>
                       <Input
                         value={item.quantity}
-                        onChange={(e) => onSetQty(item.product_id, Number(e.target.value) || 0)}
+                        onChange={(e) => onSetQty(item.line_id, Number(e.target.value) || 0)}
                         type="number"
                         step={item.sold_by_weight ? 0.1 : 1}
                         inputMode={item.sold_by_weight ? "decimal" : "numeric"}

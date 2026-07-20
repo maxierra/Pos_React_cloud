@@ -271,7 +271,7 @@ export function TableOrderView({
               <ul className="divide-y divide-slate-100 px-3 py-2">
                 {items.map((item) => (
                   <CartRow
-                    key={item.product_id}
+                    key={item.line_id}
                     item={item}
                     onRemove={onRemoveProduct}
                     onSetQty={onSetQty}
@@ -444,16 +444,16 @@ function CartRow({ item, onRemove, onSetQty }: CartRowProps) {
   const handleDec = () => {
     const newQty = Math.round((item.quantity - step + Number.EPSILON) * 100) / 100;
     if (newQty <= 0) {
-      onRemove(item.product_id);
+      onRemove(item.line_id);
     } else if (onSetQty) {
-      onSetQty(item.product_id, newQty);
+      onSetQty(item.line_id, newQty);
     }
   };
 
   const handleInc = () => {
     if (onSetQty) {
       const newQty = Math.round((item.quantity + step + Number.EPSILON) * 100) / 100;
-      onSetQty(item.product_id, newQty);
+      onSetQty(item.line_id, newQty);
     }
   };
 

@@ -16,8 +16,8 @@ type Props = {
   pending: boolean;
   onInc: (item: CartItem) => void;
   onDec: (item: CartItem) => void;
-  onSetQty: (productId: string, qty: number) => void;
-  onRemove: (productId: string) => void;
+  onSetQty: (lineId: string, qty: number) => void;
+  onRemove: (lineId: string) => void;
   onOpenPayment: () => void;
   onFocusScanner: () => void;
   lastAddedProductId?: string | null;
@@ -32,6 +32,8 @@ function round2(n: number) {
 function round0(n: number) {
   return Math.round(n);
 }
+
+type WeightEntryMode = "weight" | "amount";
 
 export function CartPanel({
   items,
@@ -49,6 +51,8 @@ export function CartPanel({
   guideCobrarRef,
 }: Props) {
   const [gramsDraftById, setGramsDraftById] = React.useState<Record<string, string>>({});
+  const [amountDraftById, setAmountDraftById] = React.useState<Record<string, string>>({});
+  const [entryModeById, setEntryModeById] = React.useState<Record<string, WeightEntryMode>>({});
 
   React.useEffect(() => {
     setGramsDraftById((prev) => {
@@ -56,13 +60,13 @@ export function CartPanel({
       let changed = false;
       for (const it of items) {
         if (!it.sold_by_weight) continue;
-        if (next[it.product_id] === undefined) {
-          next[it.product_id] = String(round0(it.quantity * 1000));
+        if (next[it.line_id] === undefined) {
+          next[it.line_id] = String(round0(it.quantity * 1000));
           changed = true;
         }
       }
       for (const id of Object.keys(next)) {
-        if (!items.some((x) => x.product_id === id && x.sold_by_weight)) {
+        if (!items.some((x) => x.line_id === id && x.sold_by_weight)) {
           delete next[id];
           changed = true;
         }
@@ -72,22 +76,67 @@ export function CartPanel({
   }, [items]);
 
   const commitGrams = React.useCallback(
-    (productId: string) => {
-      const raw = gramsDraftById[productId] ?? "";
+    (lineId: string) => {
+      const raw = gramsDraftById[lineId] ?? "";
       const grams = Number(String(raw).trim());
       if (!Number.isFinite(grams)) return;
       const kg = grams / 1000;
-      onSetQty(productId, kg);
+      onSetQty(lineId, kg);
     },
     [gramsDraftById, onSetQty]
   );
 
+  const commitAmount = React.useCallback(
+    (item: CartItem) => {
+      const raw = amountDraftById[item.line_id] ?? "";
+      const amount = Number(String(raw).replace(",", ".").trim());
+      if (!Number.isFinite(amount) || item.unit_price <= 0) return;
+      onSetQty(item.line_id, amount / item.unit_price);
+    },
+    [amountDraftById, onSetQty]
+  );
+
+  const syncAmount = React.useCallback(
+    (item: CartItem, rawValue: string) => {
+      setAmountDraftById((prev) => ({ ...prev, [item.line_id]: rawValue }));
+      const amount = Number(String(rawValue).replace(",", ".").trim());
+      if (!Number.isFinite(amount) || item.unit_price <= 0) return;
+      onSetQty(item.line_id, amount / item.unit_price);
+    },
+    [onSetQty]
+  );
+
   const revertGrams = React.useCallback(
     (item: CartItem) => {
-      setGramsDraftById((prev) => ({ ...prev, [item.product_id]: String(round0(item.quantity * 1000)) }));
+      setGramsDraftById((prev) => ({ ...prev, [item.line_id]: String(round0(item.quantity * 1000)) }));
     },
     []
   );
+
+  const revertAmount = React.useCallback((item: CartItem) => {
+    setAmountDraftById((prev) => ({
+      ...prev,
+      [item.line_id]: String(round2(item.quantity * item.unit_price)),
+    }));
+  }, []);
+
+  const toggleEntryMode = React.useCallback((item: CartItem) => {
+    setEntryModeById((prev) => {
+      const nextMode: WeightEntryMode = prev[item.line_id] === "amount" ? "weight" : "amount";
+      if (nextMode === "amount") {
+        setAmountDraftById((drafts) => ({
+          ...drafts,
+          [item.line_id]: drafts[item.line_id] ?? String(round2(item.quantity * item.unit_price)),
+        }));
+      } else {
+        setGramsDraftById((drafts) => ({
+          ...drafts,
+          [item.line_id]: drafts[item.line_id] ?? String(round0(item.quantity * 1000)),
+        }));
+      }
+      return { ...prev, [item.line_id]: nextMode };
+    });
+  }, []);
 
   return (
     <div ref={guidePanelRef} className="flex h-full flex-col">
@@ -136,13 +185,15 @@ export function CartPanel({
         ) : (
           <div className="grid gap-2">
             {items.map((item) => {
-              const highlight = lastAddedProductId === item.product_id;
+              const highlight = lastAddedProductId === item.line_id;
               const lineTotal = round2(item.quantity * item.unit_price);
+              const entryMode = entryModeById[item.line_id] ?? "weight";
+              const isAmountMode = item.sold_by_weight && entryMode === "amount";
               return (
                 <div
-                  key={item.product_id}
+                  key={item.line_id}
                   className={cn(
-                    "rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-2.5 py-2 transition-shadow",
+                    "w-full rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-4 py-3 transition-shadow",
                     highlight
                       ? "border-emerald-300 shadow-md shadow-emerald-100 dark:border-emerald-700 dark:shadow-emerald-900/30"
                       : ""
@@ -163,7 +214,7 @@ export function CartPanel({
                     </div>
                     <button
                       type="button"
-                      onClick={() => onRemove(item.product_id)}
+                      onClick={() => onRemove(item.line_id)}
                       className="ml-1 flex size-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 transition-colors hover:bg-red-100 hover:text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40"
                     >
                       <Trash2 className="size-3" />
@@ -176,7 +227,26 @@ export function CartPanel({
                       <span className="text-[10px] font-medium text-muted-foreground">Cantidad</span>
                       <span className="text-[10px] text-muted-foreground">Más del mismo: +</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    {item.sold_by_weight ? (
+                      <div className="flex items-center justify-between gap-2 px-0.5">
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          {isAmountMode ? "Editar por importe" : "Editar por peso"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleEntryMode(item)}
+                          className={cn(
+                            "rounded-full border px-2 py-1 text-[10px] font-semibold transition",
+                            isAmountMode
+                              ? "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                              : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          )}
+                        >
+                          {isAmountMode ? "Importe" : "Peso"}
+                        </button>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       aria-label="Quitar una unidad"
@@ -188,50 +258,72 @@ export function CartPanel({
                     </button>
                     <div className="relative">
                       <Input
-                        id={`qty-input-${item.product_id}`}
+                        id={`qty-input-${item.line_id}`}
                         value={
                           item.sold_by_weight
-                            ? (gramsDraftById[item.product_id] || String(round0(item.quantity * 1000)))
+                            ? isAmountMode
+                              ? (amountDraftById[item.line_id] || String(round2(item.quantity * item.unit_price)))
+                              : (gramsDraftById[item.line_id] || String(round0(item.quantity * 1000)))
                             : item.quantity
                         }
                         onChange={(e) => {
                           if (!item.sold_by_weight) {
-                            onSetQty(item.product_id, Number(e.target.value) || 0);
+                            onSetQty(item.line_id, Number(e.target.value) || 0);
                             return;
                           }
-                          setGramsDraftById((prev) => ({ ...prev, [item.product_id]: e.target.value }));
+                          if (isAmountMode) {
+                            syncAmount(item, e.target.value);
+                            return;
+                          }
+                          setGramsDraftById((prev) => ({ ...prev, [item.line_id]: e.target.value }));
                         }}
                         onBlur={() => {
                           if (!item.sold_by_weight) return;
-                          commitGrams(item.product_id);
+                          if (isAmountMode) {
+                            commitAmount(item);
+                            return;
+                          }
+                          commitGrams(item.line_id);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            if (item.sold_by_weight) commitGrams(item.product_id);
+                            if (item.sold_by_weight) {
+                              if (isAmountMode) {
+                                commitAmount(item);
+                              } else {
+                                commitGrams(item.line_id);
+                              }
+                            }
                             (e.currentTarget as HTMLInputElement).blur();
                             onFocusScanner();
                             return;
                           }
                           if (e.key === "Escape") {
                             e.preventDefault();
-                            if (item.sold_by_weight) revertGrams(item);
+                            if (item.sold_by_weight) {
+                              if (isAmountMode) {
+                                revertAmount(item);
+                              } else {
+                                revertGrams(item);
+                              }
+                            }
                             (e.currentTarget as HTMLInputElement).blur();
                             onFocusScanner();
                           }
                         }}
                         type="number"
-                        step={item.sold_by_weight ? 10 : 1}
+                        step={item.sold_by_weight ? (isAmountMode ? 1 : 10) : 1}
                         inputMode={item.sold_by_weight ? "decimal" : "numeric"}
                         className={cn(
                           "h-8 rounded-md bg-[var(--pos-surface)] text-center text-xs font-medium",
                           "border border-[var(--pos-border)]",
-                          item.sold_by_weight ? "w-20 pr-6" : "w-14"
+                          item.sold_by_weight ? "w-28 pr-7" : "w-20"
                         )}
                       />
                       {item.sold_by_weight ? (
                         <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[10px] font-medium text-muted-foreground">
-                          g
+                          {isAmountMode ? "$" : "g"}
                         </span>
                       ) : null}
                     </div>

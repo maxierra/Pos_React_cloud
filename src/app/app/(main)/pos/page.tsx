@@ -8,6 +8,7 @@ import { normalizeBusinessType } from "@/lib/business-types";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import { fetchAllPages } from "@/lib/supabase/fetch-all-pages";
 import { createClient } from "@/lib/supabase/server";
+import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 
 import { PosClient, type PosCustomerCredit, type PosProduct } from "@/app/app/(main)/pos/pos-client";
 import { parseOnboardingGuideStep } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
@@ -44,7 +45,7 @@ type ServiceOrderRow = {
   notes: string | null;
   created_at?: string | null;
   service_order_items: Array<{
-    product_id: string;
+    product_id: string | null;
     name: string;
     quantity: number;
     unit_price: number;
@@ -168,6 +169,14 @@ export default async function PosPage({
     .order("sort_order", { ascending: true });
 
   const paymentMethodConfig = (pmRows ?? []) as BusinessPaymentMethodRow[];
+  await supabase.rpc("ensure_quick_sale_categories", { p_business_id: businessId });
+  const { data: quickSaleRows } = await supabase
+    .from("quick_sale_categories")
+    .select("id,business_id,name,active,sort_order")
+    .eq("business_id", businessId)
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
 
   const [{ data: customerRows }, { data: ccSales }, { data: capPayments }] = await Promise.all([
     supabase
@@ -240,6 +249,7 @@ export default async function PosPage({
       businessType={normalizeBusinessType((businessData as PosBusinessRow | null)?.business_type)}
       cashOpen={cashOpen}
       paymentMethodConfig={paymentMethodConfig}
+      quickSaleCategories={(quickSaleRows ?? []) as QuickSaleCategoryRow[]}
       posCustomers={posCustomers}
       mercadoPagoQrReady={mercadoPagoQrReady}
       gastronomyConfig={gastronomyConfig}

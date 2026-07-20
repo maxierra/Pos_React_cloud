@@ -30,9 +30,12 @@ import { formatSaleTicketPlainText, printTicket as printTicketInBrowser } from "
 import { isAndroidUserAgent, printTicket as printTicketRawBt } from "@/utils/printTicket";
 import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { BusinessType } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Bike, Columns3, History, NotebookPen, Save, ScanLine, Store, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, Bike, Columns3, History, NotebookPen, Save, ScanLine, Store, Tags, UtensilsCrossed, X } from "lucide-react";
+import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 
 export { type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 
@@ -91,7 +94,7 @@ type ServiceOrder = {
   notes: string | null;
   created_at?: string | null;
   service_order_items: Array<{
-    product_id: string;
+    product_id: string | null;
     name: string;
     quantity: number;
     unit_price: number;
@@ -106,6 +109,7 @@ export function PosClient({
   paymentMethodConfig,
   posCustomers = [],
   mercadoPagoQrReady = false,
+  quickSaleCategories = [],
   gastronomyConfig = { counterEnabled: true, deliveryEnabled: false, tablesEnabled: false },
   gastronomyTables = [],
   serviceOrders = [],
@@ -119,6 +123,7 @@ export function PosClient({
   /** Lista para ventas en cuenta corriente (incluye límite y saldo disponible). */
   posCustomers?: PosCustomerCredit[];
   mercadoPagoQrReady?: boolean;
+  quickSaleCategories?: QuickSaleCategoryRow[];
   gastronomyConfig?: GastronomyConfig;
   gastronomyTables?: GastronomyTable[];
   serviceOrders?: ServiceOrder[];
@@ -154,6 +159,9 @@ export function PosClient({
   const [serviceNotes, setServiceNotes] = React.useState("");
   const [serviceStatus, setServiceStatus] = React.useState<string>("delivery_new");
   const [notesModalOpen, setNotesModalOpen] = React.useState(false);
+  const [quickSaleOpen, setQuickSaleOpen] = React.useState(false);
+  const [quickSaleCategoryId, setQuickSaleCategoryId] = React.useState<string>(quickSaleCategories[0]?.id ?? "");
+  const [quickSaleAmount, setQuickSaleAmount] = React.useState("");
 
   /** When set, auto-open payment once cart loads for this table. */
   const [pendingPaymentForTable, setPendingPaymentForTable] = React.useState(false);
@@ -229,6 +237,12 @@ export function PosClient({
 
   const hasMore = visibleCount < filteredCount;
 
+  const parseQuickSaleAmount = React.useCallback((value: string) => {
+    const normalized = value.replace(",", ".").replace(/[^0-9.]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, []);
+
   const addProduct = React.useCallback(
     (p: PosProduct, opts?: { silentToast?: boolean }) => {
       cart.add(p);
@@ -256,10 +270,39 @@ export function PosClient({
     [cart, isMobilePos, scannerOpen, searchRef, setQuery]
   );
 
+  const addQuickSaleToCart = React.useCallback(() => {
+    const category = quickSaleCategories.find((row) => row.id === quickSaleCategoryId) ?? null;
+    const amount = parseQuickSaleAmount(quickSaleAmount);
+
+    if (!category) {
+      toast.error("Elegí un rubro");
+      return;
+    }
+    if (amount <= 0) {
+      toast.error("Ingresá un importe válido");
+      return;
+    }
+
+    cart.addQuickSale({
+      categoryId: category.id,
+      categoryName: category.name,
+      amount,
+    });
+    beep();
+    toast.success("Rubro agregado", {
+      description: `${category.name} · $${amount.toFixed(2)}`,
+      duration: 900,
+    });
+    setQuickSaleAmount("");
+    setQuickSaleOpen(false);
+    searchRef.current?.focus();
+  }, [cart, parseQuickSaleAmount, quickSaleAmount, quickSaleCategoryId, quickSaleCategories]);
+
   const loadOrderIntoCart = React.useCallback(
     (order: ServiceOrder | null) => {
       cartReplace(
         (order?.service_order_items ?? []).map((item) => ({
+          line_id: item.product_id ? item.product_id : `manual:${item.name}`,
           product_id: item.product_id,
           name: item.name,
           sold_by_weight: false,
@@ -441,6 +484,16 @@ export function PosClient({
   React.useEffect(() => {
     searchRef.current?.focus();
   }, []);
+
+  React.useEffect(() => {
+    if (!quickSaleCategories.length) {
+      setQuickSaleCategoryId("");
+      return;
+    }
+    setQuickSaleCategoryId((current) =>
+      current && quickSaleCategories.some((row) => row.id === current) ? current : quickSaleCategories[0]!.id
+    );
+  }, [quickSaleCategories]);
 
   React.useEffect(() => {
     if (!catalogMode) return;
@@ -1286,6 +1339,17 @@ export function PosClient({
 
             {/* Search + scan row */}
             <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-stretch lg:gap-3">
+              {quickSaleCategories.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="order-1 h-14 w-full shrink-0 gap-2 rounded-2xl border-sky-500/30 bg-sky-500/5 text-base font-semibold hover:bg-sky-500/10 lg:order-3 lg:h-12 lg:w-auto lg:min-w-[10rem] lg:rounded-xl"
+                  onClick={() => setQuickSaleOpen(true)}
+                >
+                  <Tags className="size-5" />
+                  Agregar rubro
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -1433,6 +1497,71 @@ export function PosClient({
         }
       />
       )}
+
+      {quickSaleOpen ? (
+        <div
+          className="fixed inset-0 z-[58] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setQuickSaleOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <div className="text-base font-semibold tracking-tight">Agregar por rubro</div>
+                <div className="text-xs text-muted-foreground">Cargá un importe rápido sin código de producto.</div>
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setQuickSaleOpen(false)}>
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="quick-sale-category">Rubro</Label>
+                <select
+                  id="quick-sale-category"
+                  className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={quickSaleCategoryId}
+                  onChange={(e) => setQuickSaleCategoryId(e.target.value)}
+                >
+                  {quickSaleCategories.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="quick-sale-amount">Importe</Label>
+                <Input
+                  id="quick-sale-amount"
+                  inputMode="decimal"
+                  placeholder="Ej: 12500"
+                  value={quickSaleAmount}
+                  onChange={(e) => setQuickSaleAmount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addQuickSaleToCart();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" className="flex-1" onClick={addQuickSaleToCart}>
+                  Agregar a la venta
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setQuickSaleOpen(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <BarcodeScanner
         open={scannerOpen}

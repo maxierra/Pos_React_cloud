@@ -30,7 +30,8 @@ type PaymentMethod = PosPaymentMethodCode;
 type PaymentMethodOrMixed = PaymentMethod | "mixed";
 
 type TicketPreviewItem = {
-  product_id: string;
+  line_id: string;
+  product_id: string | null;
   name: string;
   quantity: number;
   unit_price: number;
@@ -319,7 +320,7 @@ export function PaymentModal({
 
   const mpCartFingerprint = React.useMemo(
     () =>
-      `${total}|${items.map((it) => `${it.product_id}:${it.quantity}:${it.unit_price}`).join(",")}`,
+      `${total}|${items.map((it) => `${it.line_id}:${it.quantity}:${it.unit_price}`).join(",")}`,
     [items, total]
   );
 
@@ -932,7 +933,7 @@ export function PaymentModal({
                     {items.map((it) => {
                       const subtotal = round2(it.quantity * it.unit_price);
                       return (
-                        <div key={it.product_id} className="flex items-center justify-between gap-2">
+                        <div key={it.line_id} className="flex items-center justify-between gap-2">
                           <div className="truncate">
                             {it.name} x{it.quantity}
                           </div>

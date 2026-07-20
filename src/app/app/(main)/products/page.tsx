@@ -41,7 +41,7 @@ export default async function ProductsPage() {
 
   if (!businessId) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-10">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10">
         <Card>
           <CardHeader>
             <CardTitle>Productos</CardTitle>
@@ -104,7 +104,7 @@ export default async function ProductsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10">
+    <div className="mx-auto w-full max-w-7xl px-4 py-10">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
         <p className="text-sm text-muted-foreground">Alta, edicion y control de stock.</p>

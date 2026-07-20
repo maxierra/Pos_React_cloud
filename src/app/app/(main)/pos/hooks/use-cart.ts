@@ -3,11 +3,13 @@
 import * as React from "react";
 
 export type CartItem = {
-  product_id: string;
+  line_id: string;
+  product_id: string | null;
   name: string;
   sold_by_weight: boolean;
   unit_price: number;
   quantity: number;
+  quick_sale_category_id?: string | null;
 };
 
 function round2(n: number) {
@@ -38,6 +40,7 @@ export function useCart() {
         return [
           ...prev,
           {
+            line_id: p.id,
             product_id: p.id,
             name: p.name,
             sold_by_weight: p.sold_by_weight,
@@ -51,23 +54,54 @@ export function useCart() {
     setLastAddedProductId(p.id);
   }, []);
 
-  const setQty = React.useCallback((productId: string, qty: number) => {
+  const addQuickSale = React.useCallback((entry: {
+    categoryId: string;
+    categoryName: string;
+    amount: number;
+  }) => {
+    const lineId = `quick-sale:${entry.categoryId}`;
+    setItems((prev) => {
+      const existing = prev.find((x) => x.line_id === lineId);
+      if (!existing) {
+        return [
+          ...prev,
+          {
+            line_id: lineId,
+            product_id: null,
+            quick_sale_category_id: entry.categoryId,
+            name: entry.categoryName,
+            sold_by_weight: false,
+            unit_price: round2(entry.amount),
+            quantity: 1,
+          },
+        ];
+      }
+      return prev.map((x) =>
+        x.line_id === lineId
+          ? { ...x, quantity: round2(x.quantity + 1), unit_price: round2(entry.amount), name: entry.categoryName }
+          : x
+      );
+    });
+    setLastAddedProductId(lineId);
+  }, []);
+
+  const setQty = React.useCallback((lineId: string, qty: number) => {
     const clean = round2(qty);
-    setItems((prev) => prev.map((x) => (x.product_id === productId ? { ...x, quantity: clean } : x)).filter((x) => x.quantity > 0));
+    setItems((prev) => prev.map((x) => (x.line_id === lineId ? { ...x, quantity: clean } : x)).filter((x) => x.quantity > 0));
   }, []);
 
   const inc = React.useCallback((item: CartItem) => {
     const step = item.sold_by_weight ? WEIGHT_STEP_KG : 1;
-    setQty(item.product_id, item.quantity + step);
+    setQty(item.line_id, item.quantity + step);
   }, [setQty]);
 
   const dec = React.useCallback((item: CartItem) => {
     const step = item.sold_by_weight ? WEIGHT_STEP_KG : 1;
-    setQty(item.product_id, item.quantity - step);
+    setQty(item.line_id, item.quantity - step);
   }, [setQty]);
 
-  const remove = React.useCallback((productId: string) => {
-    setItems((prev) => prev.filter((x) => x.product_id !== productId));
+  const remove = React.useCallback((lineId: string) => {
+    setItems((prev) => prev.filter((x) => x.line_id !== lineId));
   }, []);
 
   const clear = React.useCallback(() => {
@@ -87,6 +121,7 @@ export function useCart() {
     total,
     lastAddedProductId,
     add,
+    addQuickSale,
     setQty,
     inc,
     dec,

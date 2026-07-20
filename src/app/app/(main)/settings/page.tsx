@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { SettingsClient } from "@/app/app/(main)/settings/settings-client";
 import { getFiscalSettings } from "@/app/app/(main)/settings/fiscal-actions";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
+import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 
 export default async function SettingsPage() {
   const cookieStore = await cookies();
   const businessId = cookieStore.get("active_business_id")?.value;
 
   let paymentMethods: BusinessPaymentMethodRow[] = [];
+  let quickSaleCategories: QuickSaleCategoryRow[] = [];
   let canEditPaymentMethods = false;
   let mercadoPagoPosExternalId: string | null = null;
   let mercadoPagoQrReady = false;
@@ -95,6 +97,8 @@ export default async function SettingsPage() {
     }
 
     await supabase.rpc("ensure_business_payment_methods", { p_business_id: businessId });
+    await supabase.rpc("ensure_quick_sale_categories", { p_business_id: businessId });
+
     const { data: pm } = await supabase
       .from("business_payment_methods")
       .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order")
@@ -102,6 +106,15 @@ export default async function SettingsPage() {
       .order("sort_order", { ascending: true });
 
     paymentMethods = (pm ?? []) as BusinessPaymentMethodRow[];
+
+    const { data: qs } = await supabase
+      .from("quick_sale_categories")
+      .select("id,business_id,name,active,sort_order")
+      .eq("business_id", businessId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+
+    quickSaleCategories = (qs ?? []) as QuickSaleCategoryRow[];
 
     try {
       fiscalSettings = await getFiscalSettings();
@@ -123,6 +136,7 @@ export default async function SettingsPage() {
         <SettingsClient
           defaults={business ?? undefined}
           paymentMethods={paymentMethods}
+          quickSaleCategories={quickSaleCategories}
           canEditPaymentMethods={canEditPaymentMethods}
           mercadoPagoPosExternalId={mercadoPagoPosExternalId}
           mercadoPagoQrReady={mercadoPagoQrReady}

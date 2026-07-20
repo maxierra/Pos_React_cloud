@@ -153,7 +153,7 @@ function OrderItemList({
   return (
     <ul className="mt-2 space-y-0.5">
       {visible.map((item, idx) => (
-        <li key={`${item.product_id}-${idx}`} className={cn("truncate", itemClassName)}>
+        <li key={`${item.line_id}-${idx}`} className={cn("truncate", itemClassName)}>
           • {truncateItemName(item.name)} x{formatItemQuantity(item.quantity)}
         </li>
       ))}

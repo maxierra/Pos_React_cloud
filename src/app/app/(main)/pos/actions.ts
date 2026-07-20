@@ -10,7 +10,7 @@ import { emitFiscalVoucherForSale } from "@/app/app/(main)/facturacion/actions";
 import { queueSaleForConsolidated } from "@/app/app/(main)/settings/fiscal-actions";
 
 type CheckoutItem = {
-  product_id: string;
+  product_id: string | null;
   name: string;
   quantity: number;
   unit_price: number;
@@ -60,7 +60,7 @@ export type TodayDeliveryOrderRow = {
   updated_at: string;
   closed_at: string | null;
   service_order_items: Array<{
-    product_id: string;
+    product_id: string | null;
     name: string;
     quantity: number;
     unit_price: number;
