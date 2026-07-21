@@ -79,7 +79,9 @@ export function TableOrderView({
   const quantityById = React.useMemo(() => {
     const map = new Map<string, number>();
     for (const item of items) {
-      map.set(item.product_id, item.quantity);
+      if (item.product_id) {
+        map.set(item.product_id, item.quantity);
+      }
     }
     return map;
   }, [items]);

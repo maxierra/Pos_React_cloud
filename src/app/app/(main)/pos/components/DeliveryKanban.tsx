@@ -13,7 +13,7 @@ import {
 import { isAndroidUserAgent, printTicket as printTicketRawBt } from "@/utils/printTicket";
 
 type ServiceOrderItem = {
-  product_id: string;
+  product_id: string | null;
   name: string;
   quantity: number;
   unit_price: number;

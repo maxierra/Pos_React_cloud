@@ -77,7 +77,7 @@ const STATUS_CONFIG: Record<TableStatus, StatusConfig> = {
 };
 
 type ServiceOrderItem = {
-  product_id: string;
+  product_id: string | null;
   name: string;
   quantity: number;
   unit_price: number;
@@ -153,7 +153,7 @@ function OrderItemList({
   return (
     <ul className="mt-2 space-y-0.5">
       {visible.map((item, idx) => (
-        <li key={`${item.line_id}-${idx}`} className={cn("truncate", itemClassName)}>
+        <li key={`${item.product_id ?? item.name}-${idx}`} className={cn("truncate", itemClassName)}>
           • {truncateItemName(item.name)} x{formatItemQuantity(item.quantity)}
         </li>
       ))}

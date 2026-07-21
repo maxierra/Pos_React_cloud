@@ -235,7 +235,11 @@ export function DeliveryOrderModal({
 
   const quantityById = React.useMemo(() => {
     const map = new Map<string, number>();
-    for (const item of items) map.set(item.product_id, item.quantity);
+    for (const item of items) {
+      if (item.product_id) {
+        map.set(item.product_id, item.quantity);
+      }
+    }
     return map;
   }, [items]);
 

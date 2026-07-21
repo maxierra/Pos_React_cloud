@@ -216,11 +216,12 @@ async function evaluatePromotionForCart(params: {
               .map((category) => String(category ?? "").trim().toLowerCase())
               .filter(Boolean);
 
-            const matchingItems = items.filter((it) =>
-              targetMode === "categories"
+            const matchingItems = items.filter((it) => {
+              if (!it.product_id) return false;
+              return targetMode === "categories"
                 ? allowedCategories.includes(categoryByProductId.get(it.product_id) ?? "")
-                : allowedProducts.includes(it.product_id)
-            );
+                : allowedProducts.includes(it.product_id);
+            });
             if (!matchingItems.length) continue;
 
             const matchingQty = matchingItems.reduce((sum, it) => sum + it.quantity, 0);
@@ -234,6 +235,7 @@ async function evaluatePromotionForCart(params: {
             r.kind === "product_quantity"
               ? items
                   .filter((it) => {
+                    if (!it.product_id) return false;
                     const targetMode = r.target_mode === "categories" ? "categories" : "products";
                     if (targetMode === "categories") {
                       const allowedCategories = (r.category_filters ?? [])
