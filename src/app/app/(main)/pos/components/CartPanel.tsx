@@ -86,26 +86,6 @@ export function CartPanel({
     [gramsDraftById, onSetQty]
   );
 
-  const commitAmount = React.useCallback(
-    (item: CartItem) => {
-      const raw = amountDraftById[item.line_id] ?? "";
-      const amount = Number(String(raw).replace(",", ".").trim());
-      if (!Number.isFinite(amount) || item.unit_price <= 0) return;
-      onSetQty(item.line_id, amount / item.unit_price);
-    },
-    [amountDraftById, onSetQty]
-  );
-
-  const syncAmount = React.useCallback(
-    (item: CartItem, rawValue: string) => {
-      setAmountDraftById((prev) => ({ ...prev, [item.line_id]: rawValue }));
-      const amount = Number(String(rawValue).replace(",", ".").trim());
-      if (!Number.isFinite(amount) || item.unit_price <= 0) return;
-      onSetQty(item.line_id, amount / item.unit_price);
-    },
-    [onSetQty]
-  );
-
   const revertGrams = React.useCallback(
     (item: CartItem) => {
       setGramsDraftById((prev) => ({ ...prev, [item.line_id]: String(round0(item.quantity * 1000)) }));
@@ -119,6 +99,20 @@ export function CartPanel({
       [item.line_id]: String(round2(item.quantity * item.unit_price)),
     }));
   }, []);
+
+  const commitAmount = React.useCallback(
+    (item: CartItem) => {
+      const raw = amountDraftById[item.line_id] ?? "";
+      if (!String(raw).trim()) {
+        revertAmount(item);
+        return;
+      }
+      const amount = Number(String(raw).replace(",", ".").trim());
+      if (!Number.isFinite(amount) || item.unit_price <= 0) return;
+      onSetQty(item.line_id, amount / item.unit_price);
+    },
+    [amountDraftById, onSetQty, revertAmount]
+  );
 
   const toggleEntryMode = React.useCallback((item: CartItem) => {
     setEntryModeById((prev) => {
@@ -272,7 +266,7 @@ export function CartPanel({
                             return;
                           }
                           if (isAmountMode) {
-                            syncAmount(item, e.target.value);
+                            setAmountDraftById((prev) => ({ ...prev, [item.line_id]: e.target.value }));
                             return;
                           }
                           setGramsDraftById((prev) => ({ ...prev, [item.line_id]: e.target.value }));
