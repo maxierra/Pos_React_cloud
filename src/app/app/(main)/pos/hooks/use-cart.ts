@@ -16,6 +16,14 @@ function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+function round6(n: number) {
+  return Math.round((n + Number.EPSILON) * 1_000_000) / 1_000_000;
+}
+
+function normalizeQuantity(qty: number, soldByWeight: boolean) {
+  return soldByWeight ? round6(qty) : round2(qty);
+}
+
 const WEIGHT_STEP_KG = 0.05;
 
 export function useCart() {
@@ -35,7 +43,7 @@ export function useCart() {
     setItems((prev) => {
       const existing = prev.find((x) => x.product_id === p.id);
       const step = p.sold_by_weight ? WEIGHT_STEP_KG : 1;
-      const qty = opts?.quantity ?? step;
+      const qty = normalizeQuantity(opts?.quantity ?? step, p.sold_by_weight);
       if (!existing) {
         return [
           ...prev,
@@ -49,7 +57,11 @@ export function useCart() {
           },
         ];
       }
-      return prev.map((x) => (x.product_id === p.id ? { ...x, quantity: round2(x.quantity + qty) } : x));
+      return prev.map((x) =>
+        x.product_id === p.id
+          ? { ...x, quantity: normalizeQuantity(x.quantity + qty, x.sold_by_weight) }
+          : x
+      );
     });
     setLastAddedProductId(p.id);
   }, []);
@@ -86,8 +98,15 @@ export function useCart() {
   }, []);
 
   const setQty = React.useCallback((lineId: string, qty: number) => {
-    const clean = round2(qty);
-    setItems((prev) => prev.map((x) => (x.line_id === lineId ? { ...x, quantity: clean } : x)).filter((x) => x.quantity > 0));
+    setItems((prev) =>
+      prev
+        .map((x) =>
+          x.line_id === lineId
+            ? { ...x, quantity: normalizeQuantity(qty, x.sold_by_weight) }
+            : x
+        )
+        .filter((x) => x.quantity > 0)
+    );
   }, []);
 
   const inc = React.useCallback((item: CartItem) => {
