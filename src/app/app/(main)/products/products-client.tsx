@@ -604,36 +604,6 @@ export function ProductsClient({
     });
 
     document.body.appendChild(iframe);
-    return;
-    try {
-      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=1200");
-      if (!printWindow) {
-        toast.error("El navegador bloqueÃ³ la ventana de impresiÃ³n", {
-          description: "PermitÃ­ ventanas emergentes para exportar el PDF.",
-        });
-        return;
-      }
-
-      printWindow.document.open();
-      printWindow.document.write(
-        buildProductsPdfHtml({
-          products: filtered,
-          business,
-          generatedAt: new Date(),
-        })
-      );
-      printWindow.document.close();
-      printWindow.focus();
-
-      const runPrint = () => printWindow.print();
-      if (printWindow.document.readyState === "complete") {
-        runPrint();
-      } else {
-        printWindow.onload = runPrint;
-      }
-    } finally {
-      window.setTimeout(() => setExportingPdf(false), 300);
-    }
   }, [business, filtered]);
 
   const handleBarcodeKeyDown = React.useCallback(
