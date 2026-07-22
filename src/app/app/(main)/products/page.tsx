@@ -35,6 +35,13 @@ type ProductRow = {
   active: boolean;
 };
 
+type BusinessSummary = {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  cuit: string | null;
+};
+
 export default async function ProductsPage() {
   const cookieStore = await cookies();
   const businessId = cookieStore.get("active_business_id")?.value;
@@ -63,7 +70,7 @@ export default async function ProductsPage() {
 
   const { data: bizOnb, error: bizOnbError } = await supabase
     .from("businesses")
-    .select("onboarding_completed_at,business_type")
+    .select("onboarding_completed_at,business_type,name,address,phone,cuit")
     .eq("id", businessId)
     .maybeSingle();
   const onboardingIncomplete = isMissingOnboardingColumnError(bizOnbError)
@@ -112,6 +119,12 @@ export default async function ProductsPage() {
 
       <ProductsClient
         products={products}
+        business={{
+          name: ((bizOnb as BusinessSummary | null)?.name ?? "").trim() || null,
+          address: ((bizOnb as BusinessSummary | null)?.address ?? "").trim() || null,
+          phone: ((bizOnb as BusinessSummary | null)?.phone ?? "").trim() || null,
+          cuit: ((bizOnb as BusinessSummary | null)?.cuit ?? "").trim() || null,
+        }}
         businessType={normalizeBusinessType((bizOnb as { business_type?: string | null } | null)?.business_type)}
         canEditPrice={canEditPrice}
         canEditStock={canEditStock}

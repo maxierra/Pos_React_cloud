@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Plus, ScanBarcode, ScanLine, Trash2, X } from "lucide-react";
+import { Download, Pencil, Plus, ScanBarcode, ScanLine, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ONBOARDING_GUIDE_QUERY, ONBOARDING_GUIDE_TOTAL_STEPS } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
@@ -45,10 +45,16 @@ type ProductRow = {
 
 type Props = {
   products: ProductRow[];
+  business?: {
+    name: string | null;
+    address: string | null;
+    phone: string | null;
+    cuit: string | null;
+  };
   businessType?: BusinessType;
   canEditPrice?: boolean;
   canEditStock?: boolean;
-  /** Recorrido inicial: resaltar «Nuevo producto» y llevar a Caja al guardar. */
+  /** Recorrido inicial: resaltar Â«Nuevo productoÂ» y llevar a Caja al guardar. */
   guideProductStep?: boolean;
 };
 
@@ -61,6 +67,209 @@ type CreateGuideConfirm = {
 };
 
 const PRODUCTS_PER_PAGE = 100;
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function toAmount(value: string | number) {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatMoney(value: string | number) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+  }).format(toAmount(value));
+}
+
+function formatStockValue(value: string | number) {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value ?? "0");
+  return Number.isInteger(n) ? String(n) : n.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function buildProductsPdfHtml(params: {
+  products: ProductRow[];
+  business?: Props["business"];
+  generatedAt: Date;
+}) {
+  const { products, business, generatedAt } = params;
+  const businessName = business?.name?.trim() || "Mi negocio";
+  const businessLines = [business?.address, business?.phone ? `WhatsApp / Tel: ${business.phone}` : null]
+    .filter(Boolean)
+    .map((line) => `<div class="contact-line">${escapeHtml(String(line))}</div>`)
+    .join("");
+  const dateLabel = new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "long",
+  }).format(generatedAt);
+  const rows = products
+    .map((product) => {
+      const detail = [product.category, product.size ? `Talle ${product.size}` : null, product.color ? `Color ${product.color}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      const meta = detail || (product.barcode ? `Cod. ${product.barcode}` : "Consultar disponibilidad");
+
+      return `
+        <tr>
+          <td>
+            <div class="name">${escapeHtml(product.name)}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
+          </td>
+          <td class="price">${escapeHtml(formatMoney(product.price))}</td>
+        </tr>`;
+    })
+    .join("");
+
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lista de precios - ${escapeHtml(businessName)}</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #e8ecf1; }
+      .page { width: 210mm; min-height: 297mm; margin: 0 auto; background:
+        radial-gradient(circle at top right, rgba(180, 138, 61, 0.12), transparent 28%),
+        linear-gradient(180deg, #fffefb 0%, #f4f6f8 100%);
+        padding: 16mm 14mm 18mm; }
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #163242 0%, #234e62 55%, #335f63 100%);
+        color: white;
+        box-shadow: 0 18px 40px rgba(22, 50, 66, 0.2);
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        right: -40px;
+        top: -30px;
+        width: 180px;
+        height: 180px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.07);
+      }
+      .hero-grid { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 18px; }
+      .eyebrow { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(232, 211, 169, 0.92); }
+      .hero h1 { margin: 0; font-size: 34px; line-height: 1.05; }
+      .hero p { margin: 10px 0 0; max-width: 480px; font-size: 14px; line-height: 1.5; color: rgba(244,246,248,0.9); }
+      .hero-side {
+        min-width: 210px;
+        align-self: flex-start;
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255,255,255,0.12);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(232, 211, 169, 0.22);
+      }
+      .hero-side strong { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; color: rgba(232, 211, 169, 0.9); }
+      .hero-side .label { font-size: 22px; font-weight: 700; line-height: 1.15; }
+      .hero-side .date { margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.86); }
+      .contact-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 18px; }
+      .contact-line {
+        border: 1px solid #d6d3c9;
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fffdfa;
+        font-size: 12px;
+        color: #4b5563;
+      }
+      .section-title {
+        margin: 0 0 12px;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #7b5b2e;
+      }
+      table { width: 100%; border-collapse: collapse; }
+      thead th {
+        border-bottom: 1px solid #d8dde3;
+        padding: 0 0 12px;
+        text-align: left;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #7b8794;
+      }
+      thead th:last-child { text-align: right; }
+      tbody td {
+        border-bottom: 1px solid #e4e7eb;
+        padding: 15px 0;
+        font-size: 13px;
+        vertical-align: top;
+      }
+      .name { font-weight: 700; color: #183247; margin-bottom: 4px; font-size: 14px; }
+      .meta { color: #6b7280; font-size: 11px; letter-spacing: 0.01em; }
+      .price {
+        text-align: right;
+        white-space: nowrap;
+        font-size: 16px;
+        font-weight: 800;
+        color: #7b5b2e;
+      }
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px solid #d8dde3;
+        font-size: 11px;
+        color: #6b7280;
+      }
+      @page { size: A4; margin: 10mm; }
+      @media print {
+        body { background: white; }
+        .page { width: auto; min-height: auto; margin: 0; padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow">Catalogo comercial</div>
+            <h1>${escapeHtml(businessName)}</h1>
+            <p>Lista de precios pensada para compartir con clientes de forma clara, prolija y profesional.</p>
+          </div>
+          <div class="hero-side">
+            <strong>Lista de precios</strong>
+            <div class="label">Vigente hoy</div>
+            <div class="date">Actualizado: ${escapeHtml(dateLabel)}</div>
+          </div>
+        </div>
+      </header>
+      ${businessLines ? `<section class="contact-strip">${businessLines}</section>` : ""}
+      <div class="section-title">Productos y precios</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Precio</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <footer class="footer">
+        <div>Los precios pueden actualizarse sin previo aviso.</div>
+        <div>Gracias por elegir ${escapeHtml(businessName)}.</div>
+      </footer>
+    </div>
+  </body>
+</html>`;
+}
 
 function resolveProductCreateOnboardingGuide(confirm: CreateGuideConfirm): {
   target: Element | null;
@@ -110,67 +319,67 @@ function productCreateGuideHints(phase: CreateGuidePhase): { title: string; desc
   switch (phase) {
     case "barcode":
       return {
-        title: "Escaneá el producto",
+        title: "EscaneÃ¡ el producto",
         description: (
           <>
-            Escaneá o escribí el <span className="font-semibold text-foreground">código de barras</span>. Si existe en la
+            EscaneÃ¡ o escribÃ­ el <span className="font-semibold text-foreground">cÃ³digo de barras</span>. Si existe en la
             base, se autocompletan los datos.
           </>
         ),
       };
     case "name":
       return {
-        title: "Revisá el nombre sugerido",
+        title: "RevisÃ¡ el nombre sugerido",
         description: (
           <>
-            Confirmá el <span className="font-semibold text-foreground">nombre</span> (si no vino completo, ajustalo).
+            ConfirmÃ¡ el <span className="font-semibold text-foreground">nombre</span> (si no vino completo, ajustalo).
           </>
         ),
       };
     case "cost":
       return {
-        title: "Ajustá precio de compra",
+        title: "AjustÃ¡ precio de compra",
         description: (
           <>
-            Revisá el <span className="font-semibold text-foreground">precio de compra</span> para que el margen quede
+            RevisÃ¡ el <span className="font-semibold text-foreground">precio de compra</span> para que el margen quede
             correcto.
           </>
         ),
       };
     case "price":
       return {
-        title: "Ajustá precio de venta",
+        title: "AjustÃ¡ precio de venta",
         description: (
           <>
-            Confirmá el <span className="font-semibold text-foreground">precio de venta</span> sugerido y corregilo si hace
+            ConfirmÃ¡ el <span className="font-semibold text-foreground">precio de venta</span> sugerido y corregilo si hace
             falta.
           </>
         ),
       };
     case "stock":
       return {
-        title: "Cargá cantidad inicial",
+        title: "CargÃ¡ cantidad inicial",
         description: (
           <>
-            Indicá cuánto <span className="font-semibold text-foreground">stock inicial</span> entra (unidades o kg).
+            IndicÃ¡ cuÃ¡nto <span className="font-semibold text-foreground">stock inicial</span> entra (unidades o kg).
           </>
         ),
       };
     case "lowStock":
       return {
-        title: "Definí stock mínimo",
+        title: "DefinÃ­ stock mÃ­nimo",
         description: (
           <>
-            Marcá el <span className="font-semibold text-foreground">stock mínimo</span> para alertas de reposición.
+            MarcÃ¡ el <span className="font-semibold text-foreground">stock mÃ­nimo</span> para alertas de reposiciÃ³n.
           </>
         ),
       };
     default:
       return {
-        title: "Guardá el producto",
+        title: "GuardÃ¡ el producto",
         description: (
           <>
-            Tocá <span className="font-semibold text-foreground">«Guardar producto»</span> para crearlo y seguir con la
+            TocÃ¡ <span className="font-semibold text-foreground">Â«Guardar productoÂ»</span> para crearlo y seguir con la
             caja.
           </>
         ),
@@ -180,13 +389,13 @@ function productCreateGuideHints(phase: CreateGuidePhase): { title: string; desc
 
 function formatStock(p: ProductRow) {
   return p.sold_by_weight
-    ? `Stock: ${p.stock_decimal} | Mín: ${p.low_stock_threshold_decimal}`
-    : `Stock: ${p.stock} | Mín: ${p.low_stock_threshold}`;
+    ? `Stock: ${p.stock_decimal} | MÃ­n: ${p.low_stock_threshold_decimal}`
+    : `Stock: ${p.stock} | MÃ­n: ${p.low_stock_threshold}`;
 }
 
 function formatVariant(p: ProductRow) {
   const parts = [p.category, p.size ? `Talle ${p.size}` : null, p.color ? `Color ${p.color}` : null].filter(Boolean);
-  return parts.join(" · ");
+  return parts.join(" Â· ");
 }
 
 function normCode(s: string) {
@@ -211,6 +420,7 @@ function findProductByScannedCode(products: ProductRow[], raw: string): ProductR
 
 export function ProductsClient({
   products,
+  business,
   businessType = "retail",
   canEditPrice = true,
   canEditStock = true,
@@ -221,6 +431,7 @@ export function ProductsClient({
   const [openCreate, setOpenCreate] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<ProductRow | null>(null);
   const [pending, startTransition] = React.useTransition();
+  const [exportingPdf, setExportingPdf] = React.useState(false);
   const [scannerSearchOpen, setScannerSearchOpen] = React.useState(false);
 
   const newProductHighlightRef = React.useRef<HTMLSpanElement>(null);
@@ -313,7 +524,7 @@ export function ProductsClient({
 
   const onDelete = React.useCallback(
     async (id: string) => {
-      const ok = window.confirm("¿Borrar este producto? Esta acción no se puede deshacer.");
+      const ok = window.confirm("Â¿Borrar este producto? Esta acciÃ³n no se puede deshacer.");
       if (!ok) return;
 
       startTransition(() => {
@@ -341,6 +552,90 @@ export function ProductsClient({
     setEditProduct(p);
   }, []);
 
+  const exportProductsPdf = React.useCallback(() => {
+    if (filtered.length === 0) {
+      toast.error("No hay productos para exportar");
+      return;
+    }
+
+    setExportingPdf(true);
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.setAttribute("aria-hidden", "true");
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        iframe.remove();
+        setExportingPdf(false);
+      }, 500);
+    };
+
+    iframe.onload = () => {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        toast.error("No se pudo abrir la vista de impresiÃƒÂ³n");
+        cleanup();
+        return;
+      }
+
+      frameWindow.focus();
+
+      window.setTimeout(() => {
+        try {
+          frameWindow.print();
+        } catch {
+          toast.error("No se pudo iniciar la impresiÃƒÂ³n");
+        } finally {
+          cleanup();
+        }
+      }, 150);
+    };
+
+    iframe.srcdoc = buildProductsPdfHtml({
+      products: filtered,
+      business,
+      generatedAt: new Date(),
+    });
+
+    document.body.appendChild(iframe);
+    return;
+    try {
+      const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=1200");
+      if (!printWindow) {
+        toast.error("El navegador bloqueÃ³ la ventana de impresiÃ³n", {
+          description: "PermitÃ­ ventanas emergentes para exportar el PDF.",
+        });
+        return;
+      }
+
+      printWindow.document.open();
+      printWindow.document.write(
+        buildProductsPdfHtml({
+          products: filtered,
+          business,
+          generatedAt: new Date(),
+        })
+      );
+      printWindow.document.close();
+      printWindow.focus();
+
+      const runPrint = () => printWindow.print();
+      if (printWindow.document.readyState === "complete") {
+        runPrint();
+      } else {
+        printWindow.onload = runPrint;
+      }
+    } finally {
+      window.setTimeout(() => setExportingPdf(false), 300);
+    }
+  }, [business, filtered]);
+
   const handleBarcodeKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== "Enter") return;
@@ -351,8 +646,8 @@ export function ProductsClient({
         openEdit(found);
         setBarcodeQuery("");
       } else {
-        toast.error("No hay producto con ese código", {
-          description: "Verificá el código o cargalo en el producto.",
+        toast.error("No hay producto con ese cÃ³digo", {
+          description: "VerificÃ¡ el cÃ³digo o cargalo en el producto.",
         });
       }
     },
@@ -471,8 +766,8 @@ export function ProductsClient({
         title="Tu primer producto"
         description={
           <>
-            <span className="font-semibold text-foreground">Tocá el botón verde «Nuevo producto»</span> arriba a la
-            derecha: es lo único que se ve nítido y titila. El resto queda borroso a propósito.
+            <span className="font-semibold text-foreground">TocÃ¡ el botÃ³n verde Â«Nuevo productoÂ»</span> arriba a la
+            derecha: es lo Ãºnico que se ve nÃ­tido y titila. El resto queda borroso a propÃ³sito.
           </>
         }
       />
@@ -493,18 +788,29 @@ export function ProductsClient({
         <div className="text-sm text-muted-foreground">
           {hasActiveFilters
             ? `Mostrando ${filtered.length} resultados`
-            : `${products.length} productos · página ${page} de ${totalPages}`}
+            : `${products.length} productos Â· pÃ¡gina ${page} de ${totalPages}`}
         </div>
-        <span
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={exportProductsPdf}
+            disabled={exportingPdf || filtered.length === 0}
+            className="gap-2 rounded-2xl"
+          >
+            <Download className="size-4" />
+            {exportingPdf ? "Preparando PDF..." : "Exportar PDF"}
+          </Button>
+          <span
           ref={newProductHighlightRef}
           className={cn(
             "inline-flex flex-col items-end gap-2 sm:items-center",
             showProductSpotlight && "relative z-[92]"
           )}
-        >
+          >
           {showProductSpotlight ? (
             <span className="pointer-events-none rounded-full bg-emerald-600 px-3 py-1.5 text-center text-[11px] font-bold uppercase leading-none tracking-wide text-white shadow-lg shadow-emerald-900/30 ring-2 ring-white/80 ring-offset-2 ring-offset-transparent animate-pulse">
-              Paso 1 · Tocá acá
+              Paso 1 Â· TocÃ¡ acÃ¡
             </span>
           ) : null}
           <Button
@@ -523,7 +829,8 @@ export function ProductsClient({
             <Plus className={cn("size-4", showProductSpotlight && "size-5")} />
             Nuevo producto
           </Button>
-        </span>
+          </span>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -534,7 +841,7 @@ export function ProductsClient({
           <Input
             id="product-search-name"
             type="search"
-            placeholder="Ej: oreo, leche…"
+            placeholder="Ej: oreo, lecheâ€¦"
             value={nameQuery}
             onChange={(e) => {
               setNameQuery(e.target.value);
@@ -546,7 +853,7 @@ export function ProductsClient({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="product-search-barcode" className="text-xs text-muted-foreground">
-            Código de barras
+            CÃ³digo de barras
           </Label>
           <div className="relative">
             <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -567,7 +874,7 @@ export function ProductsClient({
             />
           </div>
           <p className="hidden text-[11px] text-muted-foreground lg:block">
-            Enfocá este campo y escaneá: al terminar (Enter) se abre la edición.
+            EnfocÃ¡ este campo y escaneÃ¡: al terminar (Enter) se abre la ediciÃ³n.
           </p>
         </div>
       </div>
@@ -584,7 +891,7 @@ export function ProductsClient({
             Escanear para buscar y editar
           </Button>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Lee el código de un producto ya cargado y se abre el formulario para ajustar stock y precios.
+            Lee el cÃ³digo de un producto ya cargado y se abre el formulario para ajustar stock y precios.
           </p>
         </div>
       ) : null}
@@ -614,7 +921,7 @@ export function ProductsClient({
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                     {products.length === 0
                       ? "No hay productos cargados."
-                      : "Ningún producto coincide con la búsqueda."}
+                      : "NingÃºn producto coincide con la bÃºsqueda."}
                   </td>
                 </tr>
               ) : (
@@ -635,7 +942,7 @@ export function ProductsClient({
                           <div className="text-xs text-muted-foreground">
                             {[formatVariant(p) || null, p.barcode ? `EAN: ${p.barcode}` : null, p.expires_at ? `Vence: ${p.expires_at}` : null]
                               .filter(Boolean)
-                              .join(" · ")}
+                              .join(" Â· ")}
                           </div>
                         </div>
                       </div>
@@ -689,7 +996,7 @@ export function ProductsClient({
           <div className="flex flex-col gap-3 border-t bg-[var(--pos-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
               {hasActiveFilters
-                ? `La búsqueda muestra todos los resultados encontrados (${filtered.length}).`
+                ? `La bÃºsqueda muestra todos los resultados encontrados (${filtered.length}).`
                 : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length} productos.`}
             </div>
             {!hasActiveFilters ? (
@@ -704,7 +1011,7 @@ export function ProductsClient({
                   Anterior
                 </Button>
                 <div className="min-w-[110px] text-center text-xs font-medium text-muted-foreground">
-                  Página {page} / {totalPages}
+                  PÃ¡gina {page} / {totalPages}
                 </div>
                 <Button
                   type="button"
@@ -751,10 +1058,10 @@ export function ProductsClient({
                     Nuevo producto
                   </div>
                   <div className="text-xs text-muted-foreground max-lg:hidden">
-                    Cargá datos, precio y stock.
+                    CargÃ¡ datos, precio y stock.
                   </div>
                   <div className="text-[11px] text-muted-foreground lg:hidden">
-                    Asistente paso a paso: código, datos, precios y stock.
+                    Asistente paso a paso: cÃ³digo, datos, precios y stock.
                   </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setOpenCreate(false)}>
@@ -819,10 +1126,10 @@ export function ProductsClient({
                     Editar producto
                   </div>
                   <div className="text-xs text-muted-foreground max-lg:hidden">
-                    Actualizá precios, stock y código.
+                    ActualizÃ¡ precios, stock y cÃ³digo.
                   </div>
                   <div className="text-[11px] text-muted-foreground lg:hidden">
-                    Podés escanear para cambiar el código o ajustar stock.
+                    PodÃ©s escanear para cambiar el cÃ³digo o ajustar stock.
                   </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setEditProduct(null)}>
@@ -885,8 +1192,8 @@ export function ProductsClient({
             toast.success("Producto encontrado", { description: found.name, duration: 1200 });
             return true;
           }
-          toast.error("No hay producto con ese código", {
-            description: "Creá uno nuevo con «Nuevo producto» o revisá el código.",
+          toast.error("No hay producto con ese cÃ³digo", {
+            description: "CreÃ¡ uno nuevo con Â«Nuevo productoÂ» o revisÃ¡ el cÃ³digo.",
           });
           return false;
         }}
@@ -894,3 +1201,4 @@ export function ProductsClient({
     </div>
   );
 }
+

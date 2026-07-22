@@ -124,10 +124,14 @@ export function ProductCreateMobileWizard({
               : { data: null, error: null };
           const third =
             first.error && second.error && !second.data
+              ? await tryLoad("ean,producto,brand,precio_real,precio_oferta,cat1,cat2,cat3")
+              : { data: null, error: null };
+          const fourth =
+            first.error && second.error && third.error && !third.data
               ? await tryLoad("ean,name,brand,price_real,price_offer,cat1,cat2,cat3")
               : { data: null, error: null };
-          const data = (first.data ?? second.data ?? third.data) as Record<string, unknown> | null;
-          const error = first.error && second.error && third.error ? third.error : null;
+          const data = (first.data ?? second.data ?? third.data ?? fourth.data) as Record<string, unknown> | null;
+          const error = first.error && second.error && third.error && fourth.error ? fourth.error : null;
 
           if (error || !data) {
             setPreload(null);
