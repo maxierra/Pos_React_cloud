@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Percent, Users, Store, Wallet, X, QrCode, FileText, Tags } from "lucide-react";
+import { Percent, Users, Store, Wallet, X, QrCode, FileText, Tags, Scale } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { UsersManager } from "@/app/app/(main)/settings/users-manager";
 import { PromotionsManager } from "@/app/app/(main)/settings/promotions-manager";
 import { FiscalConfigForm } from "@/app/app/(main)/settings/fiscal-config-form";
 import { QuickSaleCategoriesManager, type QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
+import { ScaleBarcodeSettingsForm } from "@/app/app/(main)/settings/scale-barcode-settings-form";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import type {
   BusinessFiscalConfig,
@@ -23,6 +24,7 @@ import type {
 type BusinessDefaults = {
   name: string;
   business_type: string;
+  scale_barcode_mode: "weight" | "price" | "both";
   gastronomy_counter_enabled: boolean;
   gastronomy_delivery_enabled: boolean;
   gastronomy_tables_enabled: boolean;
@@ -53,6 +55,7 @@ type Props = {
   mercadoPagoPosExternalId: string | null;
   mercadoPagoQrReady: boolean;
   fiscalSettings: FiscalSettingsProps;
+  fiscalConfigured: boolean;
 };
 
 type ModalAccent = "emerald" | "sky" | "violet" | "amber" | "cyan";
@@ -197,6 +200,7 @@ function SettingsCard({
   hint,
   tooltip,
   onClick,
+  disabled = false,
 }: {
   accent: SettingsCardAccent;
   icon: React.ComponentType<{ className?: string }>;
@@ -205,19 +209,22 @@ function SettingsCard({
   hint: string;
   tooltip?: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   const s = SETTINGS_CARD_STYLES[accent];
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       title={tooltip ?? description}
+      disabled={disabled}
       className={cn(
         "group relative flex h-full min-h-[220px] flex-col text-left",
         "rounded-2xl border border-border/70 bg-card",
         "shadow-md shadow-black/[0.04] dark:shadow-black/20",
         "ring-1 ring-transparent transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-lg",
+        !disabled && "hover:-translate-y-0.5 hover:shadow-lg",
+        disabled && "cursor-not-allowed opacity-60 saturate-75",
         s.hoverBorder,
         s.hoverShadow
       )}
@@ -265,6 +272,7 @@ export function SettingsClient({
   mercadoPagoPosExternalId,
   mercadoPagoQrReady,
   fiscalSettings,
+  fiscalConfigured,
 }: Props) {
   const [bizOpen, setBizOpen] = React.useState(false);
   const [usersOpen, setUsersOpen] = React.useState(false);
@@ -273,6 +281,7 @@ export function SettingsClient({
   const [promosOpen, setPromosOpen] = React.useState(false);
   const [fiscalOpen, setFiscalOpen] = React.useState(false);
   const [quickSaleOpen, setQuickSaleOpen] = React.useState(false);
+  const [scaleOpen, setScaleOpen] = React.useState(false);
 
   const fiscalActive = Boolean(fiscalSettings?.config?.is_active);
   const fiscalCertStatus =
@@ -330,6 +339,21 @@ export function SettingsClient({
         />
         <SettingsCard
           accent="cyan"
+          icon={Scale}
+          title="Balanza"
+          description="Lectura de codigos de etiquetas pesables."
+          hint={
+            defaults?.scale_barcode_mode === "price"
+              ? "Lee importe"
+              : defaults?.scale_barcode_mode === "both"
+                ? "Peso e importe"
+                : "Lee peso"
+          }
+          tooltip="Configurá si la balanza codifica peso, importe o ambos formatos en el barcode."
+          onClick={() => setScaleOpen(true)}
+        />
+        <SettingsCard
+          accent="cyan"
           icon={QrCode}
           title="Mercado Pago (QR)"
           description="Cobro con QR en el POS."
@@ -343,12 +367,19 @@ export function SettingsClient({
           title="Facturación ARCA"
           description="Factura C para monotributistas, paso a paso."
           hint={
-            fiscalActive
+            !fiscalConfigured
+              ? "Próximamente"
+              : fiscalActive
               ? `${fiscalSettings?.config?.environment === "prod" ? "Producción" : "Prueba"} · cert ${fiscalCertStatus ?? "—"}`
               : "Configurar en 4 pasos"
           }
-          tooltip="Elegí prueba o producción, cargá punto de venta, certificado ARCA y activá Factura C en el POS."
+          tooltip={
+            fiscalConfigured
+              ? "Elegí prueba o producción, cargá punto de venta, certificado ARCA y activá Factura C en el POS."
+              : "Todavía no está habilitado en este entorno porque el microservicio fiscal no está configurado."
+          }
           onClick={() => setFiscalOpen(true)}
+          disabled={!fiscalConfigured}
         />
       </div>
 
@@ -403,6 +434,17 @@ export function SettingsClient({
         accent="sky"
       >
         <QuickSaleCategoriesManager initialRows={quickSaleCategories} canEdit={canEditPaymentMethods} />
+      </ModalShell>
+
+      <ModalShell
+        open={scaleOpen}
+        title="Configuracion de balanza"
+        description="Defini como el POS interpreta las etiquetas de productos pesables."
+        onClose={() => setScaleOpen(false)}
+        maxWidthClass="max-w-3xl"
+        accent="cyan"
+      >
+        <ScaleBarcodeSettingsForm defaultMode={defaults?.scale_barcode_mode ?? "weight"} />
       </ModalShell>
 
       <ModalShell

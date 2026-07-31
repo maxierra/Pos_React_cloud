@@ -27,6 +27,8 @@ import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { beep } from "@/app/app/(main)/pos/utils/beep";
 import { buildPaymentLabelMap, sortPaymentMethods, type BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import { formatSaleTicketPlainText, printTicket as printTicketInBrowser } from "@/lib/ticket-utils";
+import { printFiscalVoucherTicket } from "@/lib/fiscal-ticket-utils";
+import { normalizeScaleCode, type ScaleBarcodeMode } from "@/lib/scale-barcode";
 import { isAndroidUserAgent, printTicket as printTicketRawBt } from "@/utils/printTicket";
 import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import type { BusinessType } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Bike, Columns3, History, NotebookPen, Save, ScanLine, Store, Tags, UtensilsCrossed, X } from "lucide-react";
 import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
+import { voucherTypeLabel, type FiscalCustomerData, type TaxCondition } from "@/features/billing/types";
 
 export { type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 
@@ -55,6 +58,8 @@ type PosBusinessInfo = {
   address: string | null;
   phone: string | null;
   cuit: string | null;
+  iibb: string | null;
+  activity_start_date: string | null;
   ticket_header: string | null;
   ticket_footer: string | null;
 } | null;
@@ -101,14 +106,22 @@ type ServiceOrder = {
   }> | null;
 };
 
+type PosFiscalConfig = {
+  isActive: boolean;
+  taxCondition: TaxCondition;
+  documentOutputMode: "ticket" | "factura";
+} | null;
+
 export function PosClient({
   products,
   business,
   businessType = "retail",
   cashOpen = false,
   paymentMethodConfig,
+  scaleBarcodeMode = "weight",
   posCustomers = [],
   mercadoPagoQrReady = false,
+  fiscalConfig = null,
   quickSaleCategories = [],
   gastronomyConfig = { counterEnabled: true, deliveryEnabled: false, tablesEnabled: false },
   gastronomyTables = [],
@@ -120,9 +133,11 @@ export function PosClient({
   businessType?: BusinessType;
   cashOpen?: boolean;
   paymentMethodConfig: BusinessPaymentMethodRow[];
+  scaleBarcodeMode?: ScaleBarcodeMode;
   /** Lista para ventas en cuenta corriente (incluye límite y saldo disponible). */
   posCustomers?: PosCustomerCredit[];
   mercadoPagoQrReady?: boolean;
+  fiscalConfig?: PosFiscalConfig;
   quickSaleCategories?: QuickSaleCategoryRow[];
   gastronomyConfig?: GastronomyConfig;
   gastronomyTables?: GastronomyTable[];
@@ -133,6 +148,7 @@ export function PosClient({
   const router = useRouter();
   const isMobilePos = useIsMobilePos();
   const searchRef = React.useRef<HTMLInputElement | null>(null);
+  const lastAutoProcessedQueryRef = React.useRef<string>("");
   const searchGuideRef = React.useRef<HTMLDivElement>(null);
   const cartPanelGuideRef = React.useRef<HTMLDivElement>(null);
   const cobrarGuideRef = React.useRef<HTMLDivElement>(null);
@@ -331,22 +347,34 @@ export function PosClient({
         };
       }
 
-      const parsed = parseScaleBarcode(q);
-      if (parsed) {
-        const byScaleCode = products.find((p) => (p.scale_code ?? "").toLowerCase() === parsed.scaleCode.toLowerCase());
-        if (byScaleCode && byScaleCode.sold_by_weight) {
-          cart.add(byScaleCode, { quantity: parsed.weightKg });
+      const candidateModes: Array<"weight" | "price"> =
+        scaleBarcodeMode === "both" ? ["weight", "price"] : [scaleBarcodeMode];
+      for (const candidateMode of candidateModes) {
+        const parsed = parseScaleBarcode(q, candidateMode);
+        if (!parsed) continue;
+        const byScaleCode = products.find(
+          (p) => normalizeScaleCode(p.scale_code) === normalizeScaleCode(parsed.scaleCode)
+        );
+        const quantityKg =
+          parsed.mode === "weight"
+            ? parsed.value
+            : byScaleCode && byScaleCode.price > 0
+              ? Math.round(((parsed.value / byScaleCode.price) + Number.EPSILON) * 1000) / 1000
+              : 0;
+
+        if (byScaleCode && byScaleCode.sold_by_weight && quantityKg > 0) {
+          cart.add(byScaleCode, { quantity: quantityKg });
           beep();
           if (!opts?.silentToast) {
             toast.success("Producto agregado", {
-              description: `${byScaleCode.name} · ${parsed.weightKg} kg`,
+              description: `${byScaleCode.name} · ${quantityKg} kg`,
             });
           }
           setQuery("");
-          if (typeof console !== "undefined") console.log("[POS] Código procesado (balanza):", q);
+          if (typeof console !== "undefined") console.log("[POS] Código procesado (balanza):", q, { mode: parsed.mode, quantityKg });
           return {
             ok: true,
-            addedName: `${byScaleCode.name} · ${parsed.weightKg} kg`,
+            addedName: `${byScaleCode.name} · ${quantityKg} kg`,
             productId: byScaleCode.id,
             soldByWeight: true,
           };
@@ -357,7 +385,7 @@ export function PosClient({
       toast.error("No se encontró el producto");
       return { ok: false };
     },
-    [addProduct, findByBarcodeOrName, products, cart, setQuery]
+    [addProduct, findByBarcodeOrName, products, cart, scaleBarcodeMode, setQuery]
   );
 
   const onSearchKeyDown = React.useCallback(
@@ -368,6 +396,36 @@ export function PosClient({
     },
     [procesarCodigo, query]
   );
+
+  React.useEffect(() => {
+    const raw = query.trim();
+    const normalized = raw.replace(/\s+/g, "");
+    if (!normalized) {
+      lastAutoProcessedQueryRef.current = "";
+      return;
+    }
+
+    if (!/^\d+$/.test(normalized)) return;
+    if (lastAutoProcessedQueryRef.current === normalized) return;
+
+    const isScaleBarcode = /^\d{13}$/.test(normalized) && Boolean(
+      parseScaleBarcode(normalized, "weight") || parseScaleBarcode(normalized, "price")
+    );
+
+    const exactBarcodeMatch = products.some((p) => {
+      const barcode = String(p.barcode ?? "").replace(/\s+/g, "");
+      return barcode.length >= 8 && barcode === normalized;
+    });
+
+    if (!isScaleBarcode && !exactBarcodeMatch) return;
+
+    lastAutoProcessedQueryRef.current = normalized;
+    const timer = window.setTimeout(() => {
+      procesarCodigo(normalized);
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [procesarCodigo, products, query]);
 
   const getCartQuantityForProduct = React.useCallback(
     (productId: string) => cart.items.find((i) => i.product_id === productId)?.quantity ?? 0,
@@ -791,6 +849,7 @@ export function PosClient({
       cash_received?: number;
       print_ticket?: boolean;
       customer_id?: string | null;
+      fiscal_customer?: FiscalCustomerData | null;
     }) => {
       if (cart.items.length === 0) return;
 
@@ -814,6 +873,7 @@ export function PosClient({
               payment_details: paymentDetailsWithCash,
               cash_received: p.cash_received,
               customer_id: p.customer_id ?? null,
+              fiscal_customer: p.fiscal_customer ?? null,
               items: cart.items.map((it) => ({
                 product_id: it.product_id,
                 name: it.name,
@@ -849,6 +909,10 @@ export function PosClient({
               caeExpiresAt: string;
               qrPayload: string;
             } | null }).fiscal;
+            const documentOutputMode =
+              (res as { documentOutputMode?: "ticket" | "factura" }).documentOutputMode === "factura"
+                ? "factura"
+                : "ticket";
 
             if (p.print_ticket) {
               const customerName =
@@ -886,8 +950,42 @@ export function PosClient({
               if (useRawBt) {
                 printTicketRawBt(formatSaleTicketPlainText(ticketData));
               } else {
-                const ok = printTicketInBrowser(ticketData, { preOpenedWindow: printWin });
-                if (!ok && printWin && !printWin.closed) printWin.close();
+                if (fiscal && documentOutputMode === "factura") {
+                  printFiscalVoucherTicket(
+                    {
+                      id: `preview-${res.saleId}`,
+                      business_id: "",
+                      environment: "prod",
+                      sale_id: res.saleId,
+                      voucher_type: fiscal.voucherTypeLabel === "Factura B" ? 6 : 11,
+                      pos_number: fiscal.posNumber,
+                      voucher_number: fiscal.voucherNumber,
+                      issue_date: new Date().toISOString().slice(0, 10),
+                      buyer_name: customerName ?? "Consumidor Final",
+                      buyer_doc_number: p.fiscal_customer?.documentNumber ?? "0",
+                      total: promo?.total_after ?? cart.total,
+                      cae: fiscal.cae,
+                      cae_expires_at: fiscal.caeExpiresAt,
+                      status: "approved",
+                      billing_mode: "per_sale",
+                      qr_payload: fiscal.qrPayload,
+                      rejection_reason: null,
+                      created_at: new Date().toISOString(),
+                      fiscal_voucher_items: cart.items.map((item) => ({
+                        id: `${res.saleId}-${item.product_id ?? item.name}`,
+                        name: item.name,
+                        quantity: Number(item.quantity),
+                        unit_price: Number(item.unit_price),
+                        subtotal: Math.round(Number(item.quantity) * Number(item.unit_price) * 100) / 100,
+                      })),
+                    },
+                    business
+                  );
+                  if (printWin && !printWin.closed) printWin.close();
+                } else {
+                  const ok = printTicketInBrowser(ticketData, { preOpenedWindow: printWin });
+                  if (!ok && printWin && !printWin.closed) printWin.close();
+                }
               }
             } else if (printWin && !printWin.closed) {
               printWin.close();
@@ -933,7 +1031,22 @@ export function PosClient({
   );
 
   const onMercadoPagoAutoPaid = React.useCallback(
-    ({ saleId, printTicket: shouldPrint }: { saleId: string; printTicket: boolean }) => {
+    ({
+      saleId,
+      printTicket: shouldPrint,
+      fiscal,
+    }: {
+      saleId: string;
+      printTicket: boolean;
+      fiscal?: {
+        voucherType: number;
+        posNumber: number;
+        voucherNumber: number;
+        cae: string;
+        caeExpiresAt: string;
+        qrPayload: string;
+      } | null;
+    }) => {
       if (cart.items.length === 0) return;
       const ticketPayload = shouldPrint
         ? {
@@ -946,6 +1059,16 @@ export function PosClient({
             paymentSplit: undefined,
             paymentMethodLabels: paymentLabelMap,
             cashReceived: undefined,
+            fiscal: fiscal
+              ? {
+                  voucherTypeLabel: voucherTypeLabel(fiscal.voucherType),
+                  posNumber: fiscal.posNumber,
+                  voucherNumber: fiscal.voucherNumber,
+                  cae: fiscal.cae,
+                  caeExpiresAt: fiscal.caeExpiresAt,
+                  qrPayload: fiscal.qrPayload,
+                }
+              : undefined,
           }
         : null;
       cart.clear();
@@ -976,7 +1099,40 @@ export function PosClient({
               if (isAndroidUserAgent()) {
                 printTicketRawBt(formatSaleTicketPlainText(ticketPayload));
               } else {
-                printTicketInBrowser(ticketPayload);
+                if (fiscal && fiscalConfig?.documentOutputMode === "factura") {
+                  printFiscalVoucherTicket(
+                    {
+                      id: `preview-${saleId}`,
+                      business_id: "",
+                      environment: "prod",
+                      sale_id: saleId,
+                      voucher_type: fiscal.voucherType,
+                      pos_number: fiscal.posNumber,
+                      voucher_number: fiscal.voucherNumber,
+                      issue_date: new Date().toISOString().slice(0, 10),
+                      buyer_name: "Consumidor Final",
+                      buyer_doc_number: "0",
+                      total: cart.total,
+                      cae: fiscal.cae,
+                      cae_expires_at: fiscal.caeExpiresAt,
+                      status: "approved",
+                      billing_mode: "per_sale",
+                      qr_payload: fiscal.qrPayload,
+                      rejection_reason: null,
+                      created_at: new Date().toISOString(),
+                      fiscal_voucher_items: cart.items.map((item) => ({
+                        id: `${saleId}-${item.product_id ?? item.name}`,
+                        name: item.name,
+                        quantity: Number(item.quantity),
+                        unit_price: Number(item.unit_price),
+                        subtotal: Math.round(Number(item.quantity) * Number(item.unit_price) * 100) / 100,
+                      })),
+                    },
+                    business
+                  );
+                } else {
+                  printTicketInBrowser(ticketPayload);
+                }
               }
             },
           },
@@ -1583,6 +1739,7 @@ export function PosClient({
         paymentMethodConfig={paymentMethodConfig}
         customers={posCustomers}
         mercadoPagoQrReady={mercadoPagoQrReady}
+        fiscalConfig={fiscalConfig}
         onClose={closePayment}
         onConfirm={onConfirmPayment}
         onMercadoPagoAutoPaid={onMercadoPagoAutoPaid}

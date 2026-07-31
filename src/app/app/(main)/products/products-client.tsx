@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
+import { normalizeScaleCode } from "@/lib/scale-barcode";
 import type { BusinessType } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
 
@@ -411,8 +412,8 @@ function findProductByScannedCode(products: ProductRow[], raw: string): ProductR
 
   const parsed = parseScaleBarcode(stable.replace(/\s+/g, ""));
   if (parsed) {
-    const sc = (parsed.scaleCode ?? "").toLowerCase();
-    return products.find((p) => (p.scale_code ?? "").toLowerCase() === sc);
+    const sc = normalizeScaleCode(parsed.scaleCode)?.toLowerCase() ?? "";
+    return products.find((p) => (normalizeScaleCode(p.scale_code)?.toLowerCase() ?? "") === sc);
   }
 
   return undefined;

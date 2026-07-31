@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 
 import { notifyAdminSubscriptionPayment } from "@/lib/admin-alerts-send";
+import { emitFiscalVoucherForRecordedSale } from "@/lib/fiscal-sale-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   extractPosCompletionFromOrderJson,
@@ -389,6 +390,18 @@ async function completeMercadoPagoPosPending(completion: MercadoPagoPosOrderComp
 
   if (!saleId) {
     return NextResponse.json({ ok: true, ignored: "pos_not_completed" });
+  }
+
+  try {
+    const businessId = completion.external_reference.slice(1, 37);
+    if (/^[0-9a-f-]{36}$/i.test(businessId)) {
+      await emitFiscalVoucherForRecordedSale({
+        businessId,
+        saleId: String(saleId),
+      });
+    }
+  } catch (error) {
+    console.warn("[mp-webhook-pos] fiscal emission", error);
   }
 
   revalidatePath("/app/sales");

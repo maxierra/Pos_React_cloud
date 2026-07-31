@@ -10,7 +10,7 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 
 
 
-import { getAppBaseUrl } from "@/lib/app-base-url";
+import { getAppBaseUrl, isLocalAppOrigin } from "@/lib/app-base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStoreEnvPrice, getStoreEnvTitle } from "@/lib/store-products";
@@ -308,6 +308,7 @@ export async function startMercadoPagoCheckout(
 
   const base = getAppBaseUrl();
   const notificationUrl = `${base}/api/webhooks/mercadopago`;
+  const shouldUseAutoReturn = !isLocalAppOrigin(base);
 
   const client = new MercadoPagoConfig({ accessToken: token });
   const preference = new Preference(client);
@@ -320,7 +321,24 @@ export async function startMercadoPagoCheckout(
     promo_code_id: promoId ?? "",
   };
 
-  const body = {
+  const body: {
+    items: Array<{
+      id: string;
+      title: string;
+      quantity: number;
+      currency_id: string;
+      unit_price: number;
+    }>;
+    external_reference: string;
+    metadata: Record<string, string>;
+    notification_url: string;
+    back_urls: {
+      success: string;
+      pending: string;
+      failure: string;
+    };
+    auto_return?: "approved";
+  } = {
     items: [
       {
         id: `${planKey}-plan`,
@@ -353,9 +371,11 @@ export async function startMercadoPagoCheckout(
 
     },
 
-    auto_return: "approved" as const,
-
   };
+
+  if (shouldUseAutoReturn) {
+    body.auto_return = "approved";
+  }
 
 
 
@@ -431,6 +451,7 @@ export async function startLifetimeUpgradeCheckout(): Promise<{ checkoutUrl: str
 
   const base = getAppBaseUrl();
   const notificationUrl = `${base}/api/webhooks/mercadopago`;
+  const shouldUseAutoReturn = !isLocalAppOrigin(base);
 
   const client = new MercadoPagoConfig({ accessToken: token });
   const preference = new Preference(client);
@@ -442,7 +463,24 @@ export async function startLifetimeUpgradeCheckout(): Promise<{ checkoutUrl: str
     final_price: String(amount),
   };
 
-  const body = {
+  const body: {
+    items: Array<{
+      id: string;
+      title: string;
+      quantity: number;
+      currency_id: string;
+      unit_price: number;
+    }>;
+    external_reference: string;
+    metadata: Record<string, string>;
+    notification_url: string;
+    back_urls: {
+      success: string;
+      pending: string;
+      failure: string;
+    };
+    auto_return?: "approved";
+  } = {
     items: [
       {
         id: "software_lifetime",
@@ -460,8 +498,11 @@ export async function startLifetimeUpgradeCheckout(): Promise<{ checkoutUrl: str
       pending: `${base}/app/subscription?mp=pending`,
       failure: `${base}/app/subscription?mp=failure`,
     },
-    auto_return: "approved" as const,
   };
+
+  if (shouldUseAutoReturn) {
+    body.auto_return = "approved";
+  }
 
   try {
     const res = await preference.create({ body });

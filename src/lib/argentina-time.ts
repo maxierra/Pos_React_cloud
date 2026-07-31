@@ -68,6 +68,17 @@ export function formatArgentinaShortDate(input: string) {
   }).format(date);
 }
 
+export function argentinaYmd(input: string) {
+  const date = parseDbTimestamptzToDate(input) ?? new Date(input);
+  if (Number.isNaN(date.getTime())) return input.slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: AR_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export function toArgentinaDateForExport(input: string) {
   const date = parseDbTimestamptzToDate(input) ?? new Date(input);
   return date;

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
+import { normalizeScaleCode } from "@/lib/scale-barcode";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,6 +33,10 @@ function toNullableDate(input: FormDataEntryValue | null) {
 function toNullableText(input: FormDataEntryValue | null) {
   const raw = String(input ?? "").trim();
   return raw || null;
+}
+
+function toNullableScaleCode(input: FormDataEntryValue | null) {
+  return normalizeScaleCode(String(input ?? ""));
 }
 
 function splitVariantValues(input: FormDataEntryValue | null) {
@@ -211,7 +216,7 @@ async function createProductImpl(formData: FormData) {
     image_path: imageUpload?.imagePath ?? null,
     image_url: imageUpload?.imageUrl ?? null,
     barcode: toNullableText(formData.get("barcode")),
-    scale_code: toNullableText(formData.get("scale_code")),
+    scale_code: toNullableScaleCode(formData.get("scale_code")),
     category: baseCategory,
     variant_group: toNullableText(formData.get("variant_group")),
     size: toNullableText(formData.get("size")),
@@ -345,7 +350,7 @@ async function updateProductImpl(formData: FormData) {
   }
 
   const scale_code = formData.has("scale_code")
-    ? String(formData.get("scale_code") ?? "").trim() || null
+    ? toNullableScaleCode(formData.get("scale_code"))
     : ex.scale_code;
   const currentImagePath = (beforeRow as { image_path?: string | null }).image_path ?? null;
   const currentImageUrl = (beforeRow as { image_url?: string | null }).image_url ?? null;

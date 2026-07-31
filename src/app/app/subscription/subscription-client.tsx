@@ -6,6 +6,8 @@ import {
   BadgeCheck,
   Clock,
   Copy,
+  Crown,
+  Gem,
   Loader2,
   MessageCircle,
   Phone,
@@ -30,17 +32,82 @@ export type ManualContactProps = {
   transferNote: string;
 };
 
+type PlanKey = "monthly" | "semester" | "annual";
+
+type PlanConfig = {
+  amount: number;
+  currency: string;
+  title: string;
+  days: number;
+  planKey: PlanKey;
+};
+
 type Props = {
   businessId: string;
   subscription: SubscriptionRow | null;
-  monthlyPrice: number;
-  monthlyTitle: string;
+  plans: {
+    monthly: PlanConfig;
+    semester: PlanConfig;
+    annual: PlanConfig;
+  };
   loadError?: string | null;
   mercadoPagoConfigured: boolean;
   manualContact: ManualContactProps;
 };
 
 const PLAN_FEATURES = ["Punto de venta y caja", "Productos y stock", "Ventas e informes", "Actualizaciones incluidas"];
+
+const PLAN_UI: Record<
+  PlanKey,
+  {
+    name: string;
+    periodLabel: string;
+    badge: string;
+    accent: string;
+    ring: string;
+    surface: string;
+    button: string;
+    chip: string;
+    Icon: typeof Clock;
+  }
+> = {
+  monthly: {
+    name: "Mensual",
+    periodLabel: "Pago mes a mes",
+    badge: "Flexible",
+    accent: "text-sky-950 dark:text-sky-50",
+    ring: "border-sky-300/70 dark:border-sky-700/70",
+    surface:
+      "from-white via-sky-50/80 to-cyan-50/70 dark:from-slate-950 dark:via-sky-950/40 dark:to-cyan-950/30",
+    button: "bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400",
+    chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/70 dark:text-sky-100",
+    Icon: Clock,
+  },
+  semester: {
+    name: "6 meses",
+    periodLabel: "Ahorra y paga menos por mes",
+    badge: "Mas elegido",
+    accent: "text-emerald-950 dark:text-emerald-50",
+    ring: "border-emerald-300/80 dark:border-emerald-700/70",
+    surface:
+      "from-emerald-50 via-white to-teal-50 dark:from-emerald-950/45 dark:via-slate-950 dark:to-teal-950/35",
+    button: "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400",
+    chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-100",
+    Icon: BadgeCheck,
+  },
+  annual: {
+    name: "1 año",
+    periodLabel: "El mejor valor del año",
+    badge: "Mejor valor",
+    accent: "text-amber-950 dark:text-amber-50",
+    ring: "border-amber-300/80 dark:border-amber-700/70",
+    surface:
+      "from-amber-50 via-white to-orange-50 dark:from-amber-950/40 dark:via-slate-950 dark:to-orange-950/30",
+    button: "bg-amber-500 hover:bg-amber-600 dark:bg-amber-400 dark:hover:bg-amber-300 text-slate-950",
+    chip: "bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-100",
+    Icon: Crown,
+  },
+};
 
 function moneyAr(value: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -53,15 +120,14 @@ function moneyAr(value: number) {
 export function SubscriptionClient({
   businessId,
   subscription,
-  monthlyPrice,
-  monthlyTitle,
+  plans,
   loadError,
   mercadoPagoConfigured,
   manualContact,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loadingMonthly, setLoadingMonthly] = React.useState(false);
+  const [loadingPlan, setLoadingPlan] = React.useState<PlanKey | null>(null);
 
   const { mpAlias, phoneDisplay, whatsappDigits, cbu, transferHolder, transferNote } = manualContact;
   const hasManualDetails = Boolean(
@@ -124,17 +190,39 @@ export function SubscriptionClient({
       ? parseDbTimestamptzToDate(subscription.current_period_end)
       : null;
 
-  const onPayMonthly = async () => {
-    setLoadingMonthly(true);
+  const planCards = React.useMemo(() => {
+    const monthlyBase = plans.monthly.amount;
+
+    return ([plans.monthly, plans.semester, plans.annual] as const).map((plan) => {
+      const months = Math.max(1, Math.round(plan.days / 30));
+      const regularTotal = monthlyBase * months;
+      const savings = Math.max(0, regularTotal - plan.amount);
+      const discountPercent = regularTotal > 0 ? Math.round((savings / regularTotal) * 100) : 0;
+      const monthlyEquivalent = plan.amount / months;
+
+      return {
+        ...plan,
+        months,
+        regularTotal,
+        savings,
+        discountPercent,
+        monthlyEquivalent,
+        ui: PLAN_UI[plan.planKey],
+      };
+    });
+  }, [plans]);
+
+  const onPayPlan = async (planKey: PlanKey) => {
+    setLoadingPlan(planKey);
     try {
-      const res = await startMercadoPagoCheckout("monthly");
+      const res = await startMercadoPagoCheckout(planKey);
       if ("error" in res) {
         toast.error("No se pudo iniciar el pago", { description: res.error });
         return;
       }
       window.location.href = res.checkoutUrl;
     } finally {
-      setLoadingMonthly(false);
+      setLoadingPlan(null);
     }
   };
 
@@ -191,7 +279,8 @@ export function SubscriptionClient({
                         dateStyle: "medium",
                         timeStyle: "short",
                       })}
-                    </strong>.
+                    </strong>
+                    .
                   </p>
                   <div>
                     <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">
@@ -219,9 +308,8 @@ export function SubscriptionClient({
               <div className="rounded-2xl border border-destructive/25 bg-destructive/5 px-4 py-4">
                 <p className="font-medium text-destructive">Tu prueba termino</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Para seguir usando el punto de venta, productos e informes, activa tu{" "}
-                  <strong className="text-foreground">plan mensual</strong> por{" "}
-                  <strong className="text-foreground">{moneyAr(monthlyPrice)}</strong>.
+                  Para seguir usando el punto de venta, productos e informes, activa cualquiera de los planes
+                  disponibles y el acceso se reactivara en forma automatica.
                 </p>
               </div>
               <div className="flex gap-3 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.08] to-teal-500/[0.04] px-4 py-4 dark:from-emerald-400/10 dark:to-teal-500/5">
@@ -243,61 +331,113 @@ export function SubscriptionClient({
       <section className="space-y-4">
         <div className="text-center sm:text-left">
           <h3 className="text-sm font-semibold tracking-tight text-foreground">Activa tu plan</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Cobro mensual. El valor se toma de las variables de entorno del servidor.
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Elige la opcion que mejor se adapte a tu ritmo. Todos los planes incluyen las mismas funciones.
           </p>
         </div>
 
-        <div className="mx-auto w-full max-w-lg">
-          <div className="relative flex flex-col rounded-2xl border border-sky-200/80 bg-gradient-to-b from-sky-50/90 to-white px-6 pb-6 pt-8 text-center shadow-sm dark:border-sky-800/60 dark:from-sky-950/35 dark:to-zinc-900/90">
-            <h4 className="text-base font-bold text-sky-900 dark:text-sky-100">Plan mensual</h4>
-            <p className="mt-1 text-xs text-sky-700/80 dark:text-sky-300/80">{monthlyTitle}</p>
+        <div className="grid gap-4 lg:grid-cols-3">
+            {planCards.map((plan) => {
+              const isLoading = loadingPlan === plan.planKey;
+              const Icon = plan.ui.Icon;
 
-            <div className="mt-4 flex flex-col items-center gap-1">
-              <div className="flex flex-wrap items-baseline justify-center gap-x-1">
-                <span className="text-2xl font-bold tabular-nums leading-none text-sky-600 dark:text-sky-400">$</span>
-                <span className="text-4xl font-black tabular-nums tracking-tight text-sky-950 dark:text-sky-50">
-                  {monthlyPrice.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
-                </span>
-                <span className="ml-0.5 inline-flex items-center rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold uppercase leading-none tracking-wider text-sky-800 dark:bg-sky-900/70 dark:text-sky-100">
-                  ARS
-                </span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Pago mensual</p>
-            </div>
+              return (
+                <article
+                  key={plan.planKey}
+                  className={cn(
+                    "relative overflow-hidden rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] transition-transform duration-200",
+                    plan.ui.ring,
+                    plan.ui.surface,
+                    plan.planKey === "semester" ? "lg:-translate-y-3 lg:scale-[1.02]" : ""
+                  )}
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-70" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
+                          plan.ui.chip
+                        )}
+                      >
+                        {plan.ui.badge}
+                      </span>
+                      <h4 className={cn("mt-2 text-2xl font-black tracking-tight", plan.ui.accent)}>{plan.ui.name}</h4>
+                      <p className="mt-1 text-sm text-muted-foreground">{plan.periodLabel}</p>
+                    </div>
+                    <span className="inline-flex size-11 items-center justify-center rounded-2xl border border-white/50 bg-white/65 text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
+                      <Icon className="size-5" />
+                    </span>
+                  </div>
 
-            <ul className="mt-5 space-y-1.5 border-t border-sky-100 pt-4 text-left dark:border-sky-900/50">
-              {PLAN_FEATURES.map((f) => (
-                <li key={f} className="text-[11px] leading-snug text-sky-800/85 dark:text-sky-200/75">
-                  {f}
-                </li>
-              ))}
-            </ul>
+                  <div className="mt-6">
+                    <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+                      <span className={cn("text-4xl font-black tabular-nums tracking-tight", plan.ui.accent)}>
+                        {moneyAr(plan.amount)}
+                      </span>
+                      <span className="pb-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        total
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {plan.planKey === "monthly" ? (
+                        <>Renovacion mensual</>
+                      ) : (
+                        <>
+                          Equivale a <strong className="text-foreground">{moneyAr(plan.monthlyEquivalent)}</strong> por mes
+                        </>
+                      )}
+                    </p>
+                  </div>
 
-            <Button
-              type="button"
-              disabled={loadingMonthly}
-              onClick={() => {
-                if (!mercadoPagoConfigured) {
-                  document.getElementById("subscription-manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  return;
-                }
-                void onPayMonthly();
-              }}
-              className="mt-5 h-10 w-full rounded-lg bg-sky-600 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
-            >
-              {loadingMonthly ? (
-                <>
-                  <Loader2 className="mr-2 size-3.5 animate-spin" />
-                  Procesando...
-                </>
-              ) : mercadoPagoConfigured ? (
-                `Pagar ${moneyAr(monthlyPrice)}`
-              ) : (
-                "Ver opciones de pago"
-              )}
-            </Button>
-          </div>
+                  {plan.planKey !== "monthly" ? (
+                    <div className="mt-5 rounded-2xl border border-white/50 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ahorras</p>
+                      <p className="mt-1 text-lg font-bold text-foreground">
+                        {moneyAr(plan.savings)} <span className="text-sm font-medium text-muted-foreground">({plan.discountPercent}% off)</span>
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <ul className="mt-5 space-y-2 border-t border-white/50 pt-5 text-sm dark:border-white/10">
+                    {PLAN_FEATURES.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-foreground/85">
+                        <Gem className="size-3.5 text-[var(--pos-accent)]" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => {
+                      if (!mercadoPagoConfigured) {
+                        document.getElementById("subscription-manual")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        return;
+                      }
+                      void onPayPlan(plan.planKey);
+                    }}
+                    className={cn(
+                      "mt-6 h-11 w-full rounded-2xl text-sm font-semibold shadow-lg transition",
+                      plan.ui.button,
+                      plan.planKey === "annual" ? "shadow-amber-950/10" : "text-white"
+                    )}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        Procesando...
+                      </>
+                    ) : mercadoPagoConfigured ? (
+                      `Elegir ${plan.ui.name}`
+                    ) : (
+                      "Ver opciones de pago"
+                    )}
+                  </Button>
+                </article>
+              );
+            })}
         </div>
       </section>
 
@@ -329,7 +469,13 @@ export function SubscriptionClient({
                 <code className="min-w-0 flex-1 break-all rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-3 py-2.5 text-xs">
                   {businessId}
                 </code>
-                <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 gap-2 rounded-xl" onClick={copyBusinessId}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 shrink-0 gap-2 rounded-xl"
+                  onClick={copyBusinessId}
+                >
                   <Copy className="size-4" />
                   Copiar ID
                 </Button>
@@ -343,7 +489,13 @@ export function SubscriptionClient({
                     <div className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)]/80 p-4">
                       <p className="text-xs font-semibold text-muted-foreground">Mercado Pago / transferencia (alias)</p>
                       <p className="mt-1 font-mono text-sm font-medium">{mpAlias}</p>
-                      <Button type="button" variant="ghost" size="sm" className="mt-2 h-8 gap-1.5 px-2 text-xs" onClick={copyMpAlias}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 h-8 gap-1.5 px-2 text-xs"
+                        onClick={copyMpAlias}
+                      >
                         <Copy className="size-3.5" />
                         Copiar alias
                       </Button>

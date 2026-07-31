@@ -5,11 +5,12 @@ import { assertConfig } from "./config.js";
 import { requireApiKey } from "./middleware/auth.js";
 import { generateCsrAndKey, downloadCsr, uploadCertificate } from "./cert-service.js";
 import {
-  testConnection,
-  getLastVoucherNumber,
-  issueFacturaC,
-  issueCreditNoteC,
-} from "./afip-service.js";
+  getLastVoucherNumberWithArcaSdk,
+  issueFiscalDebitNoteWithArcaSdk,
+  issueFiscalVoucherWithArcaSdk,
+  issueFiscalCreditNoteWithArcaSdk,
+  testConnectionWithArcaSdk,
+} from "./arca-service.js";
 import { supabaseAdmin } from "./supabase.js";
 
 assertConfig();
@@ -73,8 +74,10 @@ app.post("/cert/upload", async (req, res) => {
 
 app.post("/auth/test", async (req, res) => {
   try {
-    const body = baseSchema.parse(req.body);
-    const result = await testConnection(body.businessId, body.environment);
+    const body = baseSchema.extend({
+      voucherType: z.number().optional(),
+    }).parse(req.body);
+    const result = await testConnectionWithArcaSdk(body.businessId, body.environment, body.voucherType);
     await supabaseAdmin
       .from("business_fiscal_config")
       .update({ last_sync_at: new Date().toISOString() })
@@ -91,7 +94,7 @@ app.get("/voucher/last-number", async (req, res) => {
     const environment = String(req.query.environment ?? "homolog") as "homolog" | "prod";
     const voucherType = Number(req.query.voucherType ?? 11);
     if (!businessId) throw new Error("businessId requerido");
-    const result = await getLastVoucherNumber(businessId, environment, voucherType);
+    const result = await getLastVoucherNumberWithArcaSdk(businessId, environment, voucherType);
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : "Error" });
@@ -109,12 +112,13 @@ app.post("/voucher/issue", async (req, res) => {
           unitPrice: z.number().nonnegative(),
         })
       ).min(1),
+      voucherType: z.number().optional(),
       buyerDocType: z.number().optional(),
       buyerDocNumber: z.string().optional(),
       buyerName: z.string().optional(),
       concept: z.number().optional(),
     }).parse(req.body);
-    const result = await issueFacturaC(body);
+    const result = await issueFiscalVoucherWithArcaSdk(body);
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : "Error" });
@@ -126,7 +130,26 @@ app.post("/voucher/credit-note", async (req, res) => {
     const body = baseSchema.extend({
       originalVoucherId: z.string().uuid(),
     }).parse(req.body);
-    const result = await issueCreditNoteC(body);
+    const result = await issueFiscalCreditNoteWithArcaSdk(body);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : "Error" });
+  }
+});
+
+app.post("/voucher/debit-note", async (req, res) => {
+  try {
+    const body = baseSchema.extend({
+      originalVoucherId: z.string().uuid(),
+      items: z.array(
+        z.object({
+          name: z.string().min(1),
+          quantity: z.number().positive(),
+          unitPrice: z.number().positive(),
+        })
+      ).min(1),
+    }).parse(req.body);
+    const result = await issueFiscalDebitNoteWithArcaSdk(body);
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : "Error" });

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { normalizeBusinessType } from "@/lib/business-types";
+import type { ScaleBarcodeMode } from "@/lib/scale-barcode";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,6 +24,9 @@ async function updateBusinessInfoImpl(formData: FormData) {
   const cuit = String(formData.get("cuit") ?? "").trim();
   const ticket_header = String(formData.get("ticket_header") ?? "").trim();
   const ticket_footer = String(formData.get("ticket_footer") ?? "").trim();
+  const scaleBarcodeModeRaw = String(formData.get("scale_barcode_mode") ?? "weight").trim().toLowerCase();
+  const scale_barcode_mode: ScaleBarcodeMode =
+    scaleBarcodeModeRaw === "price" || scaleBarcodeModeRaw === "both" ? scaleBarcodeModeRaw : "weight";
   const gastronomy_counter_enabled = formData.get("gastronomy_counter_enabled") === "on";
   const gastronomy_delivery_enabled = formData.get("gastronomy_delivery_enabled") === "on";
   const gastronomy_tables_enabled = formData.get("gastronomy_tables_enabled") === "on";
@@ -40,6 +44,7 @@ async function updateBusinessInfoImpl(formData: FormData) {
     .update({
       name,
       business_type,
+      scale_barcode_mode,
       gastronomy_counter_enabled,
       gastronomy_delivery_enabled,
       gastronomy_tables_enabled,
@@ -544,6 +549,40 @@ export const createBusinessUser = createMonitoredAction(createBusinessUserImpl, 
 export const restoreBusinessUser = createMonitoredAction(restoreBusinessUserImpl, "settings/restoreBusinessUser");
 export const updateBusinessUser = createMonitoredAction(updateBusinessUserImpl, "settings/updateBusinessUser");
 export const removeBusinessUser = createMonitoredAction(removeBusinessUserImpl, "settings/removeBusinessUser");
+
+async function updateScaleBarcodeModeImpl(formData: FormData) {
+  const cookieStore = await cookies();
+  const businessId = cookieStore.get("active_business_id")?.value;
+  if (!businessId) {
+    return { error: "No hay negocio activo" } as const;
+  }
+
+  const scaleBarcodeModeRaw = String(formData.get("scale_barcode_mode") ?? "weight").trim().toLowerCase();
+  const scale_barcode_mode: ScaleBarcodeMode =
+    scaleBarcodeModeRaw === "price" || scaleBarcodeModeRaw === "both" ? scaleBarcodeModeRaw : "weight";
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      scale_barcode_mode,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", businessId);
+
+  if (error) {
+    return { error: error.message } as const;
+  }
+
+  revalidatePath("/app/settings");
+  revalidatePath("/app/pos");
+  return { success: true } as const;
+}
+
+export const updateScaleBarcodeMode = createMonitoredAction(
+  updateScaleBarcodeModeImpl,
+  "settings/updateScaleBarcodeMode"
+);
 
 async function createQuickSaleCategoryImpl(formData: FormData) {
   const cookieStore = await cookies();

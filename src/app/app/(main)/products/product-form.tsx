@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import type { BusinessType } from "@/lib/business-types";
 import { createClient } from "@/lib/supabase/browser";
 import { generateInternalEan13, INTERNAL_PRODUCT_DEFAULTS } from "@/lib/internal-barcode";
+import { normalizeScaleCode } from "@/lib/scale-barcode";
 import { cn } from "@/lib/utils";
 
 type ProductDefaults = {
@@ -127,6 +128,7 @@ export function ProductForm({
 
   const [soldByWeight, setSoldByWeight] = React.useState(Boolean(defaults?.sold_by_weight) && !catalogStyle);
   const [barcodeInput, setBarcodeInput] = React.useState<string>(defaults?.barcode ?? "");
+  const [scaleCodeInput, setScaleCodeInput] = React.useState<string>(defaults?.scale_code ?? "");
   const [nameInput, setNameInput] = React.useState<string>(defaults?.name ?? "");
   const [categoryInput, setCategoryInput] = React.useState<string>(defaults?.category ?? "");
   const [sizeInput, setSizeInput] = React.useState<string>(defaults?.size ?? "");
@@ -162,6 +164,10 @@ export function ProductForm({
       setSoldByWeight(false);
     }
   }, [catalogStyle, soldByWeight]);
+
+  React.useEffect(() => {
+    setScaleCodeInput(defaults?.scale_code ?? "");
+  }, [defaults?.scale_code]);
 
   const preloadSuggestedPrice = React.useMemo(() => {
     if (!preload) return null;
@@ -520,9 +526,11 @@ export function ProductForm({
               <Input
                 id="scale_code"
                 name="scale_code"
-                defaultValue={defaults?.scale_code ?? ""}
+                value={scaleCodeInput}
+                onChange={(e) => setScaleCodeInput(e.target.value)}
+                onBlur={() => setScaleCodeInput((current) => normalizeScaleCode(current) ?? current.trim())}
                 disabled={!soldByWeight}
-                placeholder={soldByWeight ? "Ej: 201" : "Solo para pesables"}
+                placeholder={soldByWeight ? "Ej: 00041" : "Solo para pesables"}
               />
             </div>
           ) : null}

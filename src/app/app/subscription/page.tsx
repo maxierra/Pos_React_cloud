@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { getPlanConfig } from "@/app/app/subscription/actions";
+import { getAllPlansConfig } from "@/app/app/subscription/actions";
 import { SubscriptionClient } from "@/app/app/subscription/subscription-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +28,7 @@ export default async function SubscriptionPage() {
   const businessId = cookieStore.get("active_business_id")?.value;
   const manualContact = manualContactFromEnv();
   const mercadoPagoConfigured = Boolean((process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim());
-  const monthlyPlan = await getPlanConfig("monthly");
+  const plans = await getAllPlansConfig();
 
   if (!businessId) {
     return (
@@ -74,8 +74,9 @@ export default async function SubscriptionPage() {
               suscripcion
             </span>
           </h1>
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Gestiona tu prueba gratis y activa tu plan mensual con Mercado Pago segun la configuracion del entorno.
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Gestiona tu prueba gratis y activa el plan que mejor se adapte a tu negocio. Puedes ofrecer pago
+            mensual, semestral o anual con descuentos por pago anticipado.
           </p>
         </header>
 
@@ -90,8 +91,7 @@ export default async function SubscriptionPage() {
             <SubscriptionClient
               businessId={businessId}
               subscription={subscription}
-              monthlyPrice={monthlyPlan.amount}
-              monthlyTitle={monthlyPlan.title}
+              plans={plans}
               loadError={subErrorMessage ?? null}
               mercadoPagoConfigured={mercadoPagoConfigured}
               manualContact={manualContact}

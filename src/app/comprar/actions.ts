@@ -2,7 +2,7 @@
 
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
-import { getAppBaseUrl } from "@/lib/app-base-url";
+import { getAppBaseUrl, isLocalAppOrigin } from "@/lib/app-base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStoreProductBySku } from "@/lib/store-products";
 import { normalizeBusinessType } from "@/lib/business-types";
@@ -122,12 +122,34 @@ export async function startStoreCheckout(
   const orderId = (order as { id: string }).id;
   const base = getAppBaseUrl();
   const notificationUrl = `${base}/api/webhooks/mercadopago`;
+  const shouldUseAutoReturn = !isLocalAppOrigin(base);
   const currency = (process.env.MERCADOPAGO_PLAN_CURRENCY ?? "ARS").trim().toUpperCase();
 
   const client = new MercadoPagoConfig({ accessToken: token });
   const preference = new Preference(client);
 
-  const body = {
+  const body: {
+    items: Array<{
+      id: string;
+      title: string;
+      quantity: number;
+      currency_id: string;
+      unit_price: number;
+    }>;
+    external_reference: string;
+    metadata: {
+      order_type: string;
+      product_sku: string;
+      store_order_id: string;
+    };
+    notification_url: string;
+    back_urls: {
+      success: string;
+      pending: string;
+      failure: string;
+    };
+    auto_return?: "approved";
+  } = {
     items: [
       {
         id: product.sku,
@@ -149,8 +171,11 @@ export async function startStoreCheckout(
       pending: `${base}/comprar/exito?order=${orderId}&mp=pending`,
       failure: `${base}/comprar/exito?order=${orderId}&mp=failure`,
     },
-    auto_return: "approved" as const,
   };
+
+  if (shouldUseAutoReturn) {
+    body.auto_return = "approved";
+  }
 
   try {
     const res = await preference.create({ body });

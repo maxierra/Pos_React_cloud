@@ -9,8 +9,13 @@ export type VoucherItem = {
   unitPrice: number;
 };
 
+const VOUCHER_TYPE_FACTURA_B = 6;
+const VOUCHER_TYPE_NC_B = 8;
 const VOUCHER_TYPE_FACTURA_C = 11;
 const VOUCHER_TYPE_NC_C = 13;
+
+type SupportedFacturaType = 6 | 11;
+type SupportedCreditNoteType = 8 | 13;
 
 function formatAfipDate(d: Date): string {
   return d.toISOString().slice(0, 10).replace(/-/g, "");
@@ -18,6 +23,51 @@ function formatAfipDate(d: Date): string {
 
 function formatAfipDateDisplay(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function voucherTypeLabel(voucherType: number) {
+  switch (voucherType) {
+    case VOUCHER_TYPE_FACTURA_B:
+      return "Factura B";
+    case VOUCHER_TYPE_NC_B:
+      return "Nota de Credito B";
+    case VOUCHER_TYPE_FACTURA_C:
+      return "Factura C";
+    case VOUCHER_TYPE_NC_C:
+      return "Nota de Credito C";
+    default:
+      return `Comprobante ${voucherType}`;
+  }
+}
+
+function assertSupportedFacturaType(voucherType?: number): SupportedFacturaType {
+  if (voucherType === VOUCHER_TYPE_FACTURA_B || voucherType === VOUCHER_TYPE_FACTURA_C) {
+    return voucherType;
+  }
+  return VOUCHER_TYPE_FACTURA_C;
+}
+
+function creditNoteTypeForInvoiceType(voucherType: number): SupportedCreditNoteType {
+  if (voucherType === VOUCHER_TYPE_FACTURA_B) return VOUCHER_TYPE_NC_B;
+  if (voucherType === VOUCHER_TYPE_FACTURA_C) return VOUCHER_TYPE_NC_C;
+  throw new Error("Solo se soportan NC B y NC C en esta version");
+}
+
+function receiverVatConditionForVoucherType(voucherType: SupportedFacturaType | SupportedCreditNoteType) {
+  return voucherType === VOUCHER_TYPE_FACTURA_B || voucherType === VOUCHER_TYPE_NC_B ? 5 : 5;
+}
+
+function digitsOnly(value: string | number) {
+  return String(value).replace(/\D/g, "");
+}
+
+function toQrNumber(value: string | number) {
+  const normalized = typeof value === "number" ? value : Number(digitsOnly(value) || "0");
+  return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function roundQrAmount(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 async function getAfipClient(businessId: string, environment: FiscalEnvironment) {
@@ -40,8 +90,8 @@ async function getFiscalConfig(businessId: string) {
     .select("*")
     .eq("business_id", businessId)
     .maybeSingle();
-  if (error || !data) throw new Error("Configuración fiscal no encontrada");
-  if (!data.is_active) throw new Error("Facturación electrónica no está activa");
+  if (error || !data) throw new Error("Configuracion fiscal no encontrada");
+  if (!data.is_active) throw new Error("Facturacion electronica no esta activa");
   return data;
 }
 
@@ -57,11 +107,12 @@ async function getDefaultPos(businessId: string, environment: FiscalEnvironment)
   return data;
 }
 
-export async function testConnection(businessId: string, environment: FiscalEnvironment) {
+export async function testConnection(businessId: string, environment: FiscalEnvironment, voucherType?: number) {
   const { afip } = await getAfipClient(businessId, environment);
   const pos = await getDefaultPos(businessId, environment);
-  const last = await afip.ElectronicBilling.getLastVoucher(pos.pos_number, VOUCHER_TYPE_FACTURA_C);
-  return { ok: true, lastVoucherNumber: last, posNumber: pos.pos_number };
+  const supportedType = assertSupportedFacturaType(voucherType);
+  const last = await afip.ElectronicBilling.getLastVoucher(pos.pos_number, supportedType);
+  return { ok: true, lastVoucherNumber: last, posNumber: pos.pos_number, voucherType: supportedType };
 }
 
 export async function getLastVoucherNumber(
@@ -71,8 +122,9 @@ export async function getLastVoucherNumber(
 ) {
   const { afip } = await getAfipClient(businessId, environment);
   const pos = await getDefaultPos(businessId, environment);
-  const last = await afip.ElectronicBilling.getLastVoucher(pos.pos_number, voucherType);
-  return { lastVoucherNumber: last, posNumber: pos.pos_number, voucherType };
+  const supportedType = assertSupportedFacturaType(voucherType);
+  const last = await afip.ElectronicBilling.getLastVoucher(pos.pos_number, supportedType);
+  return { lastVoucherNumber: last, posNumber: pos.pos_number, voucherType: supportedType };
 }
 
 function buildQrPayload(params: {
@@ -87,47 +139,43 @@ function buildQrPayload(params: {
   buyerDocNumber: string;
   environment: FiscalEnvironment;
 }) {
-  const ver = 1;
-  const fecha = params.issueDate.replace(/-/g, "");
-  const cuitNum = Number(params.cuit.replace(/\D/g, ""));
-  const data = {
-    ver,
-    fecha,
-    cuit: cuitNum,
+  const numericBuyerDoc = toQrNumber(params.buyerDocNumber || "0");
+  const data: Record<string, string | number> = {
+    ver: 1,
+    fecha: params.issueDate,
+    cuit: toQrNumber(params.cuit),
     ptoVta: params.posNumber,
     tipoCmp: params.voucherType,
     nroCmp: params.voucherNumber,
-    importe: params.total,
+    importe: roundQrAmount(params.total),
     moneda: "PES",
     ctz: 1,
     tipoDocRec: params.buyerDocType,
-    nroDocRec: Number(params.buyerDocNumber.replace(/\D/g, "") || 0),
+    nroDocRec: numericBuyerDoc,
     tipoCodAut: "E",
-    codAut: Number(params.cae),
+    codAut: toQrNumber(params.cae),
   };
-  const json = JSON.stringify(data);
-  const base64 = Buffer.from(json, "utf8").toString("base64");
-  const url = params.environment === "prod"
-    ? "https://www.afip.gob.ar/fe/qr/"
-    : "https://www.afip.gob.ar/fe/qr/";
-  return `${url}?p=${base64}`;
+  const base64 = Buffer.from(JSON.stringify(data), "utf8").toString("base64");
+  return `https://www.afip.gob.ar/fe/qr/?p=${base64}`;
 }
 
-export async function issueFacturaC(params: {
+export async function issueFiscalVoucher(params: {
   businessId: string;
   environment: FiscalEnvironment;
   saleId?: string | null;
   items: VoucherItem[];
+  voucherType?: number;
   buyerDocType?: number;
   buyerDocNumber?: string;
   buyerName?: string;
   concept?: number;
 }) {
-  const config = await getFiscalConfig(params.businessId);
+  const fiscalConfig = await getFiscalConfig(params.businessId);
   const { afip, cuit } = await getAfipClient(params.businessId, params.environment);
   const pos = await getDefaultPos(params.businessId, params.environment);
+  const voucherType = assertSupportedFacturaType(params.voucherType ?? fiscalConfig.default_voucher_type);
 
-  const total = params.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const total = params.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const roundedTotal = Math.round(total * 100) / 100;
   const now = new Date();
   const issueDate = formatAfipDateDisplay(now);
@@ -137,7 +185,7 @@ export async function issueFacturaC(params: {
   const voucherData = {
     CantReg: 1,
     PtoVta: pos.pos_number,
-    CbteTipo: VOUCHER_TYPE_FACTURA_C,
+    CbteTipo: voucherType,
     Concepto: params.concept ?? 1,
     DocTipo: buyerDocType,
     DocNro: Number(buyerDocNumber.replace(/\D/g, "") || 0),
@@ -152,7 +200,7 @@ export async function issueFacturaC(params: {
     ImpTrib: 0,
     MonId: "PES",
     MonCotiz: 1,
-    CondicionIVAReceptorId: 5,
+    CondicionIVAReceptorId: receiverVatConditionForVoucherType(voucherType),
   };
 
   const result = await afip.ElectronicBilling.createNextVoucher(voucherData);
@@ -163,7 +211,7 @@ export async function issueFacturaC(params: {
 
   const qrPayload = buildQrPayload({
     cuit,
-    voucherType: VOUCHER_TYPE_FACTURA_C,
+    voucherType,
     posNumber: pos.pos_number,
     voucherNumber,
     issueDate,
@@ -174,13 +222,13 @@ export async function issueFacturaC(params: {
     environment: params.environment,
   });
 
-  const { data: voucher, error: vErr } = await supabaseAdmin
+  const { data: voucher, error: voucherError } = await supabaseAdmin
     .from("fiscal_vouchers")
     .insert({
       business_id: params.businessId,
       environment: params.environment,
       sale_id: params.saleId ?? null,
-      voucher_type: VOUCHER_TYPE_FACTURA_C,
+      voucher_type: voucherType,
       pos_number: pos.pos_number,
       voucher_number: voucherNumber,
       concept: params.concept ?? 1,
@@ -193,12 +241,12 @@ export async function issueFacturaC(params: {
       cae_expires_at: caeExpiresAt,
       afip_result: result,
       status: "approved",
-      billing_mode: config.billing_mode,
+      billing_mode: fiscalConfig.billing_mode,
       qr_payload: qrPayload,
     })
     .select("id")
     .single();
-  if (vErr) throw new Error(`Error guardando comprobante: ${vErr.message}`);
+  if (voucherError) throw new Error(`Error guardando comprobante: ${voucherError.message}`);
 
   const itemRows = params.items.map((item) => ({
     voucher_id: voucher.id,
@@ -215,7 +263,7 @@ export async function issueFacturaC(params: {
     .update({
       last_authorized_numbers: {
         ...(pos.last_authorized_numbers as Record<string, number>),
-        [String(VOUCHER_TYPE_FACTURA_C)]: voucherNumber,
+        [String(voucherType)]: voucherNumber,
       },
       updated_at: new Date().toISOString(),
     })
@@ -223,8 +271,8 @@ export async function issueFacturaC(params: {
 
   return {
     voucherId: voucher.id,
-    voucherType: VOUCHER_TYPE_FACTURA_C,
-    voucherTypeLabel: "Factura C",
+    voucherType,
+    voucherTypeLabel: voucherTypeLabel(voucherType),
     posNumber: pos.pos_number,
     voucherNumber,
     cae,
@@ -234,21 +282,21 @@ export async function issueFacturaC(params: {
   };
 }
 
-export async function issueCreditNoteC(params: {
+export async function issueFiscalCreditNote(params: {
   businessId: string;
   environment: FiscalEnvironment;
   originalVoucherId: string;
 }) {
-  const { data: original, error: oErr } = await supabaseAdmin
+  const { data: original, error: originalError } = await supabaseAdmin
     .from("fiscal_vouchers")
     .select("*, fiscal_voucher_items(*)")
     .eq("id", params.originalVoucherId)
     .eq("business_id", params.businessId)
     .maybeSingle();
-  if (oErr || !original) throw new Error("Comprobante original no encontrado");
+  if (originalError || !original) throw new Error("Comprobante original no encontrado");
   if (original.status !== "approved") throw new Error("Solo se puede emitir NC sobre comprobantes aprobados");
-  if (original.voucher_type !== VOUCHER_TYPE_FACTURA_C) throw new Error("Solo NC C sobre Factura C en Fase 1");
 
+  const creditNoteType = creditNoteTypeForInvoiceType(original.voucher_type);
   const { afip, cuit } = await getAfipClient(params.businessId, params.environment);
   const pos = await getDefaultPos(params.businessId, params.environment);
   const total = Number(original.total);
@@ -258,7 +306,7 @@ export async function issueCreditNoteC(params: {
   const voucherData = {
     CantReg: 1,
     PtoVta: pos.pos_number,
-    CbteTipo: VOUCHER_TYPE_NC_C,
+    CbteTipo: creditNoteType,
     Concepto: original.concept,
     DocTipo: original.buyer_doc_type,
     DocNro: Number(String(original.buyer_doc_number).replace(/\D/g, "") || 0),
@@ -273,7 +321,7 @@ export async function issueCreditNoteC(params: {
     ImpTrib: 0,
     MonId: "PES",
     MonCotiz: 1,
-    CondicionIVAReceptorId: 5,
+    CondicionIVAReceptorId: receiverVatConditionForVoucherType(creditNoteType),
     CbtesAsoc: [
       {
         Tipo: original.voucher_type,
@@ -292,7 +340,7 @@ export async function issueCreditNoteC(params: {
 
   const qrPayload = buildQrPayload({
     cuit,
-    voucherType: VOUCHER_TYPE_NC_C,
+    voucherType: creditNoteType,
     posNumber: pos.pos_number,
     voucherNumber,
     issueDate,
@@ -303,13 +351,13 @@ export async function issueCreditNoteC(params: {
     environment: params.environment,
   });
 
-  const { data: nc, error: ncErr } = await supabaseAdmin
+  const { data: creditNote, error: creditNoteError } = await supabaseAdmin
     .from("fiscal_vouchers")
     .insert({
       business_id: params.businessId,
       environment: params.environment,
       sale_id: original.sale_id,
-      voucher_type: VOUCHER_TYPE_NC_C,
+      voucher_type: creditNoteType,
       pos_number: pos.pos_number,
       voucher_number: voucherNumber,
       concept: original.concept,
@@ -327,7 +375,7 @@ export async function issueCreditNoteC(params: {
     })
     .select("id")
     .single();
-  if (ncErr) throw new Error(`Error guardando NC: ${ncErr.message}`);
+  if (creditNoteError) throw new Error(`Error guardando NC: ${creditNoteError.message}`);
 
   const items = (original.fiscal_voucher_items ?? []) as Array<{
     name: string;
@@ -338,7 +386,7 @@ export async function issueCreditNoteC(params: {
   if (items.length) {
     await supabaseAdmin.from("fiscal_voucher_items").insert(
       items.map((item) => ({
-        voucher_id: nc.id,
+        voucher_id: creditNote.id,
         business_id: params.businessId,
         name: item.name,
         quantity: item.quantity,
@@ -349,7 +397,7 @@ export async function issueCreditNoteC(params: {
   }
 
   await supabaseAdmin.from("fiscal_voucher_links").insert({
-    credit_note_id: nc.id,
+    credit_note_id: creditNote.id,
     original_voucher_id: original.id,
     associated_voucher_type: original.voucher_type,
     associated_pos_number: original.pos_number,
@@ -362,9 +410,9 @@ export async function issueCreditNoteC(params: {
     .eq("id", original.id);
 
   return {
-    voucherId: nc.id,
-    voucherType: VOUCHER_TYPE_NC_C,
-    voucherTypeLabel: "Nota de Crédito C",
+    voucherId: creditNote.id,
+    voucherType: creditNoteType,
+    voucherTypeLabel: voucherTypeLabel(creditNoteType),
     posNumber: pos.pos_number,
     voucherNumber,
     cae,
@@ -374,4 +422,9 @@ export async function issueCreditNoteC(params: {
   };
 }
 
-export { VOUCHER_TYPE_FACTURA_C, VOUCHER_TYPE_NC_C };
+export {
+  VOUCHER_TYPE_FACTURA_B,
+  VOUCHER_TYPE_NC_B,
+  VOUCHER_TYPE_FACTURA_C,
+  VOUCHER_TYPE_NC_C,
+};

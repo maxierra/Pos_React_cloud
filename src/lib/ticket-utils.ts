@@ -1,10 +1,16 @@
 "use client";
 
+import * as React from "react";
+import QRCode from "react-qr-code";
+import { renderToStaticMarkup } from "react-dom/server";
+
 export type PosBusinessInfo = {
   name: string;
   address: string | null;
   phone: string | null;
   cuit: string | null;
+  iibb: string | null;
+  activity_start_date: string | null;
   ticket_header: string | null;
   ticket_footer: string | null;
 } | null;
@@ -69,6 +75,19 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+function buildQrMarkup(payload: string | null | undefined) {
+  if (!payload) return "";
+  return renderToStaticMarkup(
+    React.createElement(QRCode, {
+      value: payload,
+      size: 118,
+      bgColor: "#FFFFFF",
+      fgColor: "#111111",
+      level: "M",
+    })
+  );
+}
+
 export function getPaymentMethodLabel(method: string, custom?: Record<string, string>) {
   if (method === "mixed") return "Mixto";
   if (custom?.[method]) return custom[method]!;
@@ -105,8 +124,11 @@ export function formatSaleTicketPlainText(data: TicketData): string {
     promotion,
   } = data;
   const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
-  const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
-  const idValue = (saleId || movementId || "").slice(0, 8);
+  const fiscalNumber = data.fiscal
+    ? `${String(data.fiscal.posNumber).padStart(4, "0")}-${String(data.fiscal.voucherNumber).padStart(8, "0")}`
+    : null;
+  const idLabel = data.fiscal ? "Comprobante" : kind === "sale" ? "Ticket" : "Movimiento";
+  const idValue = fiscalNumber ?? (saleId || movementId || "").slice(0, 8);
   const lines: string[] = ["***"];
 
   lines.push((business?.name ?? "Mi Negocio").toUpperCase());
@@ -226,8 +248,12 @@ export function generateTicketHtml(data: TicketData) {
   const baseTotal = promo ? promo.total_before : total;
   const finalTotal = promo ? promo.total_after : total;
   const change = cashReceived ? Math.max(0, cashReceived - finalTotal) : 0;
-  const idLabel = kind === "sale" ? "Ticket" : "Movimiento";
-  const idValue = (saleId || movementId || "").slice(0, 8);
+  const fiscalNumber = fiscal
+    ? `${String(fiscal.posNumber).padStart(4, "0")}-${String(fiscal.voucherNumber).padStart(8, "0")}`
+    : null;
+  const idLabel = fiscal ? "Comprobante" : kind === "sale" ? "Ticket" : "Movimiento";
+  const idValue = fiscalNumber ?? (saleId || movementId || "").slice(0, 8);
+  const qrMarkup = buildQrMarkup(fiscal?.qrPayload);
 
   return `<!doctype html><html><head><meta charset="utf-8" /><title>Ticket</title>
   <style>
@@ -355,8 +381,9 @@ export function generateTicketHtml(data: TicketData) {
         <div>CAE: ${escapeHtml(fiscal.cae)}</div>
         <div>Vto CAE: ${escapeHtml(fiscal.caeExpiresAt)}</div>
         ${
-          fiscal.qrPayload
-            ? `<div style="margin-top:6px;font-size:9px;word-break:break-all;">Verificar: ${escapeHtml(fiscal.qrPayload)}</div>`
+          qrMarkup
+            ? `<div style="margin-top:8px;display:flex;justify-content:center;">${qrMarkup}</div>
+               <div style="margin-top:4px;font-size:9px;font-weight:bold;">QR fiscal ARCA</div>`
             : ""
         }
       </div>

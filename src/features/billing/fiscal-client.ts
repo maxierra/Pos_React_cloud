@@ -3,6 +3,12 @@ import type { IssueVoucherResult } from "./types";
 const FISCAL_API_URL = process.env.FISCAL_API_URL ?? "http://localhost:3099";
 const FISCAL_API_KEY = process.env.FISCAL_API_KEY ?? "";
 
+function redactToken(token: string): string {
+  if (!token) return "(empty)";
+  if (token.length <= 8) return `${token.slice(0, 2)}***`;
+  return `${token.slice(0, 4)}***${token.slice(-4)}`;
+}
+
 type FiscalEnvironment = "homolog" | "prod";
 
 function fiscalConnectionError(cause: unknown): Error {
@@ -30,6 +36,12 @@ async function fiscalFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
   let res: Response;
   try {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[fiscal-client] request", {
+        url: `${FISCAL_API_URL}${path}`,
+        token: redactToken(FISCAL_API_KEY),
+      });
+    }
     res = await fetch(`${FISCAL_API_URL}${path}`, {
       ...init,
       headers: {
@@ -77,6 +89,7 @@ export async function uploadFiscalCertificate(params: {
 export async function testFiscalConnection(params: {
   businessId: string;
   environment: FiscalEnvironment;
+  voucherType?: number;
 }) {
   return fiscalFetch<{ ok: boolean; lastVoucherNumber: number; posNumber: number }>("/auth/test", {
     method: "POST",
@@ -104,6 +117,7 @@ export async function issueFiscalVoucher(params: {
   environment: FiscalEnvironment;
   saleId?: string | null;
   items: Array<{ name: string; quantity: number; unitPrice: number }>;
+  voucherType?: number;
   buyerDocType?: number;
   buyerDocNumber?: string;
   buyerName?: string;
@@ -121,6 +135,18 @@ export async function issueFiscalCreditNote(params: {
   originalVoucherId: string;
 }): Promise<IssueVoucherResult> {
   return fiscalFetch<IssueVoucherResult>("/voucher/credit-note", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function issueFiscalDebitNote(params: {
+  businessId: string;
+  environment: FiscalEnvironment;
+  originalVoucherId: string;
+  items: Array<{ name: string; quantity: number; unitPrice: number }>;
+}): Promise<IssueVoucherResult> {
+  return fiscalFetch<IssueVoucherResult>("/voucher/debit-note", {
     method: "POST",
     body: JSON.stringify(params),
   });

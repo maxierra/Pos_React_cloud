@@ -63,3 +63,21 @@ export function getAppBaseUrl(): string {
 
   return "http://localhost:3000";
 }
+
+export function isLocalAppOrigin(origin: string): boolean {
+  const normalized = normalizeAppOrigin(origin);
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase();
+
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.startsWith("192.168.") ||
+      host.startsWith("10.")
+    );
+  } catch {
+    return false;
+  }
+}

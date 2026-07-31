@@ -5,7 +5,15 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { issueFiscalVoucher } from "@/features/billing/fiscal-client";
-import type { FiscalVoucher, IssueVoucherResult } from "@/features/billing/types";
+import type { FiscalCustomerData, FiscalVoucher, IssueVoucherResult, TaxCondition } from "@/features/billing/types";
+import { defaultFiscalVoucherTypeForTaxCondition } from "@/features/billing/types";
+
+function fiscalDocumentTypeToAfipCode(customer?: FiscalCustomerData | null) {
+  if (!customer) return undefined;
+  if (customer.documentType === "cuit") return 80;
+  if (customer.documentType === "dni") return 96;
+  return undefined;
+}
 
 async function getBusinessId() {
   const businessId = (await cookies()).get("active_business_id")?.value;
@@ -17,6 +25,7 @@ export async function emitFiscalVoucherForSale(params: {
   saleId: string;
   items: Array<{ name: string; quantity: number; unitPrice: number }>;
   concept?: number;
+  fiscalCustomer?: FiscalCustomerData | null;
 }): Promise<IssueVoucherResult | null> {
   const businessId = await getBusinessId();
   const supabase = await createClient();
@@ -30,9 +39,10 @@ export async function emitFiscalVoucherForSale(params: {
   if (!config?.is_active || config.billing_mode !== "per_sale") {
     return null;
   }
-  if (config.tax_condition !== "monotributo") {
-    throw new Error("Responsable Inscripto disponible en Fase 3");
-  }
+  const taxCondition = (config.tax_condition as TaxCondition | null) ?? "monotributo";
+  const defaultVoucherType =
+    Number((config as { default_voucher_type?: number | null }).default_voucher_type) ||
+    defaultFiscalVoucherTypeForTaxCondition(taxCondition);
 
   try {
     const result = await issueFiscalVoucher({
@@ -40,6 +50,10 @@ export async function emitFiscalVoucherForSale(params: {
       environment: config.environment as "homolog" | "prod",
       saleId: params.saleId,
       items: params.items,
+      voucherType: defaultVoucherType,
+      buyerDocType: fiscalDocumentTypeToAfipCode(params.fiscalCustomer),
+      buyerDocNumber: params.fiscalCustomer?.documentNumber,
+      buyerName: params.fiscalCustomer?.name,
       concept: params.concept ?? 1,
     });
     revalidatePath("/app/facturacion");
@@ -49,10 +63,12 @@ export async function emitFiscalVoucherForSale(params: {
       business_id: businessId,
       environment: config.environment,
       sale_id: params.saleId,
-      voucher_type: 11,
+      voucher_type: defaultVoucherType,
       pos_number: 0,
       voucher_number: 0,
       issue_date: new Date().toISOString().slice(0, 10),
+      buyer_name: params.fiscalCustomer?.name ?? null,
+      buyer_doc_number: params.fiscalCustomer?.documentNumber ?? "",
       total: params.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0),
       status: "rejected",
       rejection_reason: e instanceof Error ? e.message : "Error AFIP",

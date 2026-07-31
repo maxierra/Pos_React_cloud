@@ -15,12 +15,16 @@ export default async function SettingsPage() {
   let canEditPaymentMethods = false;
   let mercadoPagoPosExternalId: string | null = null;
   let mercadoPagoQrReady = false;
+  const fiscalConfigured = Boolean(
+    (process.env.FISCAL_API_URL ?? "").trim() && (process.env.FISCAL_API_KEY ?? "").trim()
+  );
 
   let fiscalSettings: Awaited<ReturnType<typeof getFiscalSettings>> | null = null;
 
   let business: {
     name: string;
     business_type: string;
+    scale_barcode_mode: "weight" | "price" | "both";
     gastronomy_counter_enabled: boolean;
     gastronomy_delivery_enabled: boolean;
     gastronomy_tables_enabled: boolean;
@@ -40,7 +44,7 @@ export default async function SettingsPage() {
     const { data } = await supabase
       .from("businesses")
       .select(
-        "name,business_type,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,report_daily_enabled,report_daily_email,report_daily_time,mercadopago_pos_external_id"
+        "name,business_type,scale_barcode_mode,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,report_daily_enabled,report_daily_email,report_daily_time,mercadopago_pos_external_id"
       )
       .eq("id", businessId)
       .single();
@@ -49,6 +53,7 @@ export default async function SettingsPage() {
       const typedBusiness = data as {
         name: string;
         business_type: string;
+        scale_barcode_mode: "weight" | "price" | "both";
         gastronomy_counter_enabled: boolean;
         gastronomy_delivery_enabled: boolean;
         gastronomy_tables_enabled: boolean;
@@ -141,6 +146,7 @@ export default async function SettingsPage() {
           mercadoPagoPosExternalId={mercadoPagoPosExternalId}
           mercadoPagoQrReady={mercadoPagoQrReady}
           fiscalSettings={fiscalSettings}
+          fiscalConfigured={fiscalConfigured}
         />
       </div>
     </div>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generateInternalEan13, INTERNAL_PRODUCT_DEFAULTS } from "@/lib/internal-barcode";
+import { normalizeScaleCode } from "@/lib/scale-barcode";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -250,7 +251,7 @@ export function ProductCreateMobileWizard({
     const fd = new FormData();
     fd.set("name", nameInput.trim());
     fd.set("barcode", barcodeInput.trim());
-    fd.set("scale_code", scaleCodeInput.trim());
+    fd.set("scale_code", normalizeScaleCode(scaleCodeInput) ?? "");
     fd.set("category", categoryInput.trim());
     fd.set("sold_by_weight", soldByWeight ? "on" : "off");
     fd.set("cost", costInput);
@@ -457,8 +458,9 @@ export function ProductCreateMobileWizard({
                 id="wiz-scale"
                 value={scaleCodeInput}
                 onChange={(e) => setScaleCodeInput(e.target.value)}
+                onBlur={() => setScaleCodeInput((current) => normalizeScaleCode(current) ?? current.trim())}
                 disabled={!soldByWeight}
-                placeholder={soldByWeight ? "Ej: 201" : "Solo si es pesable"}
+                placeholder={soldByWeight ? "Ej: 00041" : "Solo si es pesable"}
                 className="h-12 rounded-xl"
               />
             </div>

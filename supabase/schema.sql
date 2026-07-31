@@ -16,6 +16,7 @@ create table if not exists public.businesses (
   name text not null,
   slug text not null unique,
   business_type text not null default 'retail' check (business_type in ('retail', 'fashion', 'gastronomy')),
+  scale_barcode_mode text not null default 'weight' check (scale_barcode_mode in ('weight', 'price', 'both')),
   gastronomy_counter_enabled boolean not null default true,
   gastronomy_delivery_enabled boolean not null default false,
   gastronomy_tables_enabled boolean not null default false,
@@ -1155,6 +1156,7 @@ alter table public.businesses add column if not exists address text;
 alter table public.businesses add column if not exists phone text;
 alter table public.businesses add column if not exists cuit text;
 alter table public.businesses add column if not exists business_type text not null default 'retail';
+alter table public.businesses add column if not exists scale_barcode_mode text not null default 'weight';
 alter table public.businesses add column if not exists ticket_header text;
 alter table public.businesses add column if not exists ticket_footer text default '¡Gracias por su compra!';
 

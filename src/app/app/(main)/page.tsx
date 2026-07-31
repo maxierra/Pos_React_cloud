@@ -4,7 +4,7 @@ import { AlertTriangle, Banknote, CreditCard, Landmark, Receipt, ShoppingCart, T
 
 import { createClient } from "@/lib/supabase/server";
 import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
-import { formatArgentinaShortDate, getArgentinaDayRangeUtcIso, nextArgentinaDateYmd } from "@/lib/argentina-time";
+import { argentinaYmd, formatArgentinaShortDate, getArgentinaDayRangeUtcIso, nextArgentinaDateYmd } from "@/lib/argentina-time";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import { DateSelector } from "./date-selector";
 
@@ -220,7 +220,7 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
   }
   for (const s of trendSales) {
     if (s.status !== "paid") continue;
-    const key = s.created_at.slice(0, 10);
+    const key = argentinaYmd(s.created_at);
     if (!salesByDay.has(key)) continue;
     salesByDay.set(key, (salesByDay.get(key) ?? 0) + toNum(s.total));
   }
@@ -256,7 +256,7 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
     .slice(0, 8);
 
   let cashExpected = 0;
-  let registerMethodTotals: MethodTotals = { cash: 0, card: 0, transfer: 0, mercadopago: 0 };
+  const registerMethodTotals: MethodTotals = { cash: 0, card: 0, transfer: 0, mercadopago: 0 };
   if (openRegister) {
     const [{ data: registerSalesData }, { data: registerMovementsData }, { data: registerCapData }] = await Promise.all([
       supabase

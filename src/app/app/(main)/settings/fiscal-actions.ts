@@ -10,14 +10,17 @@ import {
   testFiscalConnection,
   syncLastVoucherNumber,
   issueFiscalCreditNote,
+  issueFiscalDebitNote,
   downloadFiscalCsr,
 } from "@/features/billing/fiscal-client";
 import type {
   BusinessFiscalConfig,
   FiscalCertificate,
+  FiscalDocumentOutputMode,
   FiscalEnvironment,
   FiscalPointOfSale,
 } from "@/features/billing/types";
+import { defaultFiscalVoucherTypeForTaxCondition } from "@/features/billing/types";
 
 async function getBusinessContext() {
   const cookieStore = await cookies();
@@ -61,8 +64,10 @@ export async function saveFiscalConfig(input: {
   razon_social: string;
   domicilio_fiscal: string;
   iibb?: string;
+  activity_start_date?: string;
   environment: FiscalEnvironment;
   billing_mode: "per_sale" | "consolidated";
+  document_output_mode: FiscalDocumentOutputMode;
   is_active: boolean;
   pos_number_homolog?: number;
   pos_number_prod?: number;
@@ -79,8 +84,11 @@ export async function saveFiscalConfig(input: {
       razon_social: input.razon_social.trim(),
       domicilio_fiscal: input.domicilio_fiscal.trim(),
       iibb: input.iibb?.trim() || null,
+      activity_start_date: input.activity_start_date?.trim() || null,
       environment: input.environment,
       billing_mode: input.billing_mode,
+      document_output_mode: input.document_output_mode,
+      default_voucher_type: defaultFiscalVoucherTypeForTaxCondition(input.tax_condition),
       is_active: input.is_active,
       updated_at: new Date().toISOString(),
     },
@@ -157,17 +165,40 @@ export async function uploadCertificateFromPem(input: {
 }
 
 export async function testFiscalAuth(environment: FiscalEnvironment) {
-  const { businessId } = await getBusinessContext();
-  return testFiscalConnection({ businessId, environment });
+  const { businessId, supabase } = await getBusinessContext();
+  const { data: config } = await supabase
+    .from("business_fiscal_config")
+    .select("default_voucher_type,tax_condition")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  return testFiscalConnection({
+    businessId,
+    environment,
+    voucherType:
+      Number((config as { default_voucher_type?: number | null } | null)?.default_voucher_type) ||
+      defaultFiscalVoucherTypeForTaxCondition(
+        ((config as { tax_condition?: "monotributo" | "ri" | null } | null)?.tax_condition ?? "monotributo")
+      ),
+  });
 }
 
 export async function syncFiscalLastNumber(environment: FiscalEnvironment) {
   const { businessId, supabase } = await getBusinessContext();
-  const result = await syncLastVoucherNumber({ businessId, environment, voucherType: 11 });
+  const { data: config } = await supabase
+    .from("business_fiscal_config")
+    .select("default_voucher_type,tax_condition")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const voucherType =
+    Number((config as { default_voucher_type?: number | null } | null)?.default_voucher_type) ||
+    defaultFiscalVoucherTypeForTaxCondition(
+      ((config as { tax_condition?: "monotributo" | "ri" | null } | null)?.tax_condition ?? "monotributo")
+    );
+  const result = await syncLastVoucherNumber({ businessId, environment, voucherType });
   await supabase
     .from("fiscal_points_of_sale")
     .update({
-      last_authorized_numbers: { "11": result.lastVoucherNumber },
+      last_authorized_numbers: { [String(result.voucherType)]: result.lastVoucherNumber },
       updated_at: new Date().toISOString(),
     })
     .eq("business_id", businessId)
@@ -191,6 +222,35 @@ export async function emitCreditNoteForVoucher(voucherId: string) {
     businessId,
     environment,
     originalVoucherId: voucherId,
+  });
+  revalidatePath("/app/facturacion");
+  return result;
+}
+
+export async function emitDebitNoteForVoucher(input: {
+  voucherId: string;
+  description: string;
+  amount: number;
+}) {
+  const { businessId } = await getBusinessContext();
+  const settings = await getFiscalSettings();
+  const environment = settings.config?.environment ?? "homolog";
+  const description = input.description.trim();
+  if (!description) throw new Error("La descripcion es obligatoria");
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("El monto debe ser mayor a cero");
+  }
+  const result = await issueFiscalDebitNote({
+    businessId,
+    environment,
+    originalVoucherId: input.voucherId,
+    items: [
+      {
+        name: description,
+        quantity: 1,
+        unitPrice: Math.round(input.amount * 100) / 100,
+      },
+    ],
   });
   revalidatePath("/app/facturacion");
   return result;

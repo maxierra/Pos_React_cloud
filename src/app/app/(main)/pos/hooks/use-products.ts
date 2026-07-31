@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { normalizeScaleCode } from "@/lib/scale-barcode";
+
 function normalizeSearchText(value: string): string {
   return value
     .normalize("NFD")
@@ -31,8 +33,8 @@ function matchesProductSearch(product: PosProduct, tokens: string[], rawQuery: s
   const digitsOnly = rawQuery.replace(/\s+/g, "").toLowerCase();
   if (digitsOnly) {
     const barcode = (product.barcode ?? "").replace(/\s+/g, "").toLowerCase();
-    const scaleCode = (product.scale_code ?? "").toLowerCase();
-    if (barcode === digitsOnly || scaleCode === digitsOnly) return true;
+    const scaleCode = normalizeScaleCode(product.scale_code)?.toLowerCase() ?? "";
+    if (barcode === digitsOnly || scaleCode === (normalizeScaleCode(digitsOnly)?.toLowerCase() ?? digitsOnly)) return true;
   }
 
   const haystack = productSearchHaystack(product);
@@ -132,7 +134,10 @@ export function useProducts(products: PosProduct[]) {
       );
       if (byBarcode) return byBarcode;
 
-      const byScaleCode = products.find((p) => (p.scale_code ?? "").toLowerCase() === trimmed.toLowerCase());
+      const normalizedScaleCode = normalizeScaleCode(trimmed)?.toLowerCase() ?? trimmed.toLowerCase();
+      const byScaleCode = products.find(
+        (p) => (normalizeScaleCode(p.scale_code)?.toLowerCase() ?? "") === normalizedScaleCode
+      );
       if (byScaleCode) return byScaleCode;
 
       const byName = products.find((p) => matchesProductSearch(p, tokens, trimmed));

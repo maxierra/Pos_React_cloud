@@ -1,8 +1,18 @@
 export type FiscalEnvironment = "homolog" | "prod";
 
 export type FiscalBillingMode = "per_sale" | "consolidated";
+export type FiscalDocumentOutputMode = "ticket" | "factura";
 
 export type TaxCondition = "monotributo" | "ri";
+
+export type FiscalCustomerTaxCondition = "consumidor_final" | "monotributista" | "ri" | "exento";
+
+export type FiscalCustomerData = {
+  taxCondition: FiscalCustomerTaxCondition;
+  documentType: "dni" | "cuit";
+  documentNumber: string;
+  name: string;
+};
 
 export type FiscalVoucherStatus = "pending" | "approved" | "rejected" | "voided_nc";
 
@@ -16,8 +26,10 @@ export type BusinessFiscalConfig = {
   razon_social: string | null;
   domicilio_fiscal: string | null;
   iibb: string | null;
+  activity_start_date: string | null;
   environment: FiscalEnvironment;
   billing_mode: FiscalBillingMode;
+  document_output_mode: FiscalDocumentOutputMode;
   default_voucher_type: number;
   is_active: boolean;
   last_sync_at: string | null;
@@ -85,30 +97,67 @@ export type IssueVoucherResult = {
   total: number;
 };
 
-export const VOUCHER_TYPE_LABELS: Record<number, string> = {
-  11: "Factura C",
-  13: "Nota de Crédito C",
-};
-
-/** Comprobantes habilitados para monotributo (Fase 1). */
-export const MONOTRIBUTO_VOUCHER_OPTIONS: Array<{
+export type FiscalVoucherOption = {
   type: number;
   label: string;
   description: string;
   recommended?: boolean;
-}> = [
+};
+
+export const VOUCHER_TYPE_LABELS: Record<number, string> = {
+  6: "Factura B",
+  7: "Nota de Debito B",
+  8: "Nota de Credito B",
+  11: "Factura C",
+  12: "Nota de Debito C",
+  13: "Nota de Credito C",
+};
+
+export const MONOTRIBUTO_VOUCHER_OPTIONS: FiscalVoucherOption[] = [
   {
     type: 11,
     label: "Factura C",
-    description: "La factura que emitís en cada venta del POS.",
+    description: "La factura que emitis en cada venta del POS.",
     recommended: true,
   },
   {
+    type: 12,
+    label: "Nota de Debito C",
+    description: "Para sumar una diferencia o recargo sobre una Factura C ya emitida.",
+  },
+  {
     type: 13,
-    label: "Nota de Crédito C",
+    label: "Nota de Credito C",
     description: "Para anular o corregir una Factura C ya emitida.",
   },
 ];
+
+export const RESPONSABLE_INSCRIPTO_VOUCHER_OPTIONS: FiscalVoucherOption[] = [
+  {
+    type: 6,
+    label: "Factura B",
+    description: "Se usa para consumidor final. Si el cliente tiene perfil fiscal valido, el flujo tambien puede derivar en Factura A.",
+    recommended: true,
+  },
+  {
+    type: 7,
+    label: "Nota de Debito B",
+    description: "Para sumar una diferencia o recargo sobre una Factura B emitida desde el POS.",
+  },
+  {
+    type: 8,
+    label: "Nota de Credito B",
+    description: "Para anular o corregir una Factura B emitida desde el POS.",
+  },
+];
+
+export function voucherOptionsForTaxCondition(taxCondition: TaxCondition): FiscalVoucherOption[] {
+  return taxCondition === "ri" ? RESPONSABLE_INSCRIPTO_VOUCHER_OPTIONS : MONOTRIBUTO_VOUCHER_OPTIONS;
+}
+
+export function defaultFiscalVoucherTypeForTaxCondition(taxCondition: TaxCondition): number {
+  return taxCondition === "ri" ? 6 : 11;
+}
 
 export function voucherTypeLabel(type: number): string {
   return VOUCHER_TYPE_LABELS[type] ?? `Comprobante ${type}`;

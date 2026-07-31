@@ -52,6 +52,7 @@ npm run dev
 | GET | /voucher/last-number | FECompUltimoAutorizado |
 | POST | /voucher/issue | Emite Factura C |
 | POST | /voucher/credit-note | Emite NC C |
+| POST | /voucher/debit-note | Emite ND C/B |
 
 Header requerido: `Authorization: Bearer {FISCAL_API_KEY}`
 

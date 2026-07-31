@@ -6,12 +6,14 @@ import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
 import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { normalizeBusinessType } from "@/lib/business-types";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
+import type { ScaleBarcodeMode } from "@/lib/scale-barcode";
 import { fetchAllPages } from "@/lib/supabase/fetch-all-pages";
 import { createClient } from "@/lib/supabase/server";
 import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 
 import { PosClient, type PosCustomerCredit, type PosProduct } from "@/app/app/(main)/pos/pos-client";
 import { parseOnboardingGuideStep } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
+import type { TaxCondition } from "@/features/billing/types";
 
 type PosProductRow = {
   id: string;
@@ -55,6 +57,7 @@ type ServiceOrderRow = {
 type PosBusinessRow = {
   name: string;
   business_type?: string | null;
+  scale_barcode_mode?: ScaleBarcodeMode | null;
   gastronomy_counter_enabled?: boolean | null;
   gastronomy_delivery_enabled?: boolean | null;
   gastronomy_tables_enabled?: boolean | null;
@@ -64,6 +67,14 @@ type PosBusinessRow = {
   ticket_header: string | null;
   ticket_footer: string | null;
   onboarding_completed_at?: string | null;
+};
+
+type PosFiscalConfigRow = {
+  is_active: boolean | null;
+  tax_condition: TaxCondition | null;
+  document_output_mode: "ticket" | "factura" | null;
+  iibb: string | null;
+  activity_start_date: string | null;
 };
 
 function toNum(v: unknown) {
@@ -101,7 +112,7 @@ export default async function PosPage({
   const supabase = await createClient();
   const { data: businessData, error: businessError } = await supabase
     .from("businesses")
-    .select("name,business_type,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,onboarding_completed_at")
+    .select("name,business_type,scale_barcode_mode,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,onboarding_completed_at")
     .eq("id", businessId)
     .single();
 
@@ -139,17 +150,6 @@ export default async function PosPage({
     })
   );
 
-  const business = businessData
-    ? {
-        name: String((businessData as PosBusinessRow).name ?? ""),
-        address: (businessData as PosBusinessRow).address ?? null,
-        phone: (businessData as PosBusinessRow).phone ?? null,
-        cuit: (businessData as PosBusinessRow).cuit ?? null,
-        ticket_header: (businessData as PosBusinessRow).ticket_header ?? null,
-        ticket_footer: (businessData as PosBusinessRow).ticket_footer ?? null,
-      }
-    : null;
-
   const { data: openRegister } = await supabase
     .from("cash_registers")
     .select("id")
@@ -160,6 +160,35 @@ export default async function PosPage({
     .single();
 
   const cashOpen = !!openRegister;
+
+  const { data: fiscalConfigData } = await supabase
+    .from("business_fiscal_config")
+    .select("is_active,tax_condition,document_output_mode,iibb,activity_start_date")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  const fiscalConfig = fiscalConfigData
+    ? {
+        isActive: Boolean((fiscalConfigData as PosFiscalConfigRow).is_active),
+        taxCondition: ((fiscalConfigData as PosFiscalConfigRow).tax_condition ?? "monotributo") as TaxCondition,
+        documentOutputMode: ((fiscalConfigData as PosFiscalConfigRow).document_output_mode ?? "factura") as "ticket" | "factura",
+        iibb: (fiscalConfigData as PosFiscalConfigRow).iibb ?? null,
+        activity_start_date: (fiscalConfigData as PosFiscalConfigRow).activity_start_date ?? null,
+      }
+    : null;
+
+  const business = businessData
+    ? {
+        name: String((businessData as PosBusinessRow).name ?? ""),
+        address: (businessData as PosBusinessRow).address ?? null,
+        phone: (businessData as PosBusinessRow).phone ?? null,
+        cuit: (businessData as PosBusinessRow).cuit ?? null,
+        iibb: (fiscalConfigData as PosFiscalConfigRow | null)?.iibb ?? null,
+        activity_start_date: (fiscalConfigData as PosFiscalConfigRow | null)?.activity_start_date ?? null,
+        ticket_header: (businessData as PosBusinessRow).ticket_header ?? null,
+        ticket_footer: (businessData as PosBusinessRow).ticket_footer ?? null,
+      }
+    : null;
 
   await supabase.rpc("ensure_business_payment_methods", { p_business_id: businessId });
   const { data: pmRows } = await supabase
@@ -249,9 +278,11 @@ export default async function PosPage({
       businessType={normalizeBusinessType((businessData as PosBusinessRow | null)?.business_type)}
       cashOpen={cashOpen}
       paymentMethodConfig={paymentMethodConfig}
+      scaleBarcodeMode={((businessData as PosBusinessRow | null)?.scale_barcode_mode ?? "weight") as ScaleBarcodeMode}
       quickSaleCategories={(quickSaleRows ?? []) as QuickSaleCategoryRow[]}
       posCustomers={posCustomers}
       mercadoPagoQrReady={mercadoPagoQrReady}
+      fiscalConfig={fiscalConfig}
       gastronomyConfig={gastronomyConfig}
       gastronomyTables={(tableRows ?? []) as Array<{ id: string; name: string; active: boolean }>}
       serviceOrders={((await supabase

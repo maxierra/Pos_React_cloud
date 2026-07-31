@@ -1,22 +1,25 @@
 export type ParsedScaleBarcode = {
   scaleCode: string;
-  weightKg: number;
+  value: number;
+  mode: "weight" | "price";
 };
 
 function round3(n: number) {
   return Math.round((n + Number.EPSILON) * 1000) / 1000;
 }
 
+function round2(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 /**
- * Heurística de etiquetas de balanza (Argentina):
+ * Etiquetas de balanza (Argentina):
  * - EAN-13 que empieza con 20-29
- * - Formato asumido: PP + CCCCC + WWWWW + X
- *   - CCCCC: código de artículo (scale_code)
- *   - WWWWW: peso en gramos (0..99999)
- *
- * Ej: 20 00201 00200 3 => scale_code=00201, weight=200g => 0.200kg
+ * - Formato: PP + CCCCC + VVVVV + X
+ *   - CCCCC: codigo de articulo (scale_code)
+ *   - VVVVV: peso en gramos o importe, segun configuracion
  */
-export function parseScaleBarcode(raw: string): ParsedScaleBarcode | null {
+export function parseScaleBarcode(raw: string, mode: "weight" | "price" = "weight"): ParsedScaleBarcode | null {
   const code = String(raw ?? "").trim();
   if (!/^\d{13}$/.test(code)) return null;
 
@@ -24,13 +27,12 @@ export function parseScaleBarcode(raw: string): ParsedScaleBarcode | null {
   if (!Number.isFinite(prefix) || prefix < 20 || prefix > 29) return null;
 
   const scaleCode = code.slice(2, 7);
-  const gramsRaw = code.slice(7, 12);
-
-  const grams = Number(gramsRaw);
-  if (!Number.isFinite(grams) || grams <= 0) return null;
+  const encodedValue = Number(code.slice(7, 12));
+  if (!Number.isFinite(encodedValue) || encodedValue <= 0) return null;
 
   return {
     scaleCode,
-    weightKg: round3(grams / 1000),
+    value: mode === "weight" ? round3(encodedValue / 1000) : round2(encodedValue),
+    mode,
   };
 }

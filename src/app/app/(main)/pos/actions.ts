@@ -8,6 +8,7 @@ import { getArgentinaDayRangeUtcIso } from "@/lib/argentina-time";
 import { createClient } from "@/lib/supabase/server";
 import { emitFiscalVoucherForSale } from "@/app/app/(main)/facturacion/actions";
 import { queueSaleForConsolidated } from "@/app/app/(main)/settings/fiscal-actions";
+import type { FiscalCustomerData } from "@/features/billing/types";
 
 type CheckoutItem = {
   product_id: string | null;
@@ -297,6 +298,7 @@ async function checkoutSaleImpl(input: {
   };
   cash_received?: number;
   customer_id?: string | null;
+  fiscal_customer?: FiscalCustomerData | null;
   items: CheckoutItem[];
 }) {
   const cookieStore = await cookies();
@@ -412,7 +414,7 @@ async function checkoutSaleImpl(input: {
 
   const { data: fiscalConfig } = await supabase
     .from("business_fiscal_config")
-    .select("billing_mode,is_active")
+    .select("billing_mode,is_active,document_output_mode")
     .eq("business_id", businessId)
     .maybeSingle();
 
@@ -428,6 +430,7 @@ async function checkoutSaleImpl(input: {
       try {
         fiscal = await emitFiscalVoucherForSale({
           saleId,
+          fiscalCustomer: input.fiscal_customer ?? null,
           items: items.map((i) => ({
             name: i.name,
             quantity: Number(i.quantity),
@@ -443,6 +446,9 @@ async function checkoutSaleImpl(input: {
   return {
     saleId,
     fiscal,
+    documentOutputMode:
+      ((fiscalConfig as { document_output_mode?: "ticket" | "factura" | null } | null)?.document_output_mode ??
+        "factura") as "ticket" | "factura",
     promotion: appliedPromotion
       ? {
           name: appliedPromotion.name,

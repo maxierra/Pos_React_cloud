@@ -25,6 +25,7 @@ import {
   type PosPaymentMethodCode,
 } from "@/lib/business-payment-methods";
 import { cn } from "@/lib/utils";
+import type { FiscalCustomerData, FiscalCustomerTaxCondition, TaxCondition } from "@/features/billing/types";
 
 type PaymentMethod = PosPaymentMethodCode;
 type PaymentMethodOrMixed = PaymentMethod | "mixed";
@@ -42,6 +43,8 @@ type TicketBusinessInfo = {
   address: string | null;
   phone: string | null;
   cuit: string | null;
+  iibb: string | null;
+  activity_start_date: string | null;
   ticket_header: string | null;
   ticket_footer: string | null;
 } | null;
@@ -54,6 +57,12 @@ type PosCustomerOption = {
   /** Límite − deuda: cuánto puede sumar esta venta sin superar el límite. */
   available_to_spend: number;
 };
+
+type PosFiscalConfig = {
+  isActive: boolean;
+  taxCondition: TaxCondition;
+  documentOutputMode: "ticket" | "factura";
+} | null;
 
 type Props = {
   open: boolean;
@@ -68,6 +77,7 @@ type Props = {
   customers?: PosCustomerOption[];
   /** Token + ID de caja configurados (RPC); si es false, no se pide QR a MP. */
   mercadoPagoQrReady?: boolean;
+  fiscalConfig?: PosFiscalConfig;
   onClose: () => void;
   onConfirm: (p: {
     payment_method: PaymentMethodOrMixed;
@@ -77,9 +87,21 @@ type Props = {
     cash_received?: number;
     print_ticket?: boolean;
     customer_id?: string | null;
+    fiscal_customer?: FiscalCustomerData | null;
   }) => void;
   /** Cuando MP confirma el pago por webhook y el servidor ya registró la venta. */
-  onMercadoPagoAutoPaid?: (p: { saleId: string; printTicket: boolean }) => void;
+  onMercadoPagoAutoPaid?: (p: {
+    saleId: string;
+    printTicket: boolean;
+    fiscal?: {
+      voucherType: number;
+      posNumber: number;
+      voucherNumber: number;
+      cae: string;
+      caeExpiresAt: string;
+      qrPayload: string;
+    } | null;
+  }) => void;
 };
 
 function round2(n: number) {
@@ -140,6 +162,7 @@ export function PaymentModal({
   paymentMethodConfig,
   customers = [],
   mercadoPagoQrReady = false,
+  fiscalConfig = null,
   onClose,
   onConfirm,
   onMercadoPagoAutoPaid,
@@ -184,6 +207,11 @@ export function PaymentModal({
   const cashReceived = React.useMemo(() => parseMoneyLoose(cashReceivedInput), [cashReceivedInput]);
   const [printTicket, setPrintTicket] = React.useState(true);
   const [customerId, setCustomerId] = React.useState<string>("");
+  const [fiscalCustomerTaxCondition, setFiscalCustomerTaxCondition] =
+    React.useState<FiscalCustomerTaxCondition>("consumidor_final");
+  const [fiscalCustomerName, setFiscalCustomerName] = React.useState("");
+  const [fiscalCustomerDocumentType, setFiscalCustomerDocumentType] = React.useState<"dni" | "cuit">("dni");
+  const [fiscalCustomerDocumentNumber, setFiscalCustomerDocumentNumber] = React.useState("");
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [pendingPayload, setPendingPayload] = React.useState<{
     payment_method: PaymentMethodOrMixed;
@@ -239,6 +267,10 @@ export function PaymentModal({
     setCashReceivedInput(String(total));
     setPrintTicket(true);
     setCustomerId("");
+    setFiscalCustomerTaxCondition("consumidor_final");
+    setFiscalCustomerName("");
+    setFiscalCustomerDocumentType("dni");
+    setFiscalCustomerDocumentNumber("");
     setPreviewOpen(false);
     setPendingPayload(null);
   }, [open, total, activeSorted, initialSplitMethod]);
@@ -418,7 +450,21 @@ export function PaymentModal({
       if (res && typeof res === "object" && "error" in res && res.error) return;
       if (res && "status" in res && res.status === "paid" && "saleId" in res && res.saleId) {
         mpAutoNotifiedRef.current = true;
-        onMercadoPagoAutoPaid({ saleId: res.saleId, printTicket });
+        onMercadoPagoAutoPaid({
+          saleId: res.saleId,
+          printTicket,
+          fiscal:
+            "fiscal" in res
+              ? (res.fiscal as {
+                  voucherType: number;
+                  posNumber: number;
+                  voucherNumber: number;
+                  cae: string;
+                  caeExpiresAt: string;
+                  qrPayload: string;
+                } | null)
+              : null,
+        });
       }
     };
 
@@ -473,6 +519,36 @@ export function PaymentModal({
     },
     []
   );
+
+  const riFiscalFlowEnabled = Boolean(fiscalConfig?.isActive && fiscalConfig.taxCondition === "ri");
+  const facturaASuggested =
+    riFiscalFlowEnabled &&
+    (fiscalCustomerTaxCondition === "ri" || fiscalCustomerTaxCondition === "monotributista");
+  const fiscalCustomerRequired = riFiscalFlowEnabled;
+  const fiscalCustomerNameTrimmed = fiscalCustomerName.trim();
+  const fiscalCustomerDocumentNumberTrimmed = fiscalCustomerDocumentNumber.trim();
+  const fiscalCustomerReady =
+    !fiscalCustomerRequired ||
+    (fiscalCustomerNameTrimmed.length >= 3 &&
+      fiscalCustomerDocumentNumberTrimmed.length >= 7 &&
+      (fiscalCustomerDocumentType === "dni" || fiscalCustomerDocumentNumberTrimmed.length >= 11));
+  const fiscalCustomerPayload = React.useMemo<FiscalCustomerData | null>(() => {
+    if (!fiscalCustomerRequired) return null;
+    if (!fiscalCustomerReady) return null;
+    return {
+      taxCondition: fiscalCustomerTaxCondition,
+      documentType: fiscalCustomerDocumentType,
+      documentNumber: fiscalCustomerDocumentNumberTrimmed,
+      name: fiscalCustomerNameTrimmed,
+    };
+  }, [
+    fiscalCustomerDocumentNumberTrimmed,
+    fiscalCustomerDocumentType,
+    fiscalCustomerNameTrimmed,
+    fiscalCustomerReady,
+    fiscalCustomerRequired,
+    fiscalCustomerTaxCondition,
+  ]);
 
   React.useEffect(() => {
     if (open) return;
@@ -798,6 +874,89 @@ export function PaymentModal({
                   </div>
                 ) : null}
 
+                {riFiscalFlowEnabled ? (
+                  <div className="grid gap-3 rounded-xl border border-amber-400/30 bg-amber-50/70 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-[0.22em] text-amber-700">
+                          Datos fiscales
+                        </div>
+                        <p className="mt-1 text-xs text-amber-900/80">
+                          Cargalos antes de cobrar para dejar lista la emision fiscal del cliente.
+                        </p>
+                      </div>
+                      <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-amber-700 shadow-sm">
+                        {facturaASuggested ? "Perfil para Factura A" : "Perfil para Factura B"}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="fiscal-tax-condition" className="text-xs font-semibold">
+                        Condicion del cliente
+                      </Label>
+                      <select
+                        id="fiscal-tax-condition"
+                        value={fiscalCustomerTaxCondition}
+                        onChange={(e) => {
+                          const next = e.target.value as FiscalCustomerTaxCondition;
+                          setFiscalCustomerTaxCondition(next);
+                          setFiscalCustomerDocumentType(next === "consumidor_final" ? "dni" : "cuit");
+                        }}
+                        className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                      >
+                        <option value="consumidor_final">Consumidor final</option>
+                        <option value="monotributista">Monotributista</option>
+                        <option value="ri">Responsable inscripto</option>
+                        <option value="exento">Exento</option>
+                      </select>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="fiscal-name" className="text-xs font-semibold">
+                          Nombre o razon social
+                        </Label>
+                        <Input
+                          id="fiscal-name"
+                          value={fiscalCustomerName}
+                          onChange={(e) => setFiscalCustomerName(e.target.value)}
+                          placeholder="Ej: Juan Perez o ACME SA"
+                          className="h-11"
+                        />
+                      </div>
+
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="fiscal-document-type" className="text-xs font-semibold">
+                          Documento
+                        </Label>
+                        <div className="grid grid-cols-[120px_1fr] gap-2">
+                          <select
+                            id="fiscal-document-type"
+                            value={fiscalCustomerDocumentType}
+                            onChange={(e) => setFiscalCustomerDocumentType(e.target.value as "dni" | "cuit")}
+                            className="h-11 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                          >
+                            <option value="dni">DNI</option>
+                            <option value="cuit">CUIT</option>
+                          </select>
+                          <Input
+                            value={fiscalCustomerDocumentNumber}
+                            onChange={(e) => setFiscalCustomerDocumentNumber(e.target.value)}
+                            placeholder={fiscalCustomerDocumentType === "cuit" ? "20XXXXXXXXX" : "30111222"}
+                            className="h-11"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-white/70 bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-slate-700">
+                      {facturaASuggested
+                        ? "Este perfil queda preparado para probar Factura A en la siguiente etapa."
+                        : "Este perfil sigue el circuito comun de venta y comprobante al consumidor final."}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="grid gap-2">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Método rápido</div>
                   <div
@@ -836,7 +995,8 @@ export function PaymentModal({
                     pending ||
                     (mixed ? splitDiff !== 0 || amountExceedsTotal : false) ||
                     (!mixed && !method) ||
-                    (ccCustomerRequired && ccFirstScreenDisabled)
+                    (ccCustomerRequired && ccFirstScreenDisabled) ||
+                    !fiscalCustomerReady
                   }
                   onClick={() => {
                     let nextPayload: {
@@ -993,6 +1153,32 @@ export function PaymentModal({
                       ) : null}
                     </>
                   ) : null}
+                  {fiscalCustomerPayload ? (
+                    <>
+                      <div className="mt-1 flex items-center justify-between text-left">
+                        <span>Condicion fiscal</span>
+                        <span className="max-w-[55%] truncate text-right font-medium">
+                          {fiscalCustomerPayload.taxCondition === "consumidor_final"
+                            ? "Consumidor final"
+                            : fiscalCustomerPayload.taxCondition === "monotributista"
+                              ? "Monotributista"
+                              : fiscalCustomerPayload.taxCondition === "ri"
+                                ? "Responsable inscripto"
+                                : "Exento"}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-left">
+                        <span>Cliente fiscal</span>
+                        <span className="max-w-[55%] truncate text-right font-medium">
+                          {fiscalCustomerPayload.name}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-left">
+                        <span>{fiscalCustomerPayload.documentType.toUpperCase()}</span>
+                        <span className="font-medium">{fiscalCustomerPayload.documentNumber}</span>
+                      </div>
+                    </>
+                  ) : null}
                   {pendingPayload.cash_received != null ? (
                     <div className="mt-1 flex items-center justify-between">
                       <span>Recibido</span>
@@ -1111,10 +1297,15 @@ export function PaymentModal({
                           ...pendingPayload,
                           print_ticket: printTicket,
                           customer_id: payloadUsesCuentaCorriente(pendingPayload) ? customerId || null : null,
+                          fiscal_customer: fiscalCustomerPayload,
                         });
                       })();
                     }}
-                    disabled={pending || (payloadUsesCuentaCorriente(pendingPayload) && ccFirstScreenDisabled)}
+                    disabled={
+                      pending ||
+                      (payloadUsesCuentaCorriente(pendingPayload) && ccFirstScreenDisabled) ||
+                      !fiscalCustomerReady
+                    }
                     variant={mpQrFlowActive ? "outline" : "default"}
                   >
                     {pending
@@ -1184,6 +1375,7 @@ export function PaymentModal({
                         ...pendingPayload,
                         print_ticket: printTicket,
                         customer_id: payloadUsesCuentaCorriente(pendingPayload) ? customerId || null : null,
+                        fiscal_customer: fiscalCustomerPayload,
                       });
                       setTransferConfirmOpen(false);
                     })();

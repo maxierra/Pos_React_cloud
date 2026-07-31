@@ -4,11 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { FacturacionClient } from "@/app/app/(main)/facturacion/facturacion-client";
 import { getFiscalVouchers, getPendingConsolidationSummary, type PendingConsolidationRow } from "@/app/app/(main)/facturacion/actions";
 import type { FiscalVoucher } from "@/features/billing/types";
+import type { PosBusinessInfo } from "@/lib/ticket-utils";
 
 export default async function FacturacionPage() {
   const businessId = (await cookies()).get("active_business_id")?.value;
   let fiscalActive = false;
   let vouchers: FiscalVoucher[] = [];
+  let business: PosBusinessInfo = null;
   let consolidation: {
     billingMode: "per_sale" | "consolidated" | null;
     pending: PendingConsolidationRow[];
@@ -17,12 +19,31 @@ export default async function FacturacionPage() {
 
   if (businessId) {
     const supabase = await createClient();
-    const { data: config } = await supabase
+    const [{ data: config }, { data: businessRow }] = await Promise.all([
+      supabase
       .from("business_fiscal_config")
-      .select("is_active")
+      .select("is_active,iibb,activity_start_date")
       .eq("business_id", businessId)
-      .maybeSingle();
+      .maybeSingle(),
+      supabase
+        .from("businesses")
+        .select("name,address,phone,cuit,ticket_header,ticket_footer")
+        .eq("id", businessId)
+        .maybeSingle(),
+    ]);
     fiscalActive = Boolean(config?.is_active);
+    if (businessRow) {
+      business = {
+        name: (businessRow as { name?: string | null }).name ?? "Mi negocio",
+        address: (businessRow as { address?: string | null }).address ?? null,
+        phone: (businessRow as { phone?: string | null }).phone ?? null,
+        cuit: (businessRow as { cuit?: string | null }).cuit ?? null,
+        iibb: (config as { iibb?: string | null } | null)?.iibb ?? null,
+        activity_start_date: (config as { activity_start_date?: string | null } | null)?.activity_start_date ?? null,
+        ticket_header: (businessRow as { ticket_header?: string | null }).ticket_header ?? null,
+        ticket_footer: (businessRow as { ticket_footer?: string | null }).ticket_footer ?? null,
+      };
+    }
     vouchers = await getFiscalVouchers();
     try {
       consolidation = await getPendingConsolidationSummary();
@@ -45,6 +66,7 @@ export default async function FacturacionPage() {
         billingMode={consolidation.billingMode}
         pendingConsolidation={consolidation.pending}
         pendingByPeriod={consolidation.byPeriod}
+        business={business}
       />
     </div>
   );
