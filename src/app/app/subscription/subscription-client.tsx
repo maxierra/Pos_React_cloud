@@ -363,7 +363,7 @@ export function SubscriptionClient({
                         {plan.ui.badge}
                       </span>
                       <h4 className={cn("mt-2 text-2xl font-black tracking-tight", plan.ui.accent)}>{plan.ui.name}</h4>
-                      <p className="mt-1 text-sm text-muted-foreground">{plan.periodLabel}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{plan.ui.periodLabel}</p>
                     </div>
                     <span className="inline-flex size-11 items-center justify-center rounded-2xl border border-white/50 bg-white/65 text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
                       <Icon className="size-5" />
