@@ -1,0 +1,376 @@
+"use client";
+
+import * as React from "react";
+import { CheckCircle2, Loader2, ShoppingCart, TicketPercent, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { getStoreOrderStatus, startStoreCheckout, validateStoreCoupon } from "@/app/comprar/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DESKTOP_PAID_DOWNLOAD_PATH } from "@/lib/desktop-download";
+
+const BUSINESS_TYPES = [
+  { value: "retail", label: "Comercio" },
+  { value: "fashion", label: "Indumentaria" },
+  { value: "gastronomy", label: "Gastronomía" },
+] as const;
+
+type OrderState = {
+  orderId: string;
+  provisioned: boolean;
+  status: string;
+};
+
+type SoftwarePurchaseModalProps = {
+  listAmount: number;
+  promoCode: string;
+  discountPercent: number;
+  promoAmount: number;
+};
+
+export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, promoAmount }: SoftwarePurchaseModalProps) {
+  const [open, setOpen] = React.useState(false);
+  const [pending, startTransition] = React.useTransition();
+  const [checkoutStarted, setCheckoutStarted] = React.useState(false);
+  const [popupBlocked, setPopupBlocked] = React.useState(false);
+  const [orderState, setOrderState] = React.useState<OrderState | null>(null);
+  const [couponCode, setCouponCode] = React.useState("");
+  const [couponError, setCouponError] = React.useState("");
+  const [promotion, setPromotion] = React.useState<{
+    code: string;
+    discountPercent: number;
+    listAmount: number;
+    payAmount: number;
+  } | null>(null);
+  const popupRef = React.useRef<Window | null>(null);
+  const pollRef = React.useRef<number | null>(null);
+  const [form, setForm] = React.useState({
+    email: "",
+    customerName: "",
+    phone: "",
+    businessName: "",
+    businessType: "retail",
+  });
+
+  const closeModal = React.useCallback(() => {
+    if (pending) return;
+    setOpen(false);
+    setCheckoutStarted(false);
+    setPopupBlocked(false);
+    setOrderState(null);
+    setCouponError("");
+    if (pollRef.current) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, [pending]);
+
+  const applyCoupon = () => {
+    setCouponError("");
+    setPromotion(null);
+    startTransition(async () => {
+      const res = await validateStoreCoupon("software_lifetime", couponCode);
+      if (!res.ok) {
+        setCouponError(res.error);
+        return;
+      }
+      setCouponCode(res.code);
+      setPromotion(res);
+      toast.success(`Cupón aplicado: ${res.discountPercent}% de descuento`);
+    });
+  };
+
+  React.useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== "object") return;
+      const payload = event.data as { type?: string; orderId?: string };
+      if (payload.type !== "store-order-paid" || !payload.orderId) return;
+      setOpen(true);
+      setCheckoutStarted(true);
+      setOrderState((current) => ({
+        orderId: payload.orderId!,
+        provisioned: current?.provisioned ?? false,
+        status: current?.status ?? "paid",
+      }));
+    };
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  React.useEffect(() => {
+    if (!checkoutStarted || !orderState?.orderId) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      const res = await getStoreOrderStatus(orderState.orderId);
+      if (cancelled || !res) return;
+      setOrderState({
+        orderId: orderState.orderId,
+        provisioned: res.provisioned,
+        status: res.status,
+      });
+      if (res.provisioned && popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close();
+      }
+      if (res.provisioned && pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    void poll();
+    pollRef.current = window.setInterval(() => {
+      void poll();
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [checkoutStarted, orderState?.orderId]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPopupBlocked(false);
+
+    startTransition(async () => {
+      const res = await startStoreCheckout({
+        sku: "software_lifetime",
+        email: form.email,
+        customerName: form.customerName,
+        phone: form.phone,
+        businessName: form.businessName,
+        businessType: form.businessType,
+        couponCode,
+      });
+
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+
+      setOpen(true);
+      setCheckoutStarted(true);
+      setOrderState({ orderId: res.orderId, provisioned: false, status: "pending_payment" });
+
+      popupRef.current = window.open(
+        res.checkoutUrl,
+        "tienda360_checkout",
+        "popup=yes,width=980,height=820,noopener,noreferrer"
+      );
+
+      if (!popupRef.current) {
+        setPopupBlocked(true);
+        toast.error("Tu navegador bloqueó la ventana de pago. Permití popups e intentá de nuevo.");
+        return;
+      }
+    });
+  };
+
+  return (
+    <>
+      <Button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"
+      >
+        <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
+          MP
+        </span>
+        Pagar con Mercado Pago
+      </Button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <div className="relative w-full max-w-xl rounded-[2rem] border border-white/80 bg-white p-6 shadow-[0_30px_80px_-32px_rgba(15,23,42,0.45)]">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="absolute right-4 top-4 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700"
+              aria-label="Cerrar"
+            >
+              <X className="size-4" />
+            </button>
+
+            {checkoutStarted ? (
+              <div className="space-y-4 pr-10">
+                <h3 className="text-2xl font-bold tracking-tight text-slate-950">
+                  {orderState?.provisioned ? "Pago acreditado" : "Pago en proceso"}
+                </h3>
+                <p className="text-sm leading-7 text-slate-600">
+                  {orderState?.provisioned
+                    ? "Tu pago fue confirmado. Ya podés descargar el software desde acá mismo."
+                    : "Abrimos Mercado Pago en una ventana aparte. Cuando el pago se acredite, este modal te mostrará automáticamente la descarga."}
+                </p>
+
+                {popupBlocked ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    Tu navegador bloqueó la ventana emergente. Permití popups para este sitio y volvé a intentar.
+                  </div>
+                ) : null}
+
+                {!orderState?.provisioned ? (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900">
+                    <Loader2 className="size-4 animate-spin" />
+                    Esperando confirmación de Mercado Pago
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <a
+                      href={`${DESKTOP_PAID_DOWNLOAD_PATH}?order=${encodeURIComponent(orderState.orderId)}`}
+                      className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                    >
+                      Descargar software
+                    </a>
+                    <Button type="button" variant="outline" onClick={closeModal}>
+                      Cerrar
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="pr-10">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">Pago único</p>
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                    Activá el software desde la landing
+                  </h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    Completá tus datos, pagás en Mercado Pago en una ventana aparte y cuando el pago
+                    se acredita te mostramos acá mismo el botón de descarga.
+                  </p>
+                </div>
+
+                <form onSubmit={submit} className="mt-6 grid gap-4">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-950">
+                      <TicketPercent className="size-4" /> Aplicá tu cupón antes de pagar
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Input
+                        id="software-coupon"
+                        value={couponCode}
+                        onChange={(e) => {
+                          setCouponCode(e.target.value.toUpperCase());
+                          setPromotion(null);
+                          setCouponError("");
+                        }}
+                        placeholder={`Ejemplo: ${promoCode}`}
+                        autoComplete="off"
+                        className="bg-white font-mono uppercase"
+                      />
+                      <Button type="button" variant="outline" onClick={applyCoupon} disabled={pending || !couponCode.trim()}>
+                        Aplicar
+                      </Button>
+                    </div>
+                    {couponError ? <p className="mt-2 text-xs font-medium text-rose-700">{couponError}</p> : null}
+                    {promotion ? (
+                      <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+                          <CheckCircle2 className="size-4" /> Cupón {promotion.code} aplicado
+                        </div>
+                        <div className="mt-2 flex items-end justify-between gap-3">
+                          <div className="text-xs text-slate-500">
+                            Precio normal <span className="line-through">${promotion.listAmount.toLocaleString("es-AR")}</span>
+                          </div>
+                          <div className="text-xl font-black text-slate-950">${promotion.payAmount.toLocaleString("es-AR")}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs leading-5 text-emerald-900/80">
+                        Si recibiste el cupón <strong>{promoCode}</strong>, ingresalo para pagar <strong>${promoAmount.toLocaleString("es-AR")}</strong> en lugar de ${listAmount.toLocaleString("es-AR")} ({discountPercent}% OFF).
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="software-email">Email</Label>
+                    <Input
+                      id="software-email"
+                      type="email"
+                      required
+                      value={form.email}
+                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="software-customerName">Nombre completo</Label>
+                    <Input
+                      id="software-customerName"
+                      required
+                      value={form.customerName}
+                      onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="software-phone">Teléfono / WhatsApp</Label>
+                    <Input
+                      id="software-phone"
+                      required
+                      value={form.phone}
+                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="software-businessName">Nombre del negocio</Label>
+                    <Input
+                      id="software-businessName"
+                      required
+                      value={form.businessName}
+                      onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="software-businessType">Tipo de negocio</Label>
+                    <select
+                      id="software-businessType"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={form.businessType}
+                      onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value }))}
+                    >
+                      {BUSINESS_TYPES.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <Button type="submit" disabled={pending} className="mt-2">
+                    {pending ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        Preparando pago…
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 size-4" />
+                        Pagar {promotion ? `$${promotion.payAmount.toLocaleString("es-AR")}` : `$${listAmount.toLocaleString("es-AR")}`} con Mercado Pago
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

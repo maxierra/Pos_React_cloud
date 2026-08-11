@@ -1,42 +1,86 @@
-import { PlayCircle } from "lucide-react";
+import { ExternalLink, PlayCircle } from "lucide-react";
+
+const tutorials = [
+  {
+    title: "Configuracion inicial",
+    description: "Paso a paso para dejar el sistema listo y empezar a operar.",
+    embedUrl: "https://www.youtube.com/embed/Ga6TRIi0uEY",
+    videoUrl: "https://youtu.be/Ga6TRIi0uEY",
+  },
+  {
+    title: "Carga de productos",
+    description: "Aprende a crear productos, organizar precios y preparar tu catalogo.",
+    embedUrl: "https://www.youtube.com/embed/lE-pNOjEEug",
+    videoUrl: "https://youtu.be/lE-pNOjEEug",
+  },
+  {
+    title: "Caja diaria",
+    description: "Apertura, control y cierre de caja para ordenar la operatoria del dia.",
+    embedUrl: "https://www.youtube.com/embed/5wzr0ePrL_g",
+    videoUrl: "https://youtu.be/5wzr0ePrL_g",
+  },
+  {
+    title: "Pantalla de ventas",
+    description: "Conoce la vista principal para cobrar rapido y trabajar con agilidad.",
+    embedUrl: "https://www.youtube.com/embed/_VTaCVwt1CI",
+    videoUrl: "https://youtu.be/_VTaCVwt1CI",
+  },
+];
 
 export function LandingVideoTutorials() {
   return (
     <section
       id="tutoriales"
-      className="relative mt-16 scroll-mt-24 rounded-3xl bg-gradient-to-b from-violet-50/50 to-transparent pb-4 pt-6 md:mt-20 md:pb-8 md:pt-10"
+      className="relative scroll-mt-24 rounded-[2rem] border border-white/80 bg-white/70 px-6 py-8 shadow-[0_24px_64px_-34px_rgba(15,23,42,0.4)] backdrop-blur md:px-8 md:py-10"
       aria-labelledby="tutoriales-heading"
     >
-      <div className="mx-auto max-w-3xl text-center">
+      <div className="mx-auto max-w-5xl">
         <h2
           id="tutoriales-heading"
-          className="font-serif text-2xl font-bold tracking-tight text-slate-900 md:text-3xl"
+          className="text-center font-serif text-3xl font-bold tracking-tight text-slate-900 md:text-4xl"
         >
           Video tutoriales
         </h2>
-        <p className="mt-2 text-sm text-slate-600 md:text-base">
-          Guías paso a paso para sacarle el máximo al sistema. Podés sumar más videos cuando los tengas.
+        <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-7 text-slate-600 md:text-base">
+          Mostra como funciona el software con tutoriales reales. Esta seccion acompana la venta y
+          ayuda a resolver dudas antes de la demo.
         </p>
 
-        <div className="mt-8 rounded-2xl border border-violet-100 bg-white/90 p-2 shadow-lg shadow-violet-100/60 backdrop-blur-sm">
-          <div className="relative aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-violet-100 to-sky-100">
-            <iframe
-              src="https://www.loom.com/embed/c119a013531a4928a9ee3dcd98f3fce9"
-              className="absolute inset-0 h-full w-full rounded-xl"
-              title="Video tutorial - Punto de Venta"
-              allowFullScreen
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-            />
-          </div>
-          <div className="mt-4 text-center">
-            <p className="flex items-center justify-center gap-2 text-lg font-medium text-slate-900">
-              <PlayCircle className="size-5 text-violet-600" aria-hidden />
-              Tutorial completo del sistema
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Primera venta, stock e informes — ideal después de crear tu cuenta.
-            </p>
-          </div>
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          {tutorials.map((tutorial) => (
+            <article
+              key={tutorial.title}
+              className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-3 shadow-lg shadow-slate-200/40"
+            >
+              <div className="relative aspect-video overflow-hidden rounded-[1.25rem] bg-slate-100">
+                <iframe
+                  src={tutorial.embedUrl}
+                  className="absolute inset-0 h-full w-full"
+                  title={tutorial.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+
+              <div className="px-2 pb-2 pt-4">
+                <p className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <PlayCircle className="size-5 text-emerald-700" aria-hidden />
+                  {tutorial.title}
+                </p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">{tutorial.description}</p>
+                <a
+                  href={tutorial.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 underline underline-offset-4"
+                >
+                  Ver en YouTube
+                  <ExternalLink className="size-4" aria-hidden />
+                </a>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
     </section>

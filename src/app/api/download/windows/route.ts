@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   DESKTOP_DOWNLOAD_ASSET_KEY,
-  DESKTOP_DOWNLOAD_RELEASE_URL,
+  DESKTOP_DEMO_DOWNLOAD_URL,
 } from "@/lib/desktop-download";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -44,5 +44,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(DESKTOP_DOWNLOAD_RELEASE_URL, { status: 307 });
+  return NextResponse.redirect(DESKTOP_DEMO_DOWNLOAD_URL, { status: 307 });
 }

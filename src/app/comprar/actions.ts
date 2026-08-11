@@ -4,7 +4,11 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 
 import { getAppBaseUrl, isLocalAppOrigin } from "@/lib/app-base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStoreProductBySku } from "@/lib/store-products";
+import {
+  getStoreProductBySku,
+  getStoreSoftwarePromoConfig,
+  normalizeStoreCoupon,
+} from "@/lib/store-products";
 import { normalizeBusinessType } from "@/lib/business-types";
 
 export type StoreCheckoutInput = {
@@ -14,6 +18,7 @@ export type StoreCheckoutInput = {
   phone: string;
   businessName: string;
   businessType: string;
+  couponCode?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingProvince?: string;
@@ -21,9 +26,38 @@ export type StoreCheckoutInput = {
   shippingNotes?: string;
 };
 
+function storeSoftwarePromotion(productSku: string, listAmount: number, rawCode?: string | null) {
+  const submittedCode = normalizeStoreCoupon(rawCode);
+  const config = getStoreSoftwarePromoConfig(listAmount);
+  const valid = productSku === "software_lifetime" && Boolean(submittedCode) && submittedCode === config.code;
+  return { submittedCode, configuredCode: config.code, discountPercent: config.discountPercent, valid };
+}
+
+export async function validateStoreCoupon(
+  sku: string,
+  rawCode: string
+): Promise<
+  | { ok: true; code: string; discountPercent: number; listAmount: number; payAmount: number }
+  | { ok: false; error: string }
+> {
+  const product = await getStoreProductBySku(sku);
+  if (!product) return { ok: false, error: "Producto no encontrado." };
+  const promotion = storeSoftwarePromotion(product.sku, product.price_ars, rawCode);
+  if (!promotion.submittedCode) return { ok: false, error: "Ingresá un código de descuento." };
+  if (!promotion.valid) return { ok: false, error: "El código ingresado no es válido." };
+  const payAmount = Math.round(product.price_ars * (1 - promotion.discountPercent / 100));
+  return {
+    ok: true,
+    code: promotion.configuredCode,
+    discountPercent: promotion.discountPercent,
+    listAmount: product.price_ars,
+    payAmount,
+  };
+}
+
 export async function startStoreCheckout(
   input: StoreCheckoutInput
-): Promise<{ checkoutUrl: string } | { error: string }> {
+): Promise<{ checkoutUrl: string; orderId: string } | { error: string }> {
   const token = (process.env.MERCADOPAGO_ACCESS_TOKEN ?? "").trim();
   if (!token) {
     return { error: "Pagos no configurados. Contactanos por WhatsApp." };
@@ -92,7 +126,14 @@ export async function startStoreCheckout(
   }
 
   const businessType = normalizeBusinessType(input.businessType);
-  const amount = product.price_ars;
+  const promotion = storeSoftwarePromotion(product.sku, product.price_ars, input.couponCode);
+  if (promotion.submittedCode && !promotion.valid) {
+    return { error: "El código de descuento no es válido." };
+  }
+  const listAmount = product.price_ars;
+  const amount = promotion.valid
+    ? Math.round(listAmount * (1 - promotion.discountPercent / 100))
+    : listAmount;
 
   const { data: order, error: orderErr } = await admin
     .from("store_orders")
@@ -141,6 +182,9 @@ export async function startStoreCheckout(
       order_type: string;
       product_sku: string;
       store_order_id: string;
+      coupon_code: string;
+      discount_percent: number;
+      list_amount_ars: number;
     };
     notification_url: string;
     back_urls: {
@@ -164,6 +208,9 @@ export async function startStoreCheckout(
       order_type: "store",
       product_sku: product.sku,
       store_order_id: orderId,
+      coupon_code: promotion.valid ? promotion.configuredCode : "",
+      discount_percent: promotion.valid ? promotion.discountPercent : 0,
+      list_amount_ars: listAmount,
     },
     notification_url: notificationUrl,
     back_urls: {
@@ -191,7 +238,7 @@ export async function startStoreCheckout(
       .update({ mp_preference_id: String(res.id ?? ""), updated_at: new Date().toISOString() })
       .eq("id", orderId);
 
-    return { checkoutUrl };
+    return { checkoutUrl, orderId };
   } catch (e) {
     console.error("[store-checkout] preference.create failed:", e);
     return { error: e instanceof Error ? e.message : "Error al iniciar el pago." };

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
 
 import { getStoreOrderStatus } from "@/app/comprar/actions";
+import { DESKTOP_PAID_DOWNLOAD_PATH } from "@/lib/desktop-download";
 
 type Props = {
   orderId: string | null;
@@ -50,6 +51,17 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
   const provisioned = state?.provisioned;
   const failed = mpStatus === "failure";
 
+  React.useEffect(() => {
+    if (!orderId) return;
+    if (failed) return;
+    if (!provisioned) return;
+    if (typeof window === "undefined") return;
+    if (!window.opener) return;
+
+    window.opener.postMessage({ type: "store-order-paid", orderId }, window.location.origin);
+    window.close();
+  }, [failed, orderId, provisioned]);
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
       {failed ? (
@@ -78,6 +90,14 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
             >
               Ingresar al sistema
             </Link>
+            {!state?.includesHardware ? (
+              <Link
+                href={`${DESKTOP_PAID_DOWNLOAD_PATH}?order=${encodeURIComponent(orderId ?? "")}`}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-6 text-sm font-semibold text-emerald-900"
+              >
+                Descargar software
+              </Link>
+            ) : null}
             {state?.includesHardware && state.trackingToken ? (
               <Link
                 href={`/pedido/${state.trackingToken}`}

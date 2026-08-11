@@ -11,7 +11,7 @@ export type StoreProduct = {
 };
 
 const DEFAULT_PRICES = {
-  software_lifetime: 150_000,
+  software_lifetime: 100_000,
   combo_essential: 350_000,
 } as const;
 
@@ -153,6 +153,24 @@ export function formatStorePrice(amount: number): string {
     currency: "ARS",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+export function normalizeStoreCoupon(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+export function getStoreSoftwarePromoConfig(listAmount: number) {
+  const code = normalizeStoreCoupon(process.env.STORE_SOFTWARE_PROMO_CODE || "TIENDA50");
+  const rawPercent = Number(process.env.STORE_SOFTWARE_PROMO_PERCENT || "50");
+  const discountPercent = Number.isFinite(rawPercent)
+    ? Math.min(90, Math.max(1, Math.round(rawPercent)))
+    : 50;
+  return {
+    code,
+    discountPercent,
+    listAmount,
+    payAmount: Math.round(listAmount * (1 - discountPercent / 100)),
+  };
 }
 
 export function slugifyBusinessName(input: string): string {

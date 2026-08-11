@@ -4,9 +4,9 @@ import { Providers } from "@/app/providers";
 import { SupportFloatingButton } from "@/components/support-floating-button";
 
 export const metadata: Metadata = {
-  title: "POS SaaS — Punto de venta en la nube",
+  title: "Tienda360 POS | Punto de venta para comercios",
   description:
-    "Stock, caja, tickets e informes para tu comercio. Probá el POS en una demo en vivo y empezá gratis.",
+    "Vendé más rápido y controlá stock, caja y reportes con Tienda360 POS. Software para Windows con licencia de por vida y soporte cercano.",
 };
 
 export default function RootLayout({
