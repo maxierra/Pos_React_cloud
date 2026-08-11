@@ -352,19 +352,21 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                     </select>
                   </div>
 
-                  <Button type="submit" disabled={pending} className="mt-2">
-                    {pending ? (
-                      <>
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                        Preparando pago…
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="mr-2 size-4" />
-                        Pagar {promotion ? `$${promotion.payAmount.toLocaleString("es-AR")}` : `$${listAmount.toLocaleString("es-AR")}`} con Mercado Pago
-                      </>
-                    )}
-                  </Button>
+                  <div className="sticky bottom-0 z-10 -mx-4 border-t border-slate-200 bg-white/95 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+                    <Button type="submit" disabled={pending} className="w-full">
+                      {pending ? (
+                        <>
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                          Preparando pago…
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 size-4" />
+                          Pagar {promotion ? `$${promotion.payAmount.toLocaleString("es-AR")}` : `$${listAmount.toLocaleString("es-AR")}`} con Mercado Pago
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </>
             )}
