@@ -187,14 +187,14 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
 
       {open ? (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] overflow-y-auto overscroll-contain bg-slate-950/55 backdrop-blur-sm sm:px-4 sm:py-6"
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
-          <div className="relative w-full max-w-xl rounded-[2rem] border border-white/80 bg-white p-6 shadow-[0_30px_80px_-32px_rgba(15,23,42,0.45)]">
+          <div className="relative mx-auto min-h-[100dvh] w-full bg-white px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6 shadow-[0_30px_80px_-32px_rgba(15,23,42,0.45)] sm:min-h-0 sm:max-w-xl sm:rounded-[2rem] sm:border sm:border-white/80 sm:p-6">
             <button
               type="button"
               onClick={closeModal}
