@@ -39,10 +39,10 @@ export function LandingVideoTutorials() {
           id="tutoriales-heading"
           className="text-center font-serif text-3xl font-bold tracking-tight text-slate-900 md:text-4xl"
         >
-          Mirá cómo funciona Tienda360
+          Mirá Tienda360 en funcionamiento
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-7 text-slate-600 md:text-base">
-          En menos de un minuto podés ver cómo se realiza una venta y cómo el sistema te ayuda a ordenar tu comercio.
+          Conocé las principales funciones del sistema antes de decidir tu compra.
         </p>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorials";
+import { LandingTestimonials } from "@/components/landing/landing-testimonials";
 import { QuickSaleSimulation } from "@/components/landing/QuickSaleSimulation";
 import { SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
 import { MobilePurchaseBar } from "@/components/landing/mobile-purchase-bar";
@@ -131,7 +132,8 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
               Controlá ventas, stock, caja y tu negocio desde un solo sistema.
             </p>
             <div className="mt-6 flex items-end gap-3"><span className="text-lg text-white/45 line-through">{softwareListPrice}</span><strong className="text-4xl font-black text-[#c8ff5a]">{softwarePromoPrice}</strong><span className="mb-1 rounded-full bg-[#c8ff5a] px-2 py-1 text-xs font-black text-[#09130f]">50% OFF</span></div>
-            <p className="mt-2 text-sm font-black tracking-wide text-white">PAGO ÚNICO · LICENCIA DE POR VIDA</p>
+            <p className="mt-2 text-sm font-black tracking-wide text-white">PAGO ÚNICO · SIN MENSUALIDADES</p>
+            <p className="mt-1 text-sm font-black tracking-wide text-[#d8ff89]">LICENCIA DE POR VIDA</p>
             <p className="mt-2 text-sm font-semibold text-[#d8ff89]">Se instala en una PC con Windows 10/11 de 64 bits.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA POR ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-6 text-sm font-black text-[#09130f] shadow-[0_18px_45px_-18px_rgba(200,255,90,.9)] transition hover:bg-[#d8ff89]" />
@@ -186,6 +188,30 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
         </div>
       </section>
 
+      <section className="bg-[#09130f] py-16 text-white" aria-labelledby="problemas-title">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+          <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[.22em] text-[#c8ff5a]">El día a día del comercio</p>
+              <h2 id="problemas-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>
+                ¿Todavía manejás tu comercio de esta manera?
+              </h2>
+            </div>
+            <div>
+              <ul className="grid gap-3 text-sm text-white/75 sm:grid-cols-2">
+                {["Buscando precios mientras el cliente espera.", "Anotando ventas manualmente.", "Sin saber exactamente cuánto stock queda.", "Haciendo cuentas al cerrar la caja.", "Sin saber claramente cuánto vendiste o ganaste."].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/5 p-4">
+                    <Clock3 className="mt-0.5 size-4 shrink-0 text-[#c8ff5a]" aria-hidden />{item}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 text-xl font-extrabold">Tienda360 reúne todo en un solo lugar.</p>
+              <p className="mt-2 text-sm font-bold text-[#d8ff89]">Ventas · Stock · Caja · Productos · Reportes</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="funciones" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]">
           <div>
@@ -207,7 +233,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
 
       <section id="como-funciona" className="bg-[#e9eddf] py-20 lg:py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-2xl text-center"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Empezá sin vueltas</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>De la compra a tu primera venta.</h2></div>
+          <div className="mx-auto max-w-2xl text-center"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Empezá sin vueltas</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Comprar Tienda360 es simple</h2></div>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map(({ icon: Icon, number, title, text }) => <article key={number} className="relative rounded-[1.6rem] bg-white p-7"><span className={`${sora.className} absolute right-6 top-5 text-4xl font-extrabold text-slate-100`}>{number}</span><div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800"><Icon className="size-5" /></div><h3 className={`${sora.className} mt-5 text-xl font-bold`}>{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></article>)}
           </div>
@@ -280,6 +306,8 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
 
       <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12"><LandingVideoTutorials /></section>
 
+      <LandingTestimonials />
+
       <section className="bg-white py-20" aria-labelledby="confianza-title">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
           <div className="mx-auto max-w-2xl text-center">
@@ -287,7 +315,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
             <h2 id="confianza-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Comprá con tranquilidad</h2>
           </div>
           <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {["Pago seguro mediante Mercado Pago", "Pago único", "Sin mensualidades", "Licencia de por vida", "Soporte técnico", "Descarga para Windows", "Software desarrollado por Tienda360"].map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-[#f5f6ef] p-4 text-sm font-bold"><ShieldCheck className="size-5 shrink-0 text-emerald-700" />{item}</div>)}
+            {["Pago seguro mediante Mercado Pago", "Pago único", "Sin mensualidades", "Licencia de por vida", "Soporte técnico", "Para Windows", "+300.000 productos precargados"].map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-[#f5f6ef] p-4 text-sm font-bold"><ShieldCheck className="size-5 shrink-0 text-emerald-700" />{item}</div>)}
           </div>
         </div>
       </section>
@@ -301,6 +329,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
             ["¿Qué Windows necesito?", "Windows 10 o Windows 11 de 64 bits."],
             ["¿Qué recibo después de comprar?", "Una vez confirmado el pago recibís el acceso necesario para descargar e instalar Tienda360."],
             ["¿Puedo probarlo antes?", "Sí. Hay disponible una versión demo para Windows."],
+            ["¿Cómo pago?", "El pago se realiza de forma segura mediante Mercado Pago."],
             ["¿Necesito conocimientos de informática?", "No. El sistema está pensado para ser simple de utilizar en comercios."],
           ].map(([question, answer]) => <details key={question} className="group py-5"><summary className="cursor-pointer list-none pr-8 text-base font-bold marker:hidden">{question}<span className="float-right text-emerald-700 transition group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{answer}</p></details>)}
         </div>
