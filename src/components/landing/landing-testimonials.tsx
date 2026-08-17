@@ -20,7 +20,7 @@ export function LandingTestimonials() {
             Ejemplos del tipo de experiencia que buscamos reflejar con clientes que utilizan el sistema en su comercio.
           </p>
           <p className="mt-2 text-xs font-semibold text-slate-500">
-            Contenido provisorio de muestra para maquetación; no representa testimonios verificados.
+            Contenido provisorio de muestra para maquetación.
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export function LandingTestimonials() {
                 </p>
                 <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500">
                   <MapPin className="size-3.5" aria-hidden />
-                  {testimonial.location} · Ejemplo no verificado
+                  {testimonial.location}
                 </p>
               </div>
             </article>
