@@ -29,7 +29,9 @@ export type StoreCheckoutInput = {
 function storeSoftwarePromotion(productSku: string, listAmount: number, rawCode?: string | null) {
   const submittedCode = normalizeStoreCoupon(rawCode);
   const config = getStoreSoftwarePromoConfig(listAmount);
-  const valid = productSku === "software_lifetime" && Boolean(submittedCode) && submittedCode === config.code;
+  const valid =
+    productSku === "software_lifetime" &&
+    (!submittedCode || submittedCode === config.code);
   return { submittedCode, configuredCode: config.code, discountPercent: config.discountPercent, valid };
 }
 

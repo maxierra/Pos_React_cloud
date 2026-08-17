@@ -2,26 +2,26 @@ import { ExternalLink, PlayCircle } from "lucide-react";
 
 const tutorials = [
   {
-    title: "Configuracion inicial",
+    title: "Configuración inicial",
     description: "Paso a paso para dejar el sistema listo y empezar a operar.",
     embedUrl: "https://www.youtube.com/embed/Ga6TRIi0uEY",
     videoUrl: "https://youtu.be/Ga6TRIi0uEY",
   },
   {
     title: "Carga de productos",
-    description: "Aprende a crear productos, organizar precios y preparar tu catalogo.",
+    description: "Aprendé a crear productos, organizar precios y preparar tu catálogo.",
     embedUrl: "https://www.youtube.com/embed/lE-pNOjEEug",
     videoUrl: "https://youtu.be/lE-pNOjEEug",
   },
   {
     title: "Caja diaria",
-    description: "Apertura, control y cierre de caja para ordenar la operatoria del dia.",
+    description: "Apertura, control y cierre de caja para ordenar la operatoria del día.",
     embedUrl: "https://www.youtube.com/embed/5wzr0ePrL_g",
     videoUrl: "https://youtu.be/5wzr0ePrL_g",
   },
   {
     title: "Pantalla de ventas",
-    description: "Conoce la vista principal para cobrar rapido y trabajar con agilidad.",
+    description: "Conocé la vista principal para cobrar rápido y trabajar con agilidad.",
     embedUrl: "https://www.youtube.com/embed/_VTaCVwt1CI",
     videoUrl: "https://youtu.be/_VTaCVwt1CI",
   },
@@ -39,11 +39,10 @@ export function LandingVideoTutorials() {
           id="tutoriales-heading"
           className="text-center font-serif text-3xl font-bold tracking-tight text-slate-900 md:text-4xl"
         >
-          Video tutoriales
+          Mirá cómo funciona Tienda360
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-7 text-slate-600 md:text-base">
-          Mostra como funciona el software con tutoriales reales. Esta seccion acompana la venta y
-          ayuda a resolver dudas antes de la demo.
+          En menos de un minuto podés ver cómo se realiza una venta y cómo el sistema te ayuda a ordenar tu comercio.
         </p>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">

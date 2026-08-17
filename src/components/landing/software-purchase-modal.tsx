@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Loader2, ShoppingCart, TicketPercent, X } from "lucide-react";
+import { CheckCircle2, Loader2, ShoppingCart, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { getStoreOrderStatus, startStoreCheckout, validateStoreCoupon } from "@/app/comprar/actions";
+import { getStoreOrderStatus, startStoreCheckout } from "@/app/comprar/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,22 +27,17 @@ type SoftwarePurchaseModalProps = {
   promoCode: string;
   discountPercent: number;
   promoAmount: number;
+  triggerLabel?: string;
+  triggerClassName?: string;
+  primaryMarker?: boolean;
 };
 
-export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, promoAmount }: SoftwarePurchaseModalProps) {
+export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, promoAmount, triggerLabel, triggerClassName, primaryMarker = false }: SoftwarePurchaseModalProps) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [checkoutStarted, setCheckoutStarted] = React.useState(false);
   const [popupBlocked, setPopupBlocked] = React.useState(false);
   const [orderState, setOrderState] = React.useState<OrderState | null>(null);
-  const [couponCode, setCouponCode] = React.useState("");
-  const [couponError, setCouponError] = React.useState("");
-  const [promotion, setPromotion] = React.useState<{
-    code: string;
-    discountPercent: number;
-    listAmount: number;
-    payAmount: number;
-  } | null>(null);
   const popupRef = React.useRef<Window | null>(null);
   const pollRef = React.useRef<number | null>(null);
   const [form, setForm] = React.useState({
@@ -59,27 +54,11 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
     setCheckoutStarted(false);
     setPopupBlocked(false);
     setOrderState(null);
-    setCouponError("");
     if (pollRef.current) {
       window.clearInterval(pollRef.current);
       pollRef.current = null;
     }
   }, [pending]);
-
-  const applyCoupon = () => {
-    setCouponError("");
-    setPromotion(null);
-    startTransition(async () => {
-      const res = await validateStoreCoupon("software_lifetime", couponCode);
-      if (!res.ok) {
-        setCouponError(res.error);
-        return;
-      }
-      setCouponCode(res.code);
-      setPromotion(res);
-      toast.success(`Cupón aplicado: ${res.discountPercent}% de descuento`);
-    });
-  };
 
   React.useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -146,7 +125,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         phone: form.phone,
         businessName: form.businessName,
         businessType: form.businessType,
-        couponCode,
+        couponCode: promoCode,
       });
 
       if ("error" in res) {
@@ -176,13 +155,14 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
     <>
       <Button
         type="button"
+        data-primary-purchase={primaryMarker ? "true" : undefined}
         onClick={() => setOpen(true)}
-        className="inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"
+        className={triggerClassName ?? "inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"}
       >
         <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
           MP
         </span>
-        Pagar con Mercado Pago
+        {triggerLabel ?? "Pagar con Mercado Pago"}
       </Button>
 
       {open ? (
@@ -245,7 +225,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                 <div className="pr-10">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">Pago único</p>
                   <h3 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-                    Activá el software desde la landing
+                    Comprá Tienda360 para Windows
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-slate-600">
                     Completá tus datos, pagás en Mercado Pago en una ventana aparte y cuando el pago
@@ -255,44 +235,13 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
 
                 <form onSubmit={submit} className="mt-6 grid gap-4">
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-950">
-                      <TicketPercent className="size-4" /> Aplicá tu cupón antes de pagar
+                    <div className="flex items-center gap-2 text-sm font-bold text-emerald-950">
+                      <CheckCircle2 className="size-5" /> {discountPercent}% OFF aplicado automáticamente
                     </div>
-                    <div className="mt-3 flex gap-2">
-                      <Input
-                        id="software-coupon"
-                        value={couponCode}
-                        onChange={(e) => {
-                          setCouponCode(e.target.value.toUpperCase());
-                          setPromotion(null);
-                          setCouponError("");
-                        }}
-                        placeholder={`Ejemplo: ${promoCode}`}
-                        autoComplete="off"
-                        className="bg-white font-mono uppercase"
-                      />
-                      <Button type="button" variant="outline" onClick={applyCoupon} disabled={pending || !couponCode.trim()}>
-                        Aplicar
-                      </Button>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <div className="text-xs text-slate-500">Antes <span className="line-through">${listAmount.toLocaleString("es-AR")}</span></div>
+                      <div className="text-2xl font-black text-slate-950">${promoAmount.toLocaleString("es-AR")}</div>
                     </div>
-                    {couponError ? <p className="mt-2 text-xs font-medium text-rose-700">{couponError}</p> : null}
-                    {promotion ? (
-                      <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
-                          <CheckCircle2 className="size-4" /> Cupón {promotion.code} aplicado
-                        </div>
-                        <div className="mt-2 flex items-end justify-between gap-3">
-                          <div className="text-xs text-slate-500">
-                            Precio normal <span className="line-through">${promotion.listAmount.toLocaleString("es-AR")}</span>
-                          </div>
-                          <div className="text-xl font-black text-slate-950">${promotion.payAmount.toLocaleString("es-AR")}</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-xs leading-5 text-emerald-900/80">
-                        Si recibiste el cupón <strong>{promoCode}</strong>, ingresalo para pagar <strong>${promoAmount.toLocaleString("es-AR")}</strong> en lugar de ${listAmount.toLocaleString("es-AR")} ({discountPercent}% OFF).
-                      </p>
-                    )}
                   </div>
 
                   <div className="grid gap-1.5">
@@ -362,7 +311,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                       ) : (
                         <>
                           <ShoppingCart className="mr-2 size-4" />
-                          Pagar {promotion ? `$${promotion.payAmount.toLocaleString("es-AR")}` : `$${listAmount.toLocaleString("es-AR")}`} con Mercado Pago
+                          Pagar ${promoAmount.toLocaleString("es-AR")} con Mercado Pago
                         </>
                       )}
                     </Button>
