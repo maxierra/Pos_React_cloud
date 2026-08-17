@@ -31,6 +31,7 @@ import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorial
 import { QuickSaleSimulation } from "@/components/landing/QuickSaleSimulation";
 import { SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
 import { MobilePurchaseBar } from "@/components/landing/mobile-purchase-bar";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { DESKTOP_DOWNLOAD_TRACKED_PATH } from "@/lib/desktop-download";
 import {
   formatStorePrice,
@@ -88,6 +89,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
 
   return (
     <main className={`${inter.className} overflow-hidden bg-[#f5f6ef] text-slate-950`}>
+      <MetaPixel />
       {sp.missingSupabase ? (
         <div className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm text-amber-950">
           Falta configurar Supabase en <code className="rounded bg-white px-1">.env.local</code>.

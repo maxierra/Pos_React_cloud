@@ -254,6 +254,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
   email: string | null;
   trackingToken: string | null;
   includesHardware: boolean;
+  amountArs: number;
 } | null> {
   if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) return null;
 
@@ -261,7 +262,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
     const admin = createAdminClient();
     const { data } = await admin
       .from("store_orders")
-      .select("status,provisioned_at,fulfillment_status,email,tracking_token,product_sku")
+      .select("status,provisioned_at,fulfillment_status,email,tracking_token,product_sku,amount_ars")
       .eq("id", orderId)
       .maybeSingle();
     if (!data) return null;
@@ -272,6 +273,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
       email: string;
       tracking_token: string;
       product_sku: string;
+      amount_ars: number;
     };
 
     const { data: product } = await admin
@@ -287,6 +289,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
       email: row.email,
       trackingToken: row.tracking_token,
       includesHardware: Boolean((product as { includes_hardware?: boolean } | null)?.includes_hardware),
+      amountArs: Number(row.amount_ars ?? 0),
     };
   } catch {
     return null;

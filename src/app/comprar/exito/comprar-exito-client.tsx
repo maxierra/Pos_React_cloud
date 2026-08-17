@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, Mail } from "lucide-react";
 
 import { getStoreOrderStatus } from "@/app/comprar/actions";
 import { DESKTOP_PAID_DOWNLOAD_PATH } from "@/lib/desktop-download";
+import { trackMetaEvent } from "@/components/analytics/meta-pixel";
 
 type Props = {
   orderId: string | null;
@@ -19,6 +20,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
     status: string;
     trackingToken: string | null;
     includesHardware: boolean;
+    amountArs: number;
   } | null>(null);
 
   React.useEffect(() => {
@@ -36,6 +38,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
         status: res.status,
         trackingToken: res.trackingToken,
         includesHardware: res.includesHardware,
+        amountArs: res.amountArs,
       });
       if (!res.provisioned && attempts < 30) {
         setTimeout(poll, 2000);
@@ -50,6 +53,18 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
 
   const provisioned = state?.provisioned;
   const failed = mpStatus === "failure";
+
+  React.useEffect(() => {
+    if (!orderId || failed || !provisioned || !state?.amountArs) return;
+    const purchaseKey = `meta-purchase-${orderId}`;
+    if (window.sessionStorage.getItem(purchaseKey)) return;
+    trackMetaEvent(
+      "Purchase",
+      { value: state.amountArs, currency: "ARS", content_name: "Tienda360" },
+      orderId
+    );
+    window.sessionStorage.setItem(purchaseKey, "1");
+  }, [failed, orderId, provisioned, state?.amountArs]);
 
   React.useEffect(() => {
     if (!orderId) return;

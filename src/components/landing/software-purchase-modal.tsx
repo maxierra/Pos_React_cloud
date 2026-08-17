@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DESKTOP_PAID_DOWNLOAD_PATH } from "@/lib/desktop-download";
+import { trackMetaEvent } from "@/components/analytics/meta-pixel";
 
 const BUSINESS_TYPES = [
   { value: "retail", label: "Comercio" },
@@ -65,6 +66,11 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
       if (!event.data || typeof event.data !== "object") return;
       const payload = event.data as { type?: string; orderId?: string };
       if (payload.type !== "store-order-paid" || !payload.orderId) return;
+      const purchaseKey = `meta-purchase-${payload.orderId}`;
+      if (!window.sessionStorage.getItem(purchaseKey)) {
+        trackMetaEvent("Purchase", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" }, payload.orderId);
+        window.sessionStorage.setItem(purchaseKey, "1");
+      }
       setOpen(true);
       setCheckoutStarted(true);
       setOrderState((current) => ({
@@ -76,7 +82,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [promoAmount]);
 
   React.useEffect(() => {
     if (!checkoutStarted || !orderState?.orderId) return;
@@ -156,7 +162,10 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
       <Button
         type="button"
         data-primary-purchase={primaryMarker ? "true" : undefined}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trackMetaEvent("InitiateCheckout", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" });
+          setOpen(true);
+        }}
         className={triggerClassName ?? "inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"}
       >
         <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">

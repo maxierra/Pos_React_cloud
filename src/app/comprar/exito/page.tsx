@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ComprarExitoClient } from "@/app/comprar/exito/comprar-exito-client";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 
 type Props = {
   searchParams?: Promise<{ order?: string; mp?: string }>;
@@ -13,6 +14,7 @@ export default async function ComprarExitoPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/90 via-zinc-50 to-emerald-50/70">
+      <MetaPixel />
       <header className="border-b border-sky-100/80 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl px-4 py-4">
           <Link href="/" className="text-sm font-semibold text-slate-900">
