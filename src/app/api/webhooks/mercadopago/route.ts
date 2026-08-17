@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 
 import { notifyAdminSubscriptionPayment } from "@/lib/admin-alerts-send";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { emitFiscalVoucherForRecordedSale } from "@/lib/fiscal-sale-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -20,6 +21,7 @@ type MpPayment = {
   transaction_amount?: number;
   currency_id?: string;
   id?: number | string;
+  date_approved?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -149,11 +151,25 @@ async function processStoreOrderApproved(payment: MpPayment, paymentId: string):
 
   const { data: provisioned } = await admin
     .from("store_orders")
-    .select("provisioned_business_id")
+    .select("provisioned_business_id,email,phone,customer_name,amount_ars,product_sku,meta_fbp,meta_fbc,client_ip,client_user_agent,meta_purchase_sent_at,created_at")
     .eq("id", orderId)
     .maybeSingle();
 
-  const businessId = (provisioned as { provisioned_business_id?: string } | null)?.provisioned_business_id;
+  const provisionedOrder = provisioned as {
+    provisioned_business_id?: string;
+    email: string;
+    phone: string;
+    customer_name: string;
+    amount_ars: number;
+    product_sku: string;
+    meta_fbp: string | null;
+    meta_fbc: string | null;
+    client_ip: string | null;
+    client_user_agent: string | null;
+    meta_purchase_sent_at: string | null;
+    created_at: string;
+  } | null;
+  const businessId = provisionedOrder?.provisioned_business_id;
   if (businessId) {
     const { data: subRow } = await admin.from("subscriptions").select("id").eq("business_id", businessId).maybeSingle();
     const { error: payErr } = await admin.from("payments").insert({
@@ -168,6 +184,30 @@ async function processStoreOrderApproved(payment: MpPayment, paymentId: string):
     });
     if (payErr) {
       console.warn("[mp-webhook] store payments insert", payErr.message);
+    }
+  }
+
+  if (provisionedOrder && !provisionedOrder.meta_purchase_sent_at) {
+    const { sendMetaPurchase } = await import("@/lib/meta-conversions");
+    const metaResult = await sendMetaPurchase({
+      eventId: orderId,
+      eventTime: Math.floor(new Date(payment.date_approved || new Date().toISOString()).getTime() / 1000),
+      value: Number(provisionedOrder.amount_ars),
+      currency: String(payment.currency_id ?? "ARS"),
+      email: provisionedOrder.email,
+      phone: provisionedOrder.phone,
+      customerName: provisionedOrder.customer_name,
+      clientIp: provisionedOrder.client_ip,
+      clientUserAgent: provisionedOrder.client_user_agent,
+      fbc: provisionedOrder.meta_fbc,
+      fbp: provisionedOrder.meta_fbp,
+      sourceUrl: `${getAppBaseUrl()}/comprar/exito?order=${encodeURIComponent(orderId)}`,
+      productSku: provisionedOrder.product_sku,
+    });
+    if (metaResult.ok) {
+      await admin.from("store_orders").update({ meta_purchase_sent_at: new Date().toISOString() }).eq("id", orderId);
+    } else {
+      console.warn("[mp-webhook] Meta Purchase no enviado:", metaResult.error);
     }
   }
 

@@ -17,6 +17,12 @@ const BUSINESS_TYPES = [
   { value: "gastronomy", label: "Gastronomía" },
 ] as const;
 
+function readCookie(name: string) {
+  const prefix = `${name}=`;
+  const item = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
+  return item ? decodeURIComponent(item.slice(prefix.length)) : "";
+}
+
 type OrderState = {
   orderId: string;
   provisioned: boolean;
@@ -132,6 +138,8 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         businessName: form.businessName,
         businessType: form.businessType,
         couponCode: promoCode,
+        metaFbp: readCookie("_fbp"),
+        metaFbc: readCookie("_fbc"),
       });
 
       if ("error" in res) {

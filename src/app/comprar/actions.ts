@@ -1,6 +1,7 @@
 "use server";
 
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { headers } from "next/headers";
 
 import { getAppBaseUrl, isLocalAppOrigin } from "@/lib/app-base-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -24,6 +25,8 @@ export type StoreCheckoutInput = {
   shippingProvince?: string;
   shippingPostalCode?: string;
   shippingNotes?: string;
+  metaFbp?: string;
+  metaFbc?: string;
 };
 
 function storeSoftwarePromotion(productSku: string, listAmount: number, rawCode?: string | null) {
@@ -137,6 +140,11 @@ export async function startStoreCheckout(
     ? Math.round(listAmount * (1 - promotion.discountPercent / 100))
     : listAmount;
 
+  const requestHeaders = await headers();
+  const forwardedFor = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const clientIp = forwardedFor || requestHeaders.get("x-real-ip")?.trim() || null;
+  const clientUserAgent = requestHeaders.get("user-agent")?.slice(0, 1024) || null;
+
   const { data: order, error: orderErr } = await admin
     .from("store_orders")
     .insert({
@@ -154,6 +162,10 @@ export async function startStoreCheckout(
       shipping_postal_code: product.includes_hardware ? input.shippingPostalCode?.trim() ?? null : null,
       shipping_notes: product.includes_hardware ? input.shippingNotes?.trim() ?? null : null,
       fulfillment_status: product.includes_hardware ? "pending_shipment" : "not_applicable",
+      meta_fbp: input.metaFbp?.trim().slice(0, 255) || null,
+      meta_fbc: input.metaFbc?.trim().slice(0, 255) || null,
+      client_ip: clientIp,
+      client_user_agent: clientUserAgent,
     })
     .select("id")
     .single();
