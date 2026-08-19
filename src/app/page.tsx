@@ -30,7 +30,7 @@ import {
 import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorials";
 import { LandingTestimonials } from "@/components/landing/landing-testimonials";
 import { QuickSaleSimulation } from "@/components/landing/QuickSaleSimulation";
-import { SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
+import { PromoCountdown, SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
 import { MobilePurchaseBar } from "@/components/landing/mobile-purchase-bar";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { DESKTOP_DOWNLOAD_TRACKED_PATH } from "@/lib/desktop-download";
@@ -135,6 +135,12 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
             <p className="mt-2 text-sm font-black tracking-wide text-white">PAGO ÚNICO · SIN MENSUALIDADES</p>
             <p className="mt-1 text-sm font-black tracking-wide text-[#d8ff89]">LICENCIA DE POR VIDA</p>
             <p className="mt-2 text-sm font-semibold text-[#d8ff89]">Se instala en una PC con Windows 10/11 de 64 bits.</p>
+            <div
+              className="mt-5 inline-flex rounded-xl border border-red-400/80 bg-red-500/20 px-4 py-2.5 text-sm font-extrabold text-red-100 shadow-[0_10px_35px_-14px_rgba(239,68,68,.95)]"
+              aria-live="polite"
+            >
+              <PromoCountdown />
+            </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA POR ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-6 text-sm font-black text-[#09130f] shadow-[0_18px_45px_-18px_rgba(200,255,90,.9)] transition hover:bg-[#d8ff89]" />
               <a href="#demo" className="inline-flex h-13 items-center justify-center rounded-full border border-white/18 bg-white/7 px-6 text-sm font-bold text-white transition hover:bg-white/12">

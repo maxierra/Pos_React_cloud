@@ -17,6 +17,41 @@ const BUSINESS_TYPES = [
   { value: "gastronomy", label: "Gastronomía" },
 ] as const;
 
+const SOFTWARE_PROMO_END_AT = new Date("2026-09-01T02:59:59.999Z").getTime();
+
+export function PromoCountdown() {
+  const [remainingMs, setRemainingMs] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRemainingMs(Math.max(0, SOFTWARE_PROMO_END_AT - Date.now()));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (remainingMs === null) {
+    return <span>Promoción válida hasta el 31 de agosto</span>;
+  }
+
+  if (remainingMs === 0) {
+    return <span>Promoción finalizada</span>;
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    <span>
+      Termina en {days}d {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m{" "}
+      {seconds.toString().padStart(2, "0")}s
+    </span>
+  );
+}
+
 function readCookie(name: string) {
   const prefix = `${name}=`;
   const item = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
@@ -37,9 +72,10 @@ type SoftwarePurchaseModalProps = {
   triggerLabel?: string;
   triggerClassName?: string;
   primaryMarker?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, promoAmount, triggerLabel, triggerClassName, primaryMarker = false }: SoftwarePurchaseModalProps) {
+export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, promoAmount, triggerLabel, triggerClassName, primaryMarker = false, onOpenChange }: SoftwarePurchaseModalProps) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [checkoutStarted, setCheckoutStarted] = React.useState(false);
@@ -55,9 +91,14 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
     businessType: "retail",
   });
 
+  const updateOpen = React.useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  }, [onOpenChange]);
+
   const closeModal = React.useCallback(() => {
     if (pending) return;
-    setOpen(false);
+    updateOpen(false);
     setCheckoutStarted(false);
     setPopupBlocked(false);
     setOrderState(null);
@@ -65,7 +106,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
       window.clearInterval(pollRef.current);
       pollRef.current = null;
     }
-  }, [pending]);
+  }, [pending, updateOpen]);
 
   React.useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -77,7 +118,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         trackMetaEvent("Purchase", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" }, payload.orderId);
         window.sessionStorage.setItem(purchaseKey, "1");
       }
-      setOpen(true);
+      updateOpen(true);
       setCheckoutStarted(true);
       setOrderState((current) => ({
         orderId: payload.orderId!,
@@ -88,7 +129,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [promoAmount]);
+  }, [promoAmount, updateOpen]);
 
   React.useEffect(() => {
     if (!checkoutStarted || !orderState?.orderId) return;
@@ -147,7 +188,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         return;
       }
 
-      setOpen(true);
+      updateOpen(true);
       setCheckoutStarted(true);
       setOrderState({ orderId: res.orderId, provisioned: false, status: "pending_payment" });
 
@@ -172,7 +213,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         data-primary-purchase={primaryMarker ? "true" : undefined}
         onClick={() => {
           trackMetaEvent("InitiateCheckout", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" });
-          setOpen(true);
+          updateOpen(true);
         }}
         className={triggerClassName ?? "inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"}
       >
@@ -259,54 +300,74 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                       <div className="text-xs text-slate-500">Antes <span className="line-through">${listAmount.toLocaleString("es-AR")}</span></div>
                       <div className="text-2xl font-black text-slate-950">${promoAmount.toLocaleString("es-AR")}</div>
                     </div>
+                    <div
+                      className="mt-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-center text-sm font-extrabold text-red-700 shadow-[0_10px_30px_-18px_rgba(220,38,38,.8)]"
+                      aria-live="polite"
+                    >
+                      <PromoCountdown />
+                    </div>
                   </div>
 
                   <div className="grid gap-1.5">
-                    <Label htmlFor="software-email">Email</Label>
+                    <Label htmlFor="software-email" className="text-slate-800">Email</Label>
                     <Input
                       id="software-email"
                       type="email"
                       required
+                      autoComplete="email"
+                      placeholder="tu@email.com"
+                      className="h-11 bg-white text-slate-950 placeholder:text-slate-400"
                       value={form.email}
                       onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     />
                   </div>
 
                   <div className="grid gap-1.5">
-                    <Label htmlFor="software-customerName">Nombre completo</Label>
+                    <Label htmlFor="software-customerName" className="text-slate-800">Nombre completo</Label>
                     <Input
                       id="software-customerName"
                       required
+                      autoComplete="name"
+                      placeholder="Nombre y apellido"
+                      className="h-11 bg-white text-slate-950 placeholder:text-slate-400"
                       value={form.customerName}
                       onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))}
                     />
                   </div>
 
                   <div className="grid gap-1.5">
-                    <Label htmlFor="software-phone">Teléfono / WhatsApp</Label>
+                    <Label htmlFor="software-phone" className="text-slate-800">Teléfono / WhatsApp</Label>
                     <Input
                       id="software-phone"
+                      type="tel"
                       required
+                      autoComplete="tel"
+                      inputMode="tel"
+                      placeholder="Ej.: 11 1234 5678"
+                      className="h-11 bg-white text-slate-950 placeholder:text-slate-400"
                       value={form.phone}
                       onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                     />
                   </div>
 
                   <div className="grid gap-1.5">
-                    <Label htmlFor="software-businessName">Nombre del negocio</Label>
+                    <Label htmlFor="software-businessName" className="text-slate-800">Nombre del negocio</Label>
                     <Input
                       id="software-businessName"
                       required
+                      autoComplete="organization"
+                      placeholder="Ej.: Mi comercio"
+                      className="h-11 bg-white text-slate-950 placeholder:text-slate-400"
                       value={form.businessName}
                       onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
                     />
                   </div>
 
                   <div className="grid gap-1.5">
-                    <Label htmlFor="software-businessType">Tipo de negocio</Label>
+                    <Label htmlFor="software-businessType" className="text-slate-800">Tipo de negocio</Label>
                     <select
                       id="software-businessType"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-11 w-full rounded-md border border-input bg-white px-3 py-2 text-sm text-slate-950"
                       value={form.businessType}
                       onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value }))}
                     >
