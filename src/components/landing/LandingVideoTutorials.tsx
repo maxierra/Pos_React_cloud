@@ -54,6 +54,7 @@ export function LandingVideoTutorials() {
               <div className="relative aspect-video overflow-hidden rounded-[1.25rem] bg-slate-100">
                 <iframe
                   src={tutorial.embedUrl}
+                  loading="lazy"
                   className="absolute inset-0 h-full w-full"
                   title={tutorial.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

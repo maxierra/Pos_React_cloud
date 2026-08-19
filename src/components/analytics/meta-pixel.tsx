@@ -6,6 +6,14 @@ export const META_PIXEL_ID = "3436082476553759";
 
 type MetaEventParams = Record<string, string | number | boolean>;
 
+export type MetaStandardEvent = "ViewContent" | "InitiateCheckout" | "Purchase";
+export type MetaCustomEvent =
+  | "ClickComprar"
+  | "ClickDemo"
+  | "ClickWhatsApp"
+  | "FormularioIniciado"
+  | "FormularioCompletado";
+
 declare global {
   interface Window {
     fbq?: (...args: unknown[]) => void;
@@ -14,7 +22,7 @@ declare global {
 }
 
 export function trackMetaEvent(
-  event: "ViewContent" | "InitiateCheckout" | "Purchase",
+  event: MetaStandardEvent,
   params?: MetaEventParams,
   eventId?: string
 ) {
@@ -24,6 +32,11 @@ export function trackMetaEvent(
     return;
   }
   window.fbq("track", event, params ?? {});
+}
+
+export function trackMetaCustomEvent(event: MetaCustomEvent, params?: MetaEventParams) {
+  if (typeof window === "undefined" || !window.fbq) return;
+  window.fbq("trackCustom", event, params ?? {});
 }
 
 export function MetaPixel() {

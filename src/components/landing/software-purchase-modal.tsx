@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DESKTOP_PAID_DOWNLOAD_PATH } from "@/lib/desktop-download";
-import { trackMetaEvent } from "@/components/analytics/meta-pixel";
+import { trackMetaCustomEvent, trackMetaEvent } from "@/components/analytics/meta-pixel";
 
 const BUSINESS_TYPES = [
   { value: "retail", label: "Comercio" },
@@ -17,39 +17,8 @@ const BUSINESS_TYPES = [
   { value: "gastronomy", label: "Gastronomía" },
 ] as const;
 
-const SOFTWARE_PROMO_END_AT = new Date("2026-09-01T02:59:59.999Z").getTime();
-
 export function PromoCountdown() {
-  const [remainingMs, setRemainingMs] = React.useState<number | null>(null);
-
-  React.useEffect(() => {
-    const timer = window.setInterval(() => {
-      setRemainingMs(Math.max(0, SOFTWARE_PROMO_END_AT - Date.now()));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  if (remainingMs === null) {
-    return <span>Promoción válida hasta el 31 de agosto</span>;
-  }
-
-  if (remainingMs === 0) {
-    return <span>Promoción finalizada</span>;
-  }
-
-  const totalSeconds = Math.floor(remainingMs / 1000);
-  const days = Math.floor(totalSeconds / 86_400);
-  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
-
-  return (
-    <span>
-      Termina en {days}d {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m{" "}
-      {seconds.toString().padStart(2, "0")}s
-    </span>
-  );
+  return <span>50% OFF durante agosto · Válida hasta el 31 de agosto</span>;
 }
 
 function readCookie(name: string) {
@@ -79,10 +48,10 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [checkoutStarted, setCheckoutStarted] = React.useState(false);
-  const [popupBlocked, setPopupBlocked] = React.useState(false);
   const [orderState, setOrderState] = React.useState<OrderState | null>(null);
   const popupRef = React.useRef<Window | null>(null);
   const pollRef = React.useRef<number | null>(null);
+  const formStartedRef = React.useRef(false);
   const [form, setForm] = React.useState({
     email: "",
     customerName: "",
@@ -100,7 +69,6 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
     if (pending) return;
     updateOpen(false);
     setCheckoutStarted(false);
-    setPopupBlocked(false);
     setOrderState(null);
     if (pollRef.current) {
       window.clearInterval(pollRef.current);
@@ -168,7 +136,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPopupBlocked(false);
+    popupRef.current = window.open("", "tienda360_checkout", "popup=yes,width=980,height=820");
 
     startTransition(async () => {
       const res = await startStoreCheckout({
@@ -184,25 +152,22 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
       });
 
       if ("error" in res) {
+        popupRef.current?.close();
         toast.error(res.error);
         return;
       }
 
+      trackMetaCustomEvent("FormularioCompletado", { content_name: "Tienda360 Software para Windows" });
+      trackMetaEvent("InitiateCheckout", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" });
       updateOpen(true);
       setCheckoutStarted(true);
       setOrderState({ orderId: res.orderId, provisioned: false, status: "pending_payment" });
 
-      popupRef.current = window.open(
-        res.checkoutUrl,
-        "tienda360_checkout",
-        "popup=yes,width=980,height=820,noopener,noreferrer"
-      );
-
       if (!popupRef.current) {
-        setPopupBlocked(true);
-        toast.error("Tu navegador bloqueó la ventana de pago. Permití popups e intentá de nuevo.");
+        window.location.assign(res.checkoutUrl);
         return;
       }
+      popupRef.current.location.href = res.checkoutUrl;
     });
   };
 
@@ -212,7 +177,7 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
         type="button"
         data-primary-purchase={primaryMarker ? "true" : undefined}
         onClick={() => {
-          trackMetaEvent("InitiateCheckout", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" });
+          trackMetaCustomEvent("ClickComprar", { value: promoAmount, currency: "ARS", content_name: "Tienda360 Software para Windows" });
           updateOpen(true);
         }}
         className={triggerClassName ?? "inline-flex h-12 items-center justify-center rounded-full border border-[#0077c7] bg-[#009ee3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(0,158,227,0.85)] transition hover:bg-[#008ad4]"}
@@ -253,12 +218,6 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                     : "Abrimos Mercado Pago en una ventana aparte. Cuando el pago se acredite, este modal te mostrará automáticamente la descarga."}
                 </p>
 
-                {popupBlocked ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                    Tu navegador bloqueó la ventana emergente. Permití popups para este sitio y volvé a intentar.
-                  </div>
-                ) : null}
-
                 {!orderState?.provisioned ? (
                   <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900">
                     <Loader2 className="size-4 animate-spin" />
@@ -291,7 +250,15 @@ export function SoftwarePurchaseModal({ listAmount, promoCode, discountPercent, 
                   </p>
                 </div>
 
-                <form onSubmit={submit} className="mt-6 grid gap-4">
+                <form
+                  onSubmit={submit}
+                  onChange={() => {
+                    if (formStartedRef.current) return;
+                    formStartedRef.current = true;
+                    trackMetaCustomEvent("FormularioIniciado", { content_name: "Tienda360 Software para Windows" });
+                  }}
+                  className="mt-6 grid gap-4"
+                >
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
                     <div className="flex items-center gap-2 text-sm font-bold text-emerald-950">
                       <CheckCircle2 className="size-5" /> {discountPercent}% OFF aplicado automáticamente

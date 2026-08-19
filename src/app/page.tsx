@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorials";
-import { LandingTestimonials } from "@/components/landing/landing-testimonials";
+import { MetaTrackedLink } from "@/components/analytics/meta-tracked-link";
 import { QuickSaleSimulation } from "@/components/landing/QuickSaleSimulation";
 import { PromoCountdown, SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
 import { MobilePurchaseBar } from "@/components/landing/mobile-purchase-bar";
@@ -111,7 +111,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
           <div className="flex items-center gap-2.5">
             <Link href="/auth/login" className="hidden rounded-full px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white sm:inline-flex">Ingresar</Link>
             <a href="#comprar" className="inline-flex h-10 items-center rounded-full bg-[#c8ff5a] px-4 text-sm font-bold text-[#09130f] transition hover:bg-[#d8ff89]">
-              {softwarePromo.discountPercent}% OFF <ArrowRight className="ml-1.5 size-4" />
+              Comprar · {softwarePromoPrice} <ArrowRight className="ml-1.5 size-4" />
             </a>
           </div>
         </div>
@@ -123,17 +123,18 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-12">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#c8ff5a]/30 bg-[#c8ff5a]/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[.18em] text-[#d8ff89]">
-              <Laptop className="size-3.5" /> Exclusivo para PC Windows
+              <Laptop className="size-3.5" /> Tienda360 para PC Windows
             </div>
             <h1 className={`${sora.className} mt-6 max-w-3xl text-4xl font-extrabold leading-[1.02] tracking-[-.045em] sm:text-6xl lg:text-[4.35rem]`}>
-              Software de gestión para <span className="text-[#c8ff5a]">PC Windows</span>
+              ¿Todavía llevás las ventas, precios y stock de tu comercio <span className="text-[#c8ff5a]">a mano?</span>
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/67">
-              Controlá ventas, stock, caja y tu negocio desde un solo sistema.
+            <p className="mt-5 max-w-xl text-xl font-extrabold leading-8 text-white">
+              Ordená todo desde una sola PC con Tienda360.
             </p>
-            <div className="mt-6 flex items-end gap-3"><span className="text-lg text-white/45 line-through">{softwareListPrice}</span><strong className="text-4xl font-black text-[#c8ff5a]">{softwarePromoPrice}</strong><span className="mb-1 rounded-full bg-[#c8ff5a] px-2 py-1 text-xs font-black text-[#09130f]">50% OFF</span></div>
-            <p className="mt-2 text-sm font-black tracking-wide text-white">PAGO ÚNICO · SIN MENSUALIDADES</p>
-            <p className="mt-1 text-sm font-black tracking-wide text-[#d8ff89]">LICENCIA DE POR VIDA</p>
+            <p className="mt-3 max-w-xl text-base leading-7 text-white/70">Escaneá productos, cobrá más rápido, controlá stock y caja y sabé cuánto vendiste cada día.</p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#c8ff5a]/35 bg-[#c8ff5a]/10 px-4 py-3 text-base font-black text-[#d8ff89]"><Barcode className="size-5" /> +300.000 productos precargados</div>
+            <div className="mt-6 flex flex-wrap items-end gap-3"><span className="text-lg text-white/45 line-through">{softwareListPrice}</span><strong className="text-4xl font-black text-[#c8ff5a] sm:text-5xl">{softwarePromoPrice} <span className="text-base text-white">PAGO ÚNICO</span></strong></div>
+            <p className="mt-2 text-sm font-black tracking-wide text-white">Sin mensualidades · Licencia de por vida</p>
             <p className="mt-2 text-sm font-semibold text-[#d8ff89]">Se instala en una PC con Windows 10/11 de 64 bits.</p>
             <div
               className="mt-5 inline-flex rounded-xl border border-red-400/80 bg-red-500/20 px-4 py-2.5 text-sm font-extrabold text-red-100 shadow-[0_10px_35px_-14px_rgba(239,68,68,.95)]"
@@ -143,15 +144,14 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA POR ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-6 text-sm font-black text-[#09130f] shadow-[0_18px_45px_-18px_rgba(200,255,90,.9)] transition hover:bg-[#d8ff89]" />
-              <a href="#demo" className="inline-flex h-13 items-center justify-center rounded-full border border-white/18 bg-white/7 px-6 text-sm font-bold text-white transition hover:bg-white/12">
-                <PlayCircle className="mr-2 size-4" /> PROBAR GRATIS EN MI PC
-              </a>
+              <MetaTrackedLink event="ClickDemo" href="#demo" className="inline-flex h-13 items-center justify-center rounded-full border border-white/18 bg-white/7 px-6 text-sm font-bold text-white transition hover:bg-white/12"><PlayCircle className="mr-2 size-4" /> ¿Querés verlo primero? Probá la demo gratis</MetaTrackedLink>
             </div>
             <p className="mt-4 max-w-xl text-sm leading-6 text-white/75"><strong>Podés comprar desde tu celular.</strong> La instalación se realiza luego en tu PC Windows.</p>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-white/55">
-              <span className="flex items-center gap-1.5"><CircleCheckBig className="size-4 text-[#c8ff5a]" /> Descuento aplicado automáticamente</span>
+              <span className="flex items-center gap-1.5"><MapPin className="size-4 text-[#c8ff5a]" /> Tienda360 — Belgrano, CABA</span>
               <span className="flex items-center gap-1.5"><CircleCheckBig className="size-4 text-[#c8ff5a]" /> Licencia de por vida</span>
-              <span className="flex items-center gap-1.5"><CircleCheckBig className="size-4 text-[#c8ff5a]" /> Soporte cercano</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-[#c8ff5a]" /> Pago seguro con Mercado Pago</span>
+              <span className="flex items-center gap-1.5"><MessageCircle className="size-4 text-[#c8ff5a]" /> Soporte directo por WhatsApp</span>
             </div>
           </div>
 
@@ -170,6 +170,13 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
           {["Venta ágil", "Stock actualizado", "Caja ordenada", "Soporte directo"].map((item) => <div key={item} className="flex items-center justify-center gap-2 py-4 text-xs font-bold text-slate-600 sm:text-sm"><Check className="size-4 text-emerald-600" />{item}</div>)}
         </div>
       </div>
+
+      <section className="bg-[#e8ffb8] py-14 sm:py-18" aria-labelledby="productos-title">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 sm:px-8 lg:grid-cols-[.75fr_1.25fr] lg:px-12">
+          <div><span className="flex size-14 items-center justify-center rounded-2xl bg-[#09130f] text-[#c8ff5a]"><Barcode className="size-7" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-[.2em] text-emerald-800">Más rápido desde el primer día</p><h2 id="productos-title" className={`${sora.className} mt-3 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>+300.000 productos precargados</h2></div>
+          <div className="rounded-[1.6rem] border border-emerald-900/10 bg-white/75 p-6 sm:p-8"><p className="text-xl font-extrabold leading-8 sm:text-2xl">Escaneás el código de barras <span className="text-emerald-700">→</span> Tienda360 reconoce el producto <span className="text-emerald-700">→</span> cargás el precio <span className="text-emerald-700">→</span> listo para vender.</p><p className="mt-4 text-sm font-bold text-slate-600">Una ventaja especialmente útil para kioscos, almacenes y autoservicios.</p></div>
+        </div>
+      </section>
 
       <section className="relative overflow-hidden bg-white py-16 sm:py-20" aria-labelledby="rubros-title">
         <div className="absolute -left-24 top-1/2 size-64 -translate-y-1/2 rounded-full bg-[#c8ff5a]/25 blur-3xl" />
@@ -215,6 +222,13 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
               <p className="mt-2 text-sm font-bold text-[#d8ff89]">Ventas · Stock · Caja · Productos · Reportes</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bg-[#c8ff5a] py-12 text-[#09130f]" aria-label="Comprar Tienda360">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 px-5 text-center sm:px-8 lg:flex-row lg:text-left">
+          <div><p className="text-sm font-black uppercase tracking-[.16em]">50% OFF durante agosto</p><h2 className={`${sora.className} mt-2 text-3xl font-extrabold`}>Hoy {softwarePromoPrice}, pago único</h2><p className="mt-1 text-sm font-semibold">Precio normal <span className="line-through">{softwareListPrice}</span> · Sin abonos mensuales</p></div>
+          <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 w-full items-center justify-center rounded-xl bg-[#09130f] px-7 text-sm font-black text-white shadow-xl transition hover:bg-emerald-950 sm:w-auto" />
         </div>
       </section>
 
@@ -297,7 +311,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
               </div>
             </div>
             <div className="mt-6 flex items-center justify-between gap-4"><div><p className="text-sm text-slate-500">Precio final, sin cupón</p><p className={`${sora.className} text-2xl font-extrabold`}>Pagás {softwarePromoPrice}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{softwarePromo.discountPercent}% OFF</span></div>
-            <div className="mt-6"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} /></div>
+            <div className="mt-6"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} /></div>
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck className="size-4 text-emerald-600" /> Pago procesado de forma segura por Mercado Pago</div>
           </div>
         </div>
@@ -306,13 +320,11 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
       <section id="demo" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
         <div className="grid items-center gap-12 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-10 lg:grid-cols-2">
           <div className="order-2 lg:order-1"><Image src={demoImage} alt="Versión demo de Tienda360" className="max-h-[500px] w-full object-contain" sizes="(max-width: 1024px) 100vw, 50vw" /></div>
-          <div className="order-1 lg:order-2"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">¿Preferís verlo primero?</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Probalo gratis en tu PC.</h2><p className="mt-5 text-base leading-7 text-slate-600">Descargá la demo, recorré las funciones principales y comprobá si encaja con la forma de trabajar de tu comercio.</p><a href={`${DESKTOP_DOWNLOAD_TRACKED_PATH}?source=landing_demo`} className="mt-7 inline-flex h-12 items-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white transition hover:bg-emerald-900"><Laptop className="mr-2 size-4" /> Descargar demo para Windows</a><p className="mt-4 text-xs leading-5 text-slate-500">La demo se descarga y utiliza en una PC con Windows 10/11 de 64 bits.</p></div>
+          <div className="order-1 lg:order-2"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">¿Preferís verlo primero?</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Probalo gratis en tu PC.</h2><p className="mt-5 text-base leading-7 text-slate-600">Descargá la demo, recorré las funciones principales y comprobá si encaja con la forma de trabajar de tu comercio.</p><MetaTrackedLink event="ClickDemo" href={`${DESKTOP_DOWNLOAD_TRACKED_PATH}?source=landing_demo`} className="mt-7 inline-flex h-12 items-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white transition hover:bg-emerald-900"><Laptop className="mr-2 size-4" /> Descargar demo para Windows</MetaTrackedLink><p className="mt-4 text-xs leading-5 text-slate-500">La demo se descarga y utiliza en una PC con Windows 10/11 de 64 bits.</p></div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12"><LandingVideoTutorials /></section>
-
-      <LandingTestimonials />
 
       <section className="bg-white py-20" aria-labelledby="confianza-title">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
@@ -349,7 +361,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
           <p className="text-5xl font-black text-[#c8ff5a] sm:text-6xl">{softwarePromoPrice}</p>
           <p className="mt-3 font-black">PAGO ÚNICO</p>
           <p className="mt-1 text-sm text-white/65">Sin mensualidades · Licencia de por vida</p>
-          <div className="mt-8 flex justify-center"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel="COMPRAR TIENDA360" triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-8 text-sm font-black text-[#09130f] transition hover:bg-[#d8ff89]" /></div>
+          <div className="mt-8 flex justify-center"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-8 text-sm font-black text-[#09130f] transition hover:bg-[#d8ff89]" /></div>
           <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-white/65">Podés comprar desde tu celular y descargar el programa posteriormente desde tu PC Windows.</p>
         </div>
       </section>
@@ -357,12 +369,12 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
       <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8 lg:px-12">
         <div className="relative overflow-hidden rounded-[2rem] bg-[#c8ff5a] px-6 py-12 sm:px-12">
           <div className="absolute -right-20 -top-20 size-64 rounded-full border-[40px] border-[#09130f]/7" />
-          <div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-emerald-900">¿Todavía tenés dudas?</p><h2 className={`${sora.className} mt-3 max-w-2xl text-3xl font-extrabold tracking-[-.035em] sm:text-4xl`}>Hablemos de tu comercio y te ayudamos a elegir.</h2><p className="mt-3 text-sm text-emerald-950/70"><MapPin className="mr-1 inline size-4" /> Atención directa desde Belgrano, CABA.</p></div><a href="https://wa.me/5491123145742?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20Tienda360%20POS" target="_blank" rel="noreferrer" className="inline-flex h-13 shrink-0 items-center justify-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white"><MessageCircle className="mr-2 size-4" /> Consultar por WhatsApp</a></div>
+          <div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-emerald-900">¿Todavía tenés dudas?</p><h2 className={`${sora.className} mt-3 max-w-2xl text-3xl font-extrabold tracking-[-.035em] sm:text-4xl`}>Hablemos de tu comercio y te ayudamos a elegir.</h2><p className="mt-3 text-sm text-emerald-950/70"><MapPin className="mr-1 inline size-4" /> Atención directa desde Belgrano, CABA.</p></div><MetaTrackedLink event="ClickWhatsApp" href="https://wa.me/5491123145742?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20Tienda360%20POS" target="_blank" rel="noreferrer" className="inline-flex h-13 shrink-0 items-center justify-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white"><MessageCircle className="mr-2 size-4" /> Consultar por WhatsApp</MetaTrackedLink></div>
         </div>
       </section>
 
       <footer className="border-t border-white/10 bg-[#09130f] text-white/55">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.3fr_.7fr_.7fr] lg:px-12"><div><div className={`${sora.className} text-lg font-extrabold text-white`}>Tienda360 <span className="text-[#c8ff5a]">POS</span></div><p className="mt-3 max-w-sm text-sm leading-6">Gestión simple y completa para comercios que quieren vender mejor.</p></div><div><p className="text-sm font-bold text-white">Producto</p><div className="mt-3 grid gap-2 text-sm"><a href="#funciones">Funciones</a><a href="#demo">Demo</a><a href="#comprar">Comprar</a></div></div><div><p className="text-sm font-bold text-white">Contacto</p><div className="mt-3 grid gap-2 text-sm"><a href="https://wa.me/5491123145742">WhatsApp</a><span>Belgrano, CABA</span><Link href="/auth/login">Ingresar</Link></div></div></div>
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.3fr_.7fr_.7fr] lg:px-12"><div><div className={`${sora.className} text-lg font-extrabold text-white`}>Tienda360 <span className="text-[#c8ff5a]">POS</span></div><p className="mt-3 max-w-sm text-sm leading-6">Gestión simple y completa para comercios que quieren vender mejor.</p></div><div><p className="text-sm font-bold text-white">Producto</p><div className="mt-3 grid gap-2 text-sm"><a href="#funciones">Funciones</a><a href="#demo">Demo</a><a href="#comprar">Comprar</a></div></div><div><p className="text-sm font-bold text-white">Contacto</p><div className="mt-3 grid gap-2 text-sm"><MetaTrackedLink event="ClickWhatsApp" href="https://wa.me/5491123145742">WhatsApp</MetaTrackedLink><span>Belgrano, CABA</span><Link href="/auth/login">Ingresar</Link></div></div></div>
         <div className="border-t border-white/10 px-5 py-5 text-center text-xs text-white/35">© 2026 Tienda360 POS · Todos los derechos reservados</div>
       </footer>
       <MobilePurchaseBar listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} price={softwarePromoPrice} />
