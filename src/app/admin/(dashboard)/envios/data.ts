@@ -13,13 +13,12 @@ export async function loadStoreShipments(filter?: "pending" | "shipped" | "all")
     .from("store_orders")
     .select(
       `
-      id,created_at,email,customer_name,phone,business_name,product_sku,
-      shipping_address,shipping_city,shipping_province,shipping_postal_code,
+      id,created_at,email,customer_name,phone,business_name,product_sku,amount_ars,
+      shipping_address,shipping_city,shipping_province,shipping_postal_code,shipping_notes,
       fulfillment_status,tracking_number,tracking_carrier,shipped_at,tracking_token,status,
       store_products(name,includes_hardware)
     `
     )
-    .eq("status", "paid")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -54,10 +53,12 @@ export async function loadStoreShipments(filter?: "pending" | "shipped" | "all")
       shipped_at: row.shipped_at as string | null,
       tracking_token: String(row.tracking_token),
       status: String(row.status),
+      amount_ars: Number(row.amount_ars ?? 0),
       includes_hardware: Boolean(product?.includes_hardware),
+      is_local_installation: String(row.shipping_notes ?? "").startsWith("[ENTREGA:CABA_AMBA_INSTALACION]"),
     };
   })
-    .filter((r) => r.includes_hardware);
+    .filter((r) => r.includes_hardware && !r.is_local_installation);
 
   if (filter === "pending") {
     return rows.filter((r) => r.fulfillment_status === "pending_shipment");

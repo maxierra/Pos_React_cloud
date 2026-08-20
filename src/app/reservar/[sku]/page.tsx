@@ -31,9 +31,9 @@ export default async function ReservarComboPage({ params }: Props) {
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Reservá tu combo</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Coordiná tu instalación</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Completá tus datos y después te contactamos para coordinar la entrega y el pago.
+          Para CABA y AMBA: completá tus datos y te contactamos para coordinar entrega, instalación, capacitación y pago.
         </p>
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <ReservaForm comboSku={product.sku} comboTitle={product.name} />

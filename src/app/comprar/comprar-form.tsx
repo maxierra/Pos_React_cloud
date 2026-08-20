@@ -16,9 +16,11 @@ import { BUSINESS_TYPES, businessTypeLabel } from "@/lib/business-types";
 
 type Props = {
   product: StoreProduct;
+  deliveryType?: "shipping" | "local_installation";
 };
 
-export function ComprarForm({ product }: Props) {
+export function ComprarForm({ product, deliveryType = "shipping" }: Props) {
+  const localInstallation = deliveryType === "local_installation";
   const [pending, startTransition] = React.useTransition();
   const [form, setForm] = React.useState({
     email: "",
@@ -28,7 +30,7 @@ export function ComprarForm({ product }: Props) {
     businessType: "retail",
     shippingAddress: "",
     shippingCity: "",
-    shippingProvince: "",
+    shippingProvince: localInstallation ? "Buenos Aires" : "",
     shippingPostalCode: "",
     shippingNotes: "",
   });
@@ -96,6 +98,7 @@ export function ComprarForm({ product }: Props) {
         shippingProvince: form.shippingProvince,
         shippingPostalCode: form.shippingPostalCode,
         shippingNotes: form.shippingNotes,
+        deliveryType,
       });
       if ("error" in res) {
         toast.error(res.error);
@@ -140,7 +143,7 @@ export function ComprarForm({ product }: Props) {
           />
           {product.includes_hardware ? (
             <p className="text-xs text-muted-foreground">
-              Lo usamos en la etiqueta de envío a tu provincia.
+              {localInstallation ? "Lo usamos para registrar la instalación." : "Lo usamos en la etiqueta de envío a tu provincia."}
             </p>
           ) : null}
         </div>
@@ -186,9 +189,9 @@ export function ComprarForm({ product }: Props) {
 
       {product.includes_hardware ? (
         <fieldset className="grid gap-4 rounded-2xl border border-amber-200/80 bg-amber-50/40 p-4">
-          <legend className="px-1 text-sm font-semibold text-amber-950">Envío del hardware</legend>
+          <legend className="px-1 text-sm font-semibold text-amber-950">{localInstallation ? "Lugar de instalación (CABA/AMBA)" : "Envío del hardware al interior"}</legend>
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="shippingAddress">Dirección</Label>
+            <Label htmlFor="shippingAddress">{localInstallation ? "Dirección del comercio" : "Dirección de envío"}</Label>
             <Input
               id="shippingAddress"
               required
@@ -198,7 +201,7 @@ export function ComprarForm({ product }: Props) {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="shippingCity">Ciudad</Label>
+              <Label htmlFor="shippingCity">{localInstallation ? "Localidad / barrio" : "Ciudad"}</Label>
               <Input
                 id="shippingCity"
                 required
@@ -207,7 +210,7 @@ export function ComprarForm({ product }: Props) {
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="shippingProvince">Provincia</Label>
+              <Label htmlFor="shippingProvince">{localInstallation ? "Jurisdicción" : "Provincia"}</Label>
               <Input
                 id="shippingProvince"
                 required
@@ -226,7 +229,7 @@ export function ComprarForm({ product }: Props) {
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="shippingNotes">Notas para el envío (opcional)</Label>
+            <Label htmlFor="shippingNotes">{localInstallation ? "Notas para coordinar (opcional)" : "Notas para el envío (opcional)"}</Label>
             <Input
               id="shippingNotes"
               value={form.shippingNotes}

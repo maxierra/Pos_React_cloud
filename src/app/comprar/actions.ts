@@ -25,6 +25,7 @@ export type StoreCheckoutInput = {
   shippingProvince?: string;
   shippingPostalCode?: string;
   shippingNotes?: string;
+  deliveryType?: "shipping" | "local_installation";
   metaFbp?: string;
   metaFbc?: string;
 };
@@ -131,6 +132,7 @@ export async function startStoreCheckout(
   }
 
   const businessType = normalizeBusinessType(input.businessType);
+  const localInstallation = input.deliveryType === "local_installation";
   const promotion = storeSoftwarePromotion(product.sku, product.price_ars, input.couponCode);
   if (promotion.submittedCode && !promotion.valid) {
     return { error: "El código de descuento no es válido." };
@@ -160,8 +162,10 @@ export async function startStoreCheckout(
       shipping_city: product.includes_hardware ? input.shippingCity?.trim() ?? null : null,
       shipping_province: product.includes_hardware ? input.shippingProvince?.trim() ?? null : null,
       shipping_postal_code: product.includes_hardware ? input.shippingPostalCode?.trim() ?? null : null,
-      shipping_notes: product.includes_hardware ? input.shippingNotes?.trim() ?? null : null,
-      fulfillment_status: product.includes_hardware ? "pending_shipment" : "not_applicable",
+      shipping_notes: product.includes_hardware
+        ? `${localInstallation ? "[ENTREGA:CABA_AMBA_INSTALACION] " : ""}${input.shippingNotes?.trim() ?? ""}`.trim() || null
+        : null,
+      fulfillment_status: product.includes_hardware && !localInstallation ? "pending_shipment" : "not_applicable",
       meta_fbp: input.metaFbp?.trim().slice(0, 255) || null,
       meta_fbc: input.metaFbc?.trim().slice(0, 255) || null,
       client_ip: clientIp,
@@ -175,6 +179,17 @@ export async function startStoreCheckout(
   }
 
   const orderId = (order as { id: string }).id;
+  if (localInstallation) {
+    await admin.from("combo_reservations").insert({
+      combo_sku: product.sku,
+      combo_title: product.name,
+      customer_name: customerName,
+      shipping_address: `${input.shippingAddress?.trim()}, ${input.shippingCity?.trim()}, ${input.shippingProvince?.trim()} ${input.shippingPostalCode?.trim()}`,
+      phone,
+      payment_method: "mercadopago",
+      notes: `PED-${orderId.slice(0, 8).toUpperCase()} · Pago online · ${input.shippingNotes?.trim() || "Sin notas"}`,
+    });
+  }
   const base = getAppBaseUrl();
   const notificationUrl = `${base}/api/webhooks/mercadopago`;
   const shouldUseAutoReturn = !isLocalAppOrigin(base);
@@ -219,7 +234,7 @@ export async function startStoreCheckout(
     ],
     external_reference: orderId,
     metadata: {
-      order_type: "store",
+      order_type: localInstallation ? "store_local_installation" : "store",
       product_sku: product.sku,
       store_order_id: orderId,
       coupon_code: promotion.valid ? promotion.configuredCode : "",
@@ -267,6 +282,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
   trackingToken: string | null;
   includesHardware: boolean;
   amountArs: number;
+  isLocalInstallation: boolean;
 } | null> {
   if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) return null;
 
@@ -274,7 +290,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
     const admin = createAdminClient();
     const { data } = await admin
       .from("store_orders")
-      .select("status,provisioned_at,fulfillment_status,email,tracking_token,product_sku,amount_ars")
+      .select("status,provisioned_at,fulfillment_status,email,tracking_token,product_sku,amount_ars,shipping_notes")
       .eq("id", orderId)
       .maybeSingle();
     if (!data) return null;
@@ -286,6 +302,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
       tracking_token: string;
       product_sku: string;
       amount_ars: number;
+      shipping_notes: string | null;
     };
 
     const { data: product } = await admin
@@ -302,6 +319,7 @@ export async function getStoreOrderStatus(orderId: string): Promise<{
       trackingToken: row.tracking_token,
       includesHardware: Boolean((product as { includes_hardware?: boolean } | null)?.includes_hardware),
       amountArs: Number(row.amount_ars ?? 0),
+      isLocalInstallation: row.shipping_notes?.startsWith("[ENTREGA:CABA_AMBA_INSTALACION]") ?? false,
     };
   } catch {
     return null;

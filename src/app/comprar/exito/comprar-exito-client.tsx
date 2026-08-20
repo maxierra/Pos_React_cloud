@@ -21,6 +21,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
     trackingToken: string | null;
     includesHardware: boolean;
     amountArs: number;
+    isLocalInstallation: boolean;
   } | null>(null);
 
   React.useEffect(() => {
@@ -39,6 +40,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
         trackingToken: res.trackingToken,
         includesHardware: res.includesHardware,
         amountArs: res.amountArs,
+        isLocalInstallation: res.isLocalInstallation,
       });
       if (!res.provisioned && attempts < 30) {
         setTimeout(poll, 2000);
@@ -93,11 +95,13 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
       ) : provisioned ? (
         <>
           <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
-          <h1 className="mt-4 text-xl font-bold text-slate-900">¡Cuenta activada!</h1>
+          <h1 className="mt-4 text-xl font-bold text-slate-900">¡Compra confirmada!</h1>
+          {orderId ? <div className="mx-auto mt-4 w-fit rounded-xl border border-sky-200 bg-sky-50 px-4 py-3"><p className="text-xs font-semibold uppercase tracking-wider text-sky-700">Tu número de pedido</p><p className="mt-1 font-mono text-lg font-black text-sky-950">PED-{orderId.slice(0, 8).toUpperCase()}</p></div> : null}
           <p className="mt-2 text-sm text-slate-600">
             Enviamos tus credenciales a{" "}
             <strong>{state?.email ?? "tu email"}</strong>. Revisá también la carpeta de spam.
           </p>
+          {state?.isLocalInstallation ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-900">Te vamos a contactar por WhatsApp para coordinar la entrega, instalación y capacitación gratis.</p> : null}
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/auth/login"
@@ -113,7 +117,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
                 Descargar software
               </Link>
             ) : null}
-            {state?.includesHardware && state.trackingToken ? (
+            {state?.includesHardware && !state.isLocalInstallation && state.trackingToken ? (
               <Link
                 href={`/pedido/${state.trackingToken}`}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-6 text-sm font-semibold text-sky-900"

@@ -1,387 +1,87 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Barcode,
-  BarChart3,
-  Boxes,
-  Check,
-  CircleCheckBig,
-  Clock3,
-  CreditCard,
-  Headphones,
-  Download,
-  Laptop,
-  MapPin,
-  MessageCircle,
-  PackageCheck,
-  PlayCircle,
-  PawPrint,
-  ReceiptText,
-  ShieldCheck,
-  Shirt,
-  ShoppingBasket,
-  Store,
-  UtensilsCrossed,
-  Zap,
-} from "lucide-react";
-
-import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorials";
-import { MetaTrackedLink } from "@/components/analytics/meta-tracked-link";
-import { QuickSaleSimulation } from "@/components/landing/QuickSaleSimulation";
-import { PromoCountdown, SoftwarePurchaseModal } from "@/components/landing/software-purchase-modal";
-import { MobilePurchaseBar } from "@/components/landing/mobile-purchase-bar";
+import { ArrowRight, BadgeCheck, Banknote, Barcode, BarChart3, Boxes, Check, CreditCard, ExternalLink, GraduationCap, Headphones, LogIn, MapPinned, Percent, Quote, ReceiptText, ShieldCheck, ShoppingCart, Star, Truck } from "lucide-react";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
-import { DESKTOP_DOWNLOAD_TRACKED_PATH } from "@/lib/desktop-download";
-import {
-  formatStorePrice,
-  getStoreProductBySku,
-  getStoreSoftwarePromoConfig,
-} from "@/lib/store-products";
-import demoImage from "@/demo.png";
+import { MetaTrackedLink } from "@/components/analytics/meta-tracked-link";
+import { LandingAbout } from "@/components/landing/LandingAbout";
+import { LandingVideoTutorials } from "@/components/landing/LandingVideoTutorials";
+import { formatStorePrice, getStoreProductBySku } from "@/lib/store-products";
+import comboImage from "@/combo250.png";
 
-const sora = { className: "font-sans" };
-const inter = { className: "font-sans" };
-
-const benefits = [
-  { icon: Zap, title: "Vendé más rápido", description: "Escaneá el código de barras y agregá productos automáticamente a la venta." },
-  { icon: Boxes, title: "Controlá tu stock", description: "Sabé qué productos tenés y cuáles necesitás reponer." },
-  { icon: ReceiptText, title: "Tené tu caja ordenada", description: "Registrá ventas, ingresos, egresos y medios de pago." },
-  { icon: BarChart3, title: "Conocé tus números", description: "Consultá reportes de ventas y rendimiento del negocio." },
-  { icon: Barcode, title: "300.000 productos precargados", description: "Ahorrá tiempo al comenzar a utilizar el sistema." },
-  { icon: ReceiptText, title: "Imprimí tickets", description: "Compatible con impresoras térmicas utilizadas en comercios." },
+const features = [
+  { icon: Barcode, title: "+300.000 productos", text: "Empezá a vender desde el primer día con productos precargados." },
+  { icon: BarChart3, title: "Reportes completos", text: "Conocé ventas, ganancias y tus productos más vendidos." },
+  { icon: Boxes, title: "Control de stock", text: "Sabé qué tenés, qué falta y evitá pérdidas." },
+  { icon: Percent, title: "Promociones", text: "Creá descuentos, ofertas y combos fácilmente." },
+  { icon: ReceiptText, title: "Caja diaria", text: "Apertura, cierre, arqueo y movimientos de caja." },
+  { icon: ShieldCheck, title: "Facturación con ARCA", text: "Emití Factura C y tickets desde el sistema." },
 ];
 
-const businessTypes = [
-  { icon: Store, title: "Kioscos", text: "Ventas rápidas, códigos de barras, caja y reposición." },
-  { icon: ShoppingBasket, title: "Autoservicios", text: "Miles de productos, precios y stock siempre bajo control." },
-  { icon: PawPrint, title: "Pet shops", text: "Organizá alimentos, accesorios, clientes y proveedores." },
-  { icon: Shirt, title: "Indumentaria", text: "Gestioná prendas por talle, color y variante." },
-  { icon: UtensilsCrossed, title: "Gastronomía", text: "Trabajá con mostrador, mesas, salón y delivery." },
-];
-
-const included = [
-  "Punto de venta y caja diaria",
-  "Productos, precios y stock",
-  "Clientes y cuenta corriente",
-  "Usuarios y permisos",
-  "Ventas, reportes y anulaciones",
-  "Etiquetas y códigos de barras",
-  "Proveedores y movimientos",
-  "Actualizaciones incluidas",
-];
-
-const steps = [
-  { icon: CreditCard, number: "01", title: "Comprás online", text: "Pagás $50.000 mediante Mercado Pago." },
-  { icon: BadgeCheck, number: "02", title: "Se acredita tu pago", text: "Confirmamos automáticamente tu compra." },
-  { icon: PackageCheck, number: "03", title: "Recibís el acceso", text: "Recibís el acceso para descargar Tienda360." },
-  { icon: Download, number: "04", title: "Lo instalás en tu PC", text: "Descargás e instalás el sistema en Windows." },
-  { icon: Headphones, number: "05", title: "Empezás a trabajar", text: "Cargá precios, controlá stock y registrá ventas." },
+const googleReviewsUrl = "https://share.google/BPWagGBYz3I2aQEbU";
+const googleReviews = [
+  { name: "Natalia Porto", text: "Calidad humana y profesional!" },
+  { name: "Agustina Scoppa", text: "Excelente atención, antes y después de la compra!" },
 ];
 
 export default async function Home({ searchParams }: { searchParams?: Promise<{ missingSupabase?: string }> }) {
   const sp = (await searchParams) ?? {};
-  const softwareProduct = await getStoreProductBySku("software_lifetime");
-  const softwareListAmount = softwareProduct?.price_ars ?? 100_000;
-  const softwarePromo = getStoreSoftwarePromoConfig(softwareListAmount);
-  const softwareListPrice = formatStorePrice(softwarePromo.listAmount);
-  const softwarePromoPrice = formatStorePrice(softwarePromo.payAmount);
-
-  return (
-    <main className={`${inter.className} overflow-hidden bg-[#f5f6ef] text-slate-950`}>
-      <MetaPixel />
-      {sp.missingSupabase ? (
-        <div className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm text-amber-950">
-          Falta configurar Supabase en <code className="rounded bg-white px-1">.env.local</code>.
-        </div>
-      ) : null}
-
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#09130f]/90 text-white backdrop-blur-xl">
-        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12">
-          <a href="#inicio" className={`${sora.className} flex items-center gap-2.5 text-lg font-extrabold tracking-tight`}>
-            <span className="flex size-9 items-center justify-center rounded-xl bg-[#c8ff5a] text-[#09130f]"><BadgeCheck className="size-5" /></span>
-            Tienda360 <span className="text-[#c8ff5a]">POS</span>
-          </a>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-white/70 lg:flex" aria-label="Navegación principal">
-            <a href="#funciones" className="transition hover:text-white">Funciones</a>
-            <a href="#como-funciona" className="transition hover:text-white">Cómo funciona</a>
-            <a href="#tutoriales" className="transition hover:text-white">Tutoriales</a>
-          </nav>
-          <div className="flex items-center gap-2.5">
-            <Link href="/auth/login" className="hidden rounded-full px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white sm:inline-flex">Ingresar</Link>
-            <a href="#comprar" className="inline-flex h-10 items-center rounded-full bg-[#c8ff5a] px-4 text-sm font-bold text-[#09130f] transition hover:bg-[#d8ff89]">
-              Comprar · {softwarePromoPrice} <ArrowRight className="ml-1.5 size-4" />
-            </a>
-          </div>
-        </div>
-      </header>
-
-      <section id="inicio" className="relative bg-[#09130f] pb-18 pt-14 text-white sm:pb-24 sm:pt-20">
-        <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.055)_1px,transparent_1px)] [background-size:48px_48px]" />
-        <div className="absolute -right-24 top-16 size-96 rounded-full bg-emerald-500/20 blur-[110px]" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-12">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#c8ff5a]/30 bg-[#c8ff5a]/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[.18em] text-[#d8ff89]">
-              <Laptop className="size-3.5" /> Tienda360 para PC Windows
-            </div>
-            <h1 className={`${sora.className} mt-6 max-w-3xl text-4xl font-extrabold leading-[1.02] tracking-[-.045em] sm:text-6xl lg:text-[4.35rem]`}>
-              ¿Todavía llevás las ventas, precios y stock de tu comercio <span className="text-[#c8ff5a]">a mano?</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-xl font-extrabold leading-8 text-white">
-              Ordená todo desde una sola PC con Tienda360.
-            </p>
-            <p className="mt-3 max-w-xl text-base leading-7 text-white/70">Escaneá productos, cobrá más rápido, controlá stock y caja y sabé cuánto vendiste cada día.</p>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#c8ff5a]/35 bg-[#c8ff5a]/10 px-4 py-3 text-base font-black text-[#d8ff89]"><Barcode className="size-5" /> +300.000 productos precargados</div>
-            <div className="mt-6 flex flex-wrap items-end gap-3"><span className="text-lg text-white/45 line-through">{softwareListPrice}</span><strong className="text-4xl font-black text-[#c8ff5a] sm:text-5xl">{softwarePromoPrice} <span className="text-base text-white">PAGO ÚNICO</span></strong></div>
-            <p className="mt-2 text-sm font-black tracking-wide text-white">Sin mensualidades · Licencia de por vida</p>
-            <p className="mt-2 text-sm font-semibold text-[#d8ff89]">Se instala en una PC con Windows 10/11 de 64 bits.</p>
-            <div
-              className="mt-5 inline-flex rounded-xl border border-red-400/80 bg-red-500/20 px-4 py-2.5 text-sm font-extrabold text-red-100 shadow-[0_10px_35px_-14px_rgba(239,68,68,.95)]"
-              aria-live="polite"
-            >
-              <PromoCountdown />
-            </div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA POR ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-6 text-sm font-black text-[#09130f] shadow-[0_18px_45px_-18px_rgba(200,255,90,.9)] transition hover:bg-[#d8ff89]" />
-              <MetaTrackedLink event="ClickDemo" href="#demo" className="inline-flex h-13 items-center justify-center rounded-full border border-white/18 bg-white/7 px-6 text-sm font-bold text-white transition hover:bg-white/12"><PlayCircle className="mr-2 size-4" /> ¿Querés verlo primero? Probá la demo gratis</MetaTrackedLink>
-            </div>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-white/75"><strong>Podés comprar desde tu celular.</strong> La instalación se realiza luego en tu PC Windows.</p>
-            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-white/55">
-              <span className="flex items-center gap-1.5"><MapPin className="size-4 text-[#c8ff5a]" /> Tienda360 — Belgrano, CABA</span>
-              <span className="flex items-center gap-1.5"><CircleCheckBig className="size-4 text-[#c8ff5a]" /> Licencia de por vida</span>
-              <span className="flex items-center gap-1.5"><ShieldCheck className="size-4 text-[#c8ff5a]" /> Pago seguro con Mercado Pago</span>
-              <span className="flex items-center gap-1.5"><MessageCircle className="size-4 text-[#c8ff5a]" /> Soporte directo por WhatsApp</span>
-            </div>
-          </div>
-
-          <div className="relative lg:pl-4">
-            <div className="absolute -inset-8 rounded-full bg-[#c8ff5a]/10 blur-3xl" />
-            <QuickSaleSimulation />
-            <div className="absolute -bottom-5 -left-3 rounded-2xl border border-white/10 bg-white p-4 text-slate-950 shadow-2xl sm:-left-8">
-              <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-emerald-100"><Clock3 className="size-5 text-emerald-700" /></span><div><p className="text-xs text-slate-500">Todo listo para vender</p><p className="text-sm font-extrabold">Simple desde el primer día</p></div></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-slate-200 px-5 sm:grid-cols-4 sm:px-8 lg:px-12">
-          {["Venta ágil", "Stock actualizado", "Caja ordenada", "Soporte directo"].map((item) => <div key={item} className="flex items-center justify-center gap-2 py-4 text-xs font-bold text-slate-600 sm:text-sm"><Check className="size-4 text-emerald-600" />{item}</div>)}
-        </div>
+  const product = await getStoreProductBySku("combo_essential");
+  const price = product?.price_ars ?? 250_000;
+  const cashPrice = Math.round(price * 0.9);
+  const installmentPrice = Math.round(price / 3);
+  return <main className="overflow-hidden bg-[#f4f7fb] text-slate-950">
+    <MetaPixel />
+    {sp.missingSupabase ? <div className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm">La recepción de pedidos está momentáneamente en mantenimiento.</div> : null}
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#061b3f]/95 text-white backdrop-blur-xl"><div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12">
+      <a href="#inicio" className="flex items-center gap-2 text-lg font-black"><span className="grid size-9 place-items-center rounded-xl bg-[#ffd400] text-[#061b3f]"><ShoppingCart className="size-5" /></span>tienda<span className="-ml-2 text-sky-400">360</span></a>
+      <nav className="hidden gap-7 text-sm font-semibold text-white/70 md:flex"><a href="#incluye">Qué incluye</a><a href="#entrega">Entrega</a><a href="#tutoriales">Videos</a><a href="#resenas">Reseñas</a><a href="#nosotros">Nosotros</a><a href="#preguntas">Preguntas</a></nav>
+      <div className="flex items-center gap-2">
+        <Link href="/auth/login" className="inline-flex h-10 items-center rounded-full border border-white/25 bg-white/10 px-3 text-sm font-bold text-white transition hover:bg-white/20 sm:px-4"><LogIn className="size-4 sm:mr-2" /><span className="hidden sm:inline">Ingresar al sistema</span><span className="sr-only sm:hidden">Ingresar al sistema</span></Link>
+        <a href="#comprar" className="inline-flex h-10 items-center rounded-full bg-[#ffd400] px-3 text-sm font-black text-[#061b3f] sm:px-4"><span className="sm:hidden">Comprar</span><span className="hidden sm:inline">Comprar combo</span><ArrowRight className="ml-1.5 size-4" /></a>
       </div>
+    </div></header>
 
-      <section className="bg-[#e8ffb8] py-14 sm:py-18" aria-labelledby="productos-title">
-        <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 sm:px-8 lg:grid-cols-[.75fr_1.25fr] lg:px-12">
-          <div><span className="flex size-14 items-center justify-center rounded-2xl bg-[#09130f] text-[#c8ff5a]"><Barcode className="size-7" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-[.2em] text-emerald-800">Más rápido desde el primer día</p><h2 id="productos-title" className={`${sora.className} mt-3 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>+300.000 productos precargados</h2></div>
-          <div className="rounded-[1.6rem] border border-emerald-900/10 bg-white/75 p-6 sm:p-8"><p className="text-xl font-extrabold leading-8 sm:text-2xl">Escaneás el código de barras <span className="text-emerald-700">→</span> Tienda360 reconoce el producto <span className="text-emerald-700">→</span> cargás el precio <span className="text-emerald-700">→</span> listo para vender.</p><p className="mt-4 text-sm font-bold text-slate-600">Una ventaja especialmente útil para kioscos, almacenes y autoservicios.</p></div>
-        </div>
-      </section>
+    <section id="inicio" className="relative bg-[radial-gradient(circle_at_75%_35%,#0b65c8_0%,#062859_38%,#04152f_72%)] py-16 text-white sm:py-24"><div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:44px_44px]" /><div className="relative mx-auto grid max-w-7xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-12">
+      <div><p className="inline-flex items-center gap-2 rounded-full border border-[#ffd400]/40 bg-[#ffd400]/10 px-4 py-2 text-xs font-black uppercase tracking-[.16em] text-[#ffe869]"><BadgeCheck className="size-4" /> Todo para vender mejor</p><h1 className="mt-6 text-5xl font-black leading-[.95] tracking-[-.055em] sm:text-7xl">El combo completo para <span className="text-sky-400">tu comercio</span></h1><p className="mt-6 max-w-xl text-lg font-semibold leading-8 text-white/75">Software Tienda360 con licencia de por vida, lector inalámbrico e impresora térmica. Sin suscripciones ni pagos mensuales.</p>
+      <div className="mt-7 flex flex-wrap items-center gap-4"><div><p className="text-xs font-black uppercase tracking-[.2em] text-red-300">Precio del combo</p><p className="text-5xl font-black">{formatStorePrice(price)}</p></div><span className="rounded-xl bg-red-600 px-4 py-3 text-center text-sm font-black">LICENCIA<br />DE POR VIDA</span></div>
+      <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-2">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-300/40 bg-emerald-400/15 p-4"><div className="absolute -right-5 -top-5 size-20 rounded-full bg-emerald-300/15" /><div className="relative flex items-center gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-400 text-emerald-950"><Banknote className="size-6" /></span><div><p className="text-xs font-black uppercase tracking-wide text-emerald-300">10% de descuento</p><p className="text-xl font-black">{formatStorePrice(cashPrice)}</p><p className="text-xs text-white/65">Efectivo o transferencia</p></div></div></div>
+        <div className="relative overflow-hidden rounded-2xl border border-fuchsia-300/40 bg-fuchsia-400/15 p-4"><div className="absolute -right-5 -top-5 size-20 rounded-full bg-fuchsia-300/15" /><div className="relative flex items-center gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-fuchsia-400 text-fuchsia-950"><CreditCard className="size-6" /></span><div><p className="text-xs font-black uppercase tracking-wide text-fuchsia-300">3 cuotas sin interés</p><p className="text-xl font-black">{formatStorePrice(installmentPrice)}</p><p className="text-xs text-white/65">Con tarjetas habilitadas</p></div></div></div>
+      </div>
+      <a href="#comprar" className="mt-6 inline-flex min-h-14 items-center rounded-xl bg-[#ffd400] px-7 text-sm font-black text-[#061b3f] shadow-xl">ELEGIR ENTREGA Y COMPRAR <ArrowRight className="ml-2 size-5" /></a><div className="mt-6 flex flex-wrap gap-5 text-xs font-semibold text-white/65"><span>✓ Pago seguro</span><span>✓ Envío gratis</span><span>✓ Capacitación incluida</span></div></div>
+      <div className="relative"><div className="absolute inset-10 rounded-full bg-sky-400/25 blur-3xl" /><Image src={comboImage} alt="Combo Tienda360 con software, lector inalámbrico e impresora térmica" className="relative h-auto w-full object-contain drop-shadow-[0_28px_35px_rgba(0,0,0,.35)]" priority sizes="(max-width: 1024px) 100vw, 55vw" /><div className="absolute bottom-2 left-2 rounded-2xl bg-white/95 px-4 py-3 text-[#061b3f] shadow-xl"><p className="text-xs font-bold text-slate-500">Incluye</p><p className="text-sm font-black">Software + lector + impresora</p></div></div>
+    </div></section>
 
-      <section className="relative overflow-hidden bg-white py-16 sm:py-20" aria-labelledby="rubros-title">
-        <div className="absolute -left-24 top-1/2 size-64 -translate-y-1/2 rounded-full bg-[#c8ff5a]/25 blur-3xl" />
-        <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex rounded-full bg-emerald-100 px-4 py-2 text-xs font-black uppercase tracking-[.18em] text-emerald-800">Un sistema, muchos comercios</span>
-            <h2 id="rubros-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>
-              Tienda360 se adapta a <span className="text-emerald-700">tu rubro</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">Configurá el sistema según la forma de trabajar de tu negocio, sin pagar módulos ni mensualidades adicionales.</p>
-          </div>
-          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {businessTypes.map(({ icon: Icon, title, text }, index) => (
-              <article key={title} className={`group rounded-[1.5rem] border p-5 transition hover:-translate-y-1 hover:shadow-xl ${index === 0 ? "border-[#b5ef42] bg-[#e8ffb8]" : "border-slate-200 bg-[#f8f9f4]"}`}>
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-[#09130f] text-[#c8ff5a] transition group-hover:scale-105"><Icon className="size-6" /></div>
-                <h3 className={`${sora.className} mt-5 text-lg font-extrabold`}>{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
-              </article>
-            ))}
-          </div>
-          <p className="mt-7 text-center text-sm font-bold text-slate-700"><CircleCheckBig className="mr-2 inline size-5 text-emerald-700" />También sirve para almacenes, dietéticas, perfumerías, ferreterías y muchos comercios más.</p>
-        </div>
-      </section>
+    <section id="incluye" className="py-18 sm:py-24"><div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12"><div className="mx-auto max-w-3xl text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Todo en una sola compra</p><h2 className="mt-3 text-3xl font-black sm:text-5xl">Tu negocio listo para trabajar</h2><p className="mt-4 text-slate-600">Conectás el lector y la impresora, instalamos Tienda360 y ya podés empezar a vender.</p></div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{features.map(({icon:Icon,title,text}) => <article key={title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Icon className="size-6" /></span><h3 className="mt-5 text-lg font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></article>)}</div></div></section>
 
-      <section className="bg-[#09130f] py-16 text-white" aria-labelledby="problemas-title">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[.22em] text-[#c8ff5a]">El día a día del comercio</p>
-              <h2 id="problemas-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>
-                ¿Todavía manejás tu comercio de esta manera?
-              </h2>
-            </div>
-            <div>
-              <ul className="grid gap-3 text-sm text-white/75 sm:grid-cols-2">
-                {["Buscando precios mientras el cliente espera.", "Anotando ventas manualmente.", "Sin saber exactamente cuánto stock queda.", "Haciendo cuentas al cerrar la caja.", "Sin saber claramente cuánto vendiste o ganaste."].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/5 p-4">
-                    <Clock3 className="mt-0.5 size-4 shrink-0 text-[#c8ff5a]" aria-hidden />{item}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-6 text-xl font-extrabold">Tienda360 reúne todo en un solo lugar.</p>
-              <p className="mt-2 text-sm font-bold text-[#d8ff89]">Ventas · Stock · Caja · Productos · Reportes</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    <section id="comprar" className="bg-[#061b3f] py-18 text-white sm:py-24"><div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12"><div className="mx-auto max-w-3xl text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-[#ffd400]">Elegí según tu ubicación</p><h2 className="mt-3 text-3xl font-black sm:text-5xl">¿Dónde instalamos tu combo?</h2><p className="mt-4 text-white/65">Guardamos tus datos para acompañar cada pedido.</p></div><div id="entrega" className="mt-10 grid gap-6 lg:grid-cols-2">
+      <article className="rounded-[2rem] border border-emerald-300/30 bg-emerald-400/10 p-7 sm:p-9"><span className="grid size-14 place-items-center rounded-2xl bg-emerald-400 text-emerald-950"><MapPinned className="size-7" /></span><p className="mt-6 text-xs font-black uppercase tracking-[.18em] text-emerald-300">CABA y AMBA</p><h3 className="mt-2 text-3xl font-black">Instalación y capacitación gratis</h3><p className="mt-4 leading-7 text-white/70">Elegí pagar online ahora o dejarnos tus datos para coordinar la visita, la entrega y la forma de pago.</p><ul className="mt-6 grid gap-3 text-sm font-semibold">{["10% OFF en efectivo o transferencia","También podés pagar online con Mercado Pago","Instalación y capacitación sin cargo"].map(x=><li key={x} className="flex gap-2"><Check className="size-5 text-emerald-300" />{x}</li>)}</ul><div className="mt-8 grid gap-3 sm:grid-cols-2"><Link href="/reservar/combo_essential" className="inline-flex min-h-13 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-950/30 px-4 text-center text-sm font-black text-emerald-200">COORDINAR PAGO</Link><Link href="/comprar/combo_essential?delivery=local" className="inline-flex min-h-13 items-center justify-center rounded-xl bg-emerald-400 px-4 text-center text-sm font-black text-emerald-950">PAGAR ONLINE <ArrowRight className="ml-2 size-4" /></Link></div></article>
+      <article className="rounded-[2rem] border border-sky-300/30 bg-sky-400/10 p-7 sm:p-9"><span className="grid size-14 place-items-center rounded-2xl bg-sky-400 text-[#061b3f]"><Truck className="size-7" /></span><p className="mt-6 text-xs font-black uppercase tracking-[.18em] text-sky-300">Interior del país</p><h3 className="mt-2 text-3xl font-black">Comprá online y recibilo gratis</h3><p className="mt-4 leading-7 text-white/70">Completá los datos de envío y pagá online. Generamos tu número de pedido para seguir la preparación y el despacho.</p><ul className="mt-6 grid gap-3 text-sm font-semibold">{["Envío gratis por Correo Argentino","Pago seguro con Mercado Pago","Número y seguimiento de pedido"].map(x=><li key={x} className="flex gap-2"><Check className="size-5 text-sky-300" />{x}</li>)}</ul><Link href="/comprar/combo_essential" className="mt-8 inline-flex min-h-13 w-full items-center justify-center rounded-xl bg-[#ffd400] px-5 text-sm font-black text-[#061b3f]">COMPRAR POR {formatStorePrice(price)} <ArrowRight className="ml-2 size-4" /></Link></article>
+    </div></div></section>
 
-      <section className="bg-[#c8ff5a] py-12 text-[#09130f]" aria-label="Comprar Tienda360">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 px-5 text-center sm:px-8 lg:flex-row lg:text-left">
-          <div><p className="text-sm font-black uppercase tracking-[.16em]">50% OFF durante agosto</p><h2 className={`${sora.className} mt-2 text-3xl font-extrabold`}>Hoy {softwarePromoPrice}, pago único</h2><p className="mt-1 text-sm font-semibold">Precio normal <span className="line-through">{softwareListPrice}</span> · Sin abonos mensuales</p></div>
-          <SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 w-full items-center justify-center rounded-xl bg-[#09130f] px-7 text-sm font-black text-white shadow-xl transition hover:bg-emerald-950 sm:w-auto" />
-        </div>
-      </section>
-
-      <section id="funciones" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
-        <div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Menos complicaciones</p>
-            <h2 className={`${sora.className} mt-4 text-3xl font-extrabold leading-tight tracking-[-.035em] sm:text-5xl`}>Todo lo que necesitás para manejar mejor tu comercio.</h2>
-            <p className="mt-5 text-base leading-7 text-slate-600">Una sola herramienta para trabajar más rápido, reducir errores y saber qué pasa en tu negocio.</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {benefits.map(({ icon: Icon, title, description }, index) => (
-              <article key={title} className={`rounded-[1.6rem] border p-6 ${index === 0 ? "border-[#c8ff5a] bg-[#dfff9e]" : "border-slate-200 bg-white"}`}>
-                <div className="flex size-11 items-center justify-center rounded-xl bg-[#09130f] text-[#c8ff5a]"><Icon className="size-5" /></div>
-                <h3 className={`${sora.className} mt-5 text-xl font-bold tracking-tight`}>{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="como-funciona" className="bg-[#e9eddf] py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-2xl text-center"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Empezá sin vueltas</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Comprar Tienda360 es simple</h2></div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {steps.map(({ icon: Icon, number, title, text }) => <article key={number} className="relative rounded-[1.6rem] bg-white p-7"><span className={`${sora.className} absolute right-6 top-5 text-4xl font-extrabold text-slate-100`}>{number}</span><div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800"><Icon className="size-5" /></div><h3 className={`${sora.className} mt-5 text-xl font-bold`}>{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></article>)}
-          </div>
-        </div>
-      </section>
-
-      <section id="comprar" className="bg-[#09130f] py-20 text-white lg:py-28">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-12">
-          <div>
-            <div className="inline-flex rounded-full bg-[#c8ff5a] px-3 py-1.5 text-xs font-extrabold uppercase tracking-[.15em] text-[#09130f]">{softwarePromo.discountPercent}% OFF · Aplicado automáticamente</div>
-            <h2 className={`${sora.className} mt-5 text-4xl font-extrabold tracking-[-.04em] sm:text-5xl`}>Una inversión. Tu sistema, para siempre.</h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-white/65">Software completo para Windows, con licencia de por vida, pago único y sin mensualidades.</p>
-            <div className="mt-8 flex flex-wrap items-end gap-3"><span className={`${sora.className} text-5xl font-extrabold text-[#c8ff5a] sm:text-6xl`}>{softwarePromoPrice}</span><span className="pb-2 text-sm text-white/45"><span className="block line-through">Antes {softwareListPrice}</span>PAGO ÚNICO</span></div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">{included.map((item) => <div key={item} className="flex items-start gap-2.5 text-sm text-white/75"><CircleCheckBig className="mt-0.5 size-4 shrink-0 text-[#c8ff5a]" />{item}</div>)}</div>
-          </div>
-          <div className="rounded-[2rem] border border-white/12 bg-white p-5 text-slate-950 shadow-2xl sm:p-7">
-            <div className="relative overflow-hidden rounded-[1.4rem] bg-gradient-to-br from-[#09130f] via-[#12251c] to-emerald-900 p-4 pb-9 pt-5 sm:p-6 sm:pb-11">
-              <div className="absolute -right-16 -top-16 size-48 rounded-full bg-[#c8ff5a]/20 blur-3xl" />
-              <div className="relative overflow-hidden rounded-xl border border-white/15 bg-[#17251f] p-1.5 shadow-[0_28px_60px_-22px_rgba(0,0,0,.85)]">
-                <div className="flex items-center gap-1.5 px-2 py-2">
-                  <span className="size-2 rounded-full bg-rose-400" />
-                  <span className="size-2 rounded-full bg-amber-300" />
-                  <span className="size-2 rounded-full bg-emerald-400" />
-                  <span className="ml-2 text-[8px] font-medium text-white/35">Tienda360 · Punto de venta</span>
-                  <span className="ml-auto rounded-full bg-[#c8ff5a]/15 px-2 py-0.5 text-[7px] font-bold text-[#c8ff5a]">PARA WINDOWS</span>
-                </div>
-                <div className="grid min-h-[260px] grid-cols-[64px_1fr] overflow-hidden rounded-lg bg-[#f3f5f1] sm:min-h-[300px] sm:grid-cols-[82px_1fr]" role="img" aria-label="Representación de Tienda360 ejecutándose como software de escritorio en una PC">
-                  <div className="bg-[#09130f] p-2 text-white sm:p-3">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[#c8ff5a] text-[#09130f]"><BadgeCheck className="size-4" /></div>
-                    <div className="mt-5 space-y-2">
-                      {["Venta", "Stock", "Caja", "Reportes"].map((label, index) => <div key={label} className={`rounded-md px-1.5 py-2 text-[6px] font-bold sm:text-[7px] ${index === 0 ? "bg-[#c8ff5a] text-[#09130f]" : "bg-white/5 text-white/45"}`}>{label}</div>)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col p-3 sm:p-4">
-                    <div className="flex items-center justify-between gap-3"><div><p className="text-[7px] font-bold uppercase tracking-wider text-emerald-700">Punto de venta</p><p className="mt-0.5 text-xs font-black text-slate-900 sm:text-sm">Nueva venta</p></div><div className="rounded-lg bg-white px-2 py-1 text-[7px] font-bold text-slate-500 shadow-sm">Caja abierta</div></div>
-                    <div className="mt-3 grid flex-1 gap-2 sm:grid-cols-[1.1fr_.9fr]">
-                      <div className="rounded-lg bg-white p-2.5 shadow-sm">
-                        <div className="flex items-center gap-2 rounded-md bg-slate-100 px-2 py-2 text-[7px] text-slate-400"><Barcode className="size-3" /> Escanear código o buscar producto...</div>
-                        <div className="mt-2 grid grid-cols-3 gap-1.5">
-                          {[["Bebida", "$2.200"], ["Alfajor", "$1.800"], ["Snacks", "$2.100"], ["Yerba", "$3.900"], ["Agua", "$1.300"], ["Café", "$4.200"]].map(([name, price], index) => <div key={name} className={`rounded-md border p-1.5 ${index === 0 ? "border-emerald-300 bg-emerald-50" : "border-slate-100 bg-slate-50"}`}><div className={`flex h-7 items-center justify-center rounded ${index === 0 ? "bg-emerald-100" : "bg-white"}`}><Boxes className={`size-3 ${index === 0 ? "text-emerald-700" : "text-slate-300"}`} /></div><p className="mt-1 truncate text-[6px] font-bold">{name}</p><p className="text-[6px] font-black text-emerald-700">{price}</p></div>)}
-                        </div>
-                      </div>
-                      <div className="flex flex-col rounded-lg bg-white p-2.5 shadow-sm"><div className="flex items-center justify-between"><p className="text-[8px] font-black">Carrito</p><span className="rounded bg-slate-100 px-1.5 py-0.5 text-[6px] font-bold text-slate-400">3 items</span></div><div className="mt-2 flex-1 space-y-1.5">{[["Coca-Cola 500 ml", "$2.200"], ["Alfajor triple", "$1.800"], ["Papas fritas", "$2.100"]].map(([name, price]) => <div key={name} className="flex justify-between rounded bg-slate-50 px-2 py-1.5 text-[6px]"><span className="font-bold">{name}</span><span className="font-black">{price}</span></div>)}</div><div className="border-t border-slate-100 pt-2"><div className="flex items-end justify-between"><span className="text-[7px] font-bold text-slate-400">Total</span><span className="text-base font-black">$6.100</span></div><div className="mt-2 rounded-md bg-emerald-600 py-2 text-center text-[7px] font-black text-white">Cobrar venta</div></div></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-3 left-7 flex items-center gap-2 rounded-xl border border-white/10 bg-white px-3 py-2 text-slate-950 shadow-xl sm:left-9">
-                <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-100"><ReceiptText className="size-3.5 text-emerald-700" /></span>
-                <span><span className="block text-[7px] font-semibold text-slate-400">Facturación</span><span className="block text-[9px] font-extrabold">ARCA integrada</span></span>
-              </div>
-              <div className="absolute bottom-3 right-7 flex items-center gap-2 rounded-xl border border-white/10 bg-[#c8ff5a] px-3 py-2 text-[#09130f] shadow-xl sm:right-9">
-                <CircleCheckBig className="size-4" />
-                <span className="text-[9px] font-extrabold">Software completo</span>
-              </div>
-            </div>
-            <div className="mt-6 flex items-center justify-between gap-4"><div><p className="text-sm text-slate-500">Precio final, sin cupón</p><p className={`${sora.className} text-2xl font-extrabold`}>Pagás {softwarePromoPrice}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{softwarePromo.discountPercent}% OFF</span></div>
-            <div className="mt-6"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} /></div>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck className="size-4 text-emerald-600" /> Pago procesado de forma segura por Mercado Pago</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="demo" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
-        <div className="grid items-center gap-12 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-10 lg:grid-cols-2">
-          <div className="order-2 lg:order-1"><Image src={demoImage} alt="Versión demo de Tienda360" className="max-h-[500px] w-full object-contain" sizes="(max-width: 1024px) 100vw, 50vw" /></div>
-          <div className="order-1 lg:order-2"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">¿Preferís verlo primero?</p><h2 className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Probalo gratis en tu PC.</h2><p className="mt-5 text-base leading-7 text-slate-600">Descargá la demo, recorré las funciones principales y comprobá si encaja con la forma de trabajar de tu comercio.</p><MetaTrackedLink event="ClickDemo" href={`${DESKTOP_DOWNLOAD_TRACKED_PATH}?source=landing_demo`} className="mt-7 inline-flex h-12 items-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white transition hover:bg-emerald-900"><Laptop className="mr-2 size-4" /> Descargar demo para Windows</MetaTrackedLink><p className="mt-4 text-xs leading-5 text-slate-500">La demo se descarga y utiliza en una PC con Windows 10/11 de 64 bits.</p></div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12"><LandingVideoTutorials /></section>
-
-      <section className="bg-white py-20" aria-labelledby="confianza-title">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Compra clara y segura</p>
-            <h2 id="confianza-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Comprá con tranquilidad</h2>
-          </div>
-          <div className="mx-auto mt-10 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {["Pago seguro mediante Mercado Pago", "Pago único", "Sin mensualidades", "Licencia de por vida", "Soporte técnico", "Para Windows", "+300.000 productos precargados"].map((item) => <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-[#f5f6ef] p-4 text-sm font-bold"><ShieldCheck className="size-5 shrink-0 text-emerald-700" />{item}</div>)}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-4xl px-5 py-20 sm:px-8" aria-labelledby="faq-title">
-        <div className="text-center"><p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-700">Sin letra chica</p><h2 id="faq-title" className={`${sora.className} mt-4 text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Preguntas frecuentes</h2></div>
-        <div className="mt-10 divide-y divide-slate-200 rounded-[2rem] border border-slate-200 bg-white px-5 sm:px-8">
-          {[
-            ["¿Funciona en celular?", "No. Esta versión de Tienda360 está diseñada para PC con Windows. Podés comprar desde tu celular y luego descargar e instalar el programa desde tu computadora."],
-            ["¿Tengo que pagar todos los meses?", `No. El precio de ${softwarePromoPrice} corresponde a un pago único.`],
-            ["¿Qué Windows necesito?", "Windows 10 o Windows 11 de 64 bits."],
-            ["¿Qué recibo después de comprar?", "Una vez confirmado el pago recibís el acceso necesario para descargar e instalar Tienda360."],
-            ["¿Puedo probarlo antes?", "Sí. Hay disponible una versión demo para Windows."],
-            ["¿Cómo pago?", "El pago se realiza de forma segura mediante Mercado Pago."],
-            ["¿Tengo soporte técnico?", "Sí. Contás con soporte técnico online para ayudarte con la instalación, la configuración y las dudas que tengas sobre el uso de Tienda360."],
-            ["¿Tiene integración con ARCA?", "Sí. La integración se configura de manera online. Tienda360 genera los archivos necesarios para establecer la comunicación con ARCA. Para completar el proceso, necesitás tener acceso a tu cuenta de ARCA, crear un punto de venta y descargar el certificado correspondiente. Si lo necesitás, el soporte técnico puede acompañarte online durante toda la configuración."],
-            ["¿Puedo usarlo en varias PC conectadas en red?", "No. Esta licencia está preparada para utilizar Tienda360 de manera local en una sola PC."],
-            ["¿Sirve para mi rubro?", "Tienda360 cuenta con distintos modos de trabajo. El modo Retail está pensado para ventas físicas en autoservicios, kioscos, minimercados y otros comercios. El modo Indumentaria permite administrar prendas con talles, colores y variantes. El modo Gastronomía incluye gestión de mesas, delivery, mostrador y comandas a cocina. Además, próximamente sumaremos un modo Textil para vender telas por metro."],
-            ["¿Necesito conocimientos de informática?", "No. El sistema está pensado para ser simple de utilizar en comercios."],
-          ].map(([question, answer]) => <details key={question} className="group py-5"><summary className="cursor-pointer list-none pr-8 text-base font-bold marker:hidden">{question}<span className="float-right text-emerald-700 transition group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{answer}</p></details>)}
-        </div>
-      </section>
-
-      <section className="bg-[#09130f] py-20 text-center text-white" aria-labelledby="final-cta-title">
-        <div className="mx-auto max-w-3xl px-5">
-          <h2 id="final-cta-title" className={`${sora.className} text-3xl font-extrabold tracking-[-.035em] sm:text-5xl`}>Empezá a ordenar tu negocio hoy</h2>
-          <p className="mt-4 text-lg font-bold">Tienda360 para Windows</p>
-          <p className="mt-5 text-lg text-white/45 line-through">{softwareListPrice}</p>
-          <p className="text-5xl font-black text-[#c8ff5a] sm:text-6xl">{softwarePromoPrice}</p>
-          <p className="mt-3 font-black">PAGO ÚNICO</p>
-          <p className="mt-1 text-sm text-white/65">Sin mensualidades · Licencia de por vida</p>
-          <div className="mt-8 flex justify-center"><SoftwarePurchaseModal listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} primaryMarker triggerLabel={`COMPRAR AHORA — ${softwarePromoPrice}`} triggerClassName="inline-flex min-h-14 items-center justify-center rounded-xl bg-[#c8ff5a] px-8 text-sm font-black text-[#09130f] transition hover:bg-[#d8ff89]" /></div>
-          <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-white/65">Podés comprar desde tu celular y descargar el programa posteriormente desde tu PC Windows.</p>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8 lg:px-12">
-        <div className="relative overflow-hidden rounded-[2rem] bg-[#c8ff5a] px-6 py-12 sm:px-12">
-          <div className="absolute -right-20 -top-20 size-64 rounded-full border-[40px] border-[#09130f]/7" />
-          <div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-emerald-900">¿Todavía tenés dudas?</p><h2 className={`${sora.className} mt-3 max-w-2xl text-3xl font-extrabold tracking-[-.035em] sm:text-4xl`}>Hablemos de tu comercio y te ayudamos a elegir.</h2><p className="mt-3 text-sm text-emerald-950/70"><MapPin className="mr-1 inline size-4" /> Atención directa desde Belgrano, CABA.</p></div><MetaTrackedLink event="ClickWhatsApp" href="https://wa.me/5491123145742?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20Tienda360%20POS" target="_blank" rel="noreferrer" className="inline-flex h-13 shrink-0 items-center justify-center rounded-full bg-[#09130f] px-6 text-sm font-bold text-white"><MessageCircle className="mr-2 size-4" /> Consultar por WhatsApp</MetaTrackedLink></div>
-        </div>
-      </section>
-
-      <footer className="border-t border-white/10 bg-[#09130f] text-white/55">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.3fr_.7fr_.7fr] lg:px-12"><div><div className={`${sora.className} text-lg font-extrabold text-white`}>Tienda360 <span className="text-[#c8ff5a]">POS</span></div><p className="mt-3 max-w-sm text-sm leading-6">Gestión simple y completa para comercios que quieren vender mejor.</p></div><div><p className="text-sm font-bold text-white">Producto</p><div className="mt-3 grid gap-2 text-sm"><a href="#funciones">Funciones</a><a href="#demo">Demo</a><a href="#comprar">Comprar</a></div></div><div><p className="text-sm font-bold text-white">Contacto</p><div className="mt-3 grid gap-2 text-sm"><MetaTrackedLink event="ClickWhatsApp" href="https://wa.me/5491123145742">WhatsApp</MetaTrackedLink><span>Belgrano, CABA</span><Link href="/auth/login">Ingresar</Link></div></div></div>
-        <div className="border-t border-white/10 px-5 py-5 text-center text-xs text-white/35">© 2026 Tienda360 POS · Todos los derechos reservados</div>
-      </footer>
-      <MobilePurchaseBar listAmount={softwarePromo.listAmount} promoCode={softwarePromo.code} discountPercent={softwarePromo.discountPercent} promoAmount={softwarePromo.payAmount} price={softwarePromoPrice} />
-    </main>
-  );
+    <section className="bg-white py-14"><div className="mx-auto grid max-w-7xl gap-5 px-5 sm:grid-cols-3 sm:px-8 lg:px-12">{[[ShieldCheck,"Garantía 12 meses","En lector e impresora."],[Headphones,"Soporte permanente","Te acompañamos siempre."],[GraduationCap,"Capacitación incluida","Te enseñamos a usarlo."]].map(([Icon,title,text]) => { const I=Icon as typeof ShieldCheck; return <div key={String(title)} className="flex gap-4 rounded-2xl border p-5"><I className="size-6 text-blue-700"/><div><h3 className="font-black">{String(title)}</h3><p className="text-sm text-slate-600">{String(text)}</p></div></div>})}</div></section>
+    <section className="mx-auto max-w-7xl px-5 py-18 sm:px-8 sm:py-24 lg:px-12"><LandingVideoTutorials /><LandingAbout /></section>
+    <section id="resenas" className="bg-white py-18 sm:py-24" aria-labelledby="reviews-title"><div className="mx-auto max-w-6xl px-5 sm:px-8"><div className="grid items-center gap-8 lg:grid-cols-[.72fr_1.28fr]">
+      <div className="rounded-[2rem] bg-[#061b3f] p-8 text-white shadow-xl sm:p-10"><p className="text-xs font-black uppercase tracking-[.2em] text-[#ffd400]">Opiniones en Google</p><h2 id="reviews-title" className="mt-3 text-4xl font-black">Quienes nos eligen nos recomiendan</h2><div className="mt-7 flex items-end gap-3"><strong className="text-6xl font-black">5,0</strong><div className="pb-1"><div className="flex gap-1 text-[#ffd400]" aria-label="5 de 5 estrellas">{Array.from({length:5}).map((_,i)=><Star key={i} className="size-5 fill-current" />)}</div><p className="mt-1 text-sm text-white/65">6 opiniones en Google</p></div></div><a href={googleReviewsUrl} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-[#ffd400] px-5 text-sm font-black text-[#061b3f]">VER TODAS EN GOOGLE <ExternalLink className="ml-2 size-4" /></a></div>
+      <div className="grid gap-4 sm:grid-cols-2">{googleReviews.map((review)=><article key={review.name} className="relative rounded-3xl border border-slate-200 bg-[#f7f9fc] p-7 shadow-sm"><Quote className="size-9 text-sky-200" aria-hidden /><div className="mt-5 flex gap-1 text-amber-500">{Array.from({length:5}).map((_,i)=><Star key={i} className="size-4 fill-current" />)}</div><blockquote className="mt-4 text-lg font-bold leading-8 text-slate-900">“{review.text}”</blockquote><p className="mt-6 text-sm font-black text-slate-700">{review.name}</p><p className="mt-1 text-xs text-slate-500">Reseña publicada en Google</p></article>)}</div>
+    </div></div></section>
+    <section id="preguntas" className="py-18 sm:py-24"><div className="mx-auto max-w-4xl px-5"><div className="text-center"><p className="text-xs font-black uppercase tracking-[.2em] text-blue-700">Sin letra chica</p><h2 className="mt-3 text-3xl font-black sm:text-5xl">Preguntas frecuentes</h2></div><div className="mt-10 divide-y divide-slate-200 rounded-[2rem] border border-slate-200 bg-white px-5 sm:px-8">{[
+      ["¿Cuánto cuesta el combo?",`El precio es de ${formatStorePrice(price)}. Pagando en efectivo o por transferencia tenés 10% de descuento y queda en ${formatStorePrice(cashPrice)}. También podés elegir 3 cuotas sin interés de ${formatStorePrice(installmentPrice)} con tarjetas habilitadas.`],
+      ["¿Tengo que pagar todos los meses?","No. Tienda360 incluye una licencia de por vida, sin suscripciones ni pagos mensuales."],
+      ["¿Qué incluye exactamente el combo?","Incluye el software de gestión Tienda360, un lector de códigos de barras inalámbrico y una impresora térmica para tickets."],
+      ["¿Funciona en celular?","El sistema se utiliza en una PC con Windows. Sí podés completar la compra desde tu celular y luego coordinamos la instalación en la computadora del comercio."],
+      ["¿Qué Windows necesito?","Una PC con Windows 10 o Windows 11 de 64 bits y conexión a internet para la activación y las funciones online."],
+      ["¿La instalación en CABA y AMBA tiene costo?","No. Coordinamos la entrega, la instalación y una capacitación inicial en tu comercio sin cargo adicional."],
+      ["¿Cómo compro si estoy en CABA o AMBA?","Dejanos tus datos y la dirección del comercio. Te contactamos por WhatsApp para confirmar la zona, coordinar la visita y acordar la forma de pago."],
+      ["¿Cómo recibo el combo en el interior?","Completás tus datos de envío, pagás online mediante Mercado Pago y despachamos el combo gratis por Correo Argentino."],
+      ["¿Recibo un número de pedido?","Sí. Después de confirmar la compra te mostramos un número de pedido y podés consultar el estado de preparación y envío."],
+      ["¿Cómo puedo pagar?","Podés pagar en efectivo o por transferencia con 10% de descuento. También ofrecemos 3 cuotas sin interés con tarjetas habilitadas. Para envíos al interior, el pago online se procesa de forma segura mediante Mercado Pago."],
+      ["¿Tengo soporte técnico?","Sí. Contás con soporte para la instalación, configuración inicial y consultas sobre el uso de Tienda360."],
+      ["¿Tiene integración con ARCA?","Sí. Tienda360 permite configurar la facturación con ARCA. Necesitás acceso a tu cuenta, un punto de venta y el certificado correspondiente; podemos acompañarte durante la configuración."],
+      ["¿Puedo usarlo en varias PC conectadas en red?","Esta licencia está preparada para utilizar Tienda360 de manera local en una sola PC."],
+      ["¿Sirve para mi rubro?","Sí. Tiene modos para retail, indumentaria y gastronomía, y se adapta a kioscos, almacenes, autoservicios, pet shops, ferreterías y otros comercios."],
+      ["¿Necesito conocimientos de informática?","No. Está pensado para ser simple e intuitivo. Además, la capacitación inicial te ayuda a empezar con seguridad."],
+    ].map(([q,a])=><details key={q} className="group py-5"><summary className="cursor-pointer list-none pr-8 font-black marker:hidden">{q}<span className="float-right text-2xl text-blue-700 transition group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{a}</p></details>)}</div></div></section>
+    <footer className="bg-[#04152f] text-white/60"><div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-10 text-sm sm:flex-row sm:justify-between"><p className="font-black text-white">tienda<span className="text-sky-400">360</span></p><div className="flex gap-5"><MetaTrackedLink event="ClickWhatsApp" href="https://wa.me/5491123145742">WhatsApp</MetaTrackedLink><Link href="/pedido">Seguir pedido</Link><Link href="/auth/login">Ingresar</Link></div></div></footer>
+  </main>;
 }

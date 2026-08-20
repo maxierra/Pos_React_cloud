@@ -16,9 +16,8 @@ type Props = {
 };
 
 const PAYMENT_OPTIONS = [
-  { value: "mercadopago", label: "Mercado Pago" },
-  { value: "transferencia", label: "Transferencia" },
-  { value: "efectivo", label: "Efectivo" },
+  { value: "transferencia", label: "Transferencia (10% OFF)" },
+  { value: "efectivo", label: "Efectivo (10% OFF)" },
   { value: "a_coordinar", label: "A coordinar" },
 ] as const;
 
@@ -29,7 +28,7 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
     customerName: "",
     shippingAddress: "",
     phone: "",
-    paymentMethod: "mercadopago",
+    paymentMethod: "a_coordinar",
     notes: "",
   });
 
@@ -43,7 +42,6 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
         shippingAddress: form.shippingAddress,
         phone: form.phone,
         paymentMethod: form.paymentMethod as
-          | "mercadopago"
           | "transferencia"
           | "efectivo"
           | "a_coordinar",
@@ -86,6 +84,10 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
           Dejás tus datos y después te contactamos para coordinar pago y entrega.
         </p>
       </div>
+
+      <Link href={`/comprar/${comboSku}?delivery=local`} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sky-700 px-4 text-center text-sm font-bold text-white">
+        Prefiero pagar online con Mercado Pago
+      </Link>
 
       <div className="grid gap-1.5">
         <Label htmlFor="customerName">Nombre completo</Label>

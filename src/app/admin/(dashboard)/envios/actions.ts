@@ -24,6 +24,7 @@ export type StoreShipmentRow = {
   shipped_at: string | null;
   tracking_token: string;
   status: string;
+  amount_ars: number;
 };
 
 export async function adminMarkOrderShipped(input: {

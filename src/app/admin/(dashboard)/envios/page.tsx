@@ -7,9 +7,10 @@ export default async function AdminEnviosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Envíos de hardware</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">Interior del país</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight">Pedidos para enviar</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pedidos de combos con envío. El cliente recibe tracking por email al despachar.
+          Ves el número de pedido desde que se inicia el pago. Despachá solamente los que figuran como pagados.
         </p>
       </div>
       <EnviosClient rows={rows} />

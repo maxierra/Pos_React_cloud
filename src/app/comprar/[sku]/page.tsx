@@ -7,15 +7,17 @@ import { getStoreProductBySku } from "@/lib/store-products";
 
 type Props = {
   params: Promise<{ sku: string }>;
+  searchParams?: Promise<{ delivery?: string }>;
 };
 
 const ALLOWED = new Set<string>(LANDING_STORE_SKUS);
 
-export default async function ComprarSkuPage({ params }: Props) {
+export default async function ComprarSkuPage({ params, searchParams }: Props) {
   const { sku } = await params;
   if (!ALLOWED.has(sku)) notFound();
   const product = await getStoreProductBySku(sku);
   if (!product) notFound();
+  const localInstallation = (await searchParams)?.delivery === "local";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/90 via-zinc-50 to-emerald-50/70">
@@ -33,10 +35,10 @@ export default async function ComprarSkuPage({ params }: Props) {
       <main className="mx-auto max-w-lg px-4 py-10">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Completá tu compra</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Pagás con Mercado Pago y recibís el acceso al sistema por email al instante.
+          {localInstallation ? "Pagás con Mercado Pago y después coordinamos entrega, instalación y capacitación gratis en CABA o AMBA." : "Pagás con Mercado Pago y enviamos el combo gratis al interior del país."}
         </p>
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <ComprarForm product={product} />
+          <ComprarForm product={product} deliveryType={localInstallation ? "local_installation" : "shipping"} />
         </div>
       </main>
     </div>

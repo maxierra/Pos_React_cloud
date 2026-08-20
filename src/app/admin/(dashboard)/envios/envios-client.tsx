@@ -16,20 +16,37 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Entregado",
 };
 
+const PAYMENT_LABELS: Record<string, string> = {
+  pending_payment: "Esperando pago",
+  paid: "Pagado",
+  canceled: "Cancelado",
+  refunded: "Reembolsado",
+};
+
+function orderNumber(id: string) {
+  return `PED-${id.slice(0, 8).toUpperCase()}`;
+}
+
+function money(amount: number) {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(amount);
+}
+
 type Props = {
   rows: StoreShipmentRow[];
 };
 
 export function EnviosClient({ rows }: Props) {
   const [pending, startTransition] = React.useTransition();
-  const [filter, setFilter] = React.useState<"pending" | "shipped" | "all">("pending");
+  const [filter, setFilter] = React.useState<"payment" | "pending" | "shipped" | "all">("all");
   const [draft, setDraft] = React.useState<Record<string, { tracking: string; carrier: string }>>({});
 
   const filtered =
     filter === "all"
       ? rows
-      : filter === "pending"
-        ? rows.filter((r) => r.fulfillment_status === "pending_shipment")
+      : filter === "payment"
+        ? rows.filter((r) => r.status === "pending_payment")
+        : filter === "pending"
+        ? rows.filter((r) => r.status === "paid" && r.fulfillment_status === "pending_shipment")
         : rows.filter((r) => r.fulfillment_status === "shipped" || r.fulfillment_status === "delivered");
 
   const ship = (orderId: string) => {
@@ -59,8 +76,13 @@ export function EnviosClient({ rows }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950"><p className="text-xs font-semibold uppercase tracking-wide opacity-70">Esperando pago</p><p className="mt-1 text-3xl font-black">{rows.filter((r) => r.status === "pending_payment").length}</p></div>
+        <div className="rounded-xl border border-sky-300 bg-sky-50 p-4 text-sky-950"><p className="text-xs font-semibold uppercase tracking-wide opacity-70">Pagados por despachar</p><p className="mt-1 text-3xl font-black">{rows.filter((r) => r.status === "paid" && r.fulfillment_status === "pending_shipment").length}</p></div>
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-950"><p className="text-xs font-semibold uppercase tracking-wide opacity-70">Despachados / entregados</p><p className="mt-1 text-3xl font-black">{rows.filter((r) => r.fulfillment_status === "shipped" || r.fulfillment_status === "delivered").length}</p></div>
+      </div>
       <div className="flex flex-wrap gap-2">
-        {(["pending", "shipped", "all"] as const).map((f) => (
+        {(["all", "payment", "pending", "shipped"] as const).map((f) => (
           <button
             key={f}
             type="button"
@@ -70,33 +92,36 @@ export function EnviosClient({ rows }: Props) {
               filter === f ? "border-slate-900 bg-slate-900 text-white" : "border-border"
             )}
           >
-            {f === "pending" ? "Pendientes" : f === "shipped" ? "Despachados" : "Todos"}
+            {f === "payment" ? "Esperando pago" : f === "pending" ? "Por despachar" : f === "shipped" ? "Despachados" : "Todos"}
           </button>
         ))}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[960px] text-left text-sm">
+        <table className="w-full min-w-[1180px] text-left text-sm">
           <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
+              <th className="px-3 py-2">Nº de pedido</th>
               <th className="px-3 py-2">Fecha</th>
               <th className="px-3 py-2">Cliente</th>
               <th className="px-3 py-2">Producto</th>
               <th className="px-3 py-2">Envío</th>
-              <th className="px-3 py-2">Estado</th>
+              <th className="px-3 py-2">Pago</th>
+              <th className="px-3 py-2">Envío</th>
               <th className="px-3 py-2">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-12 text-center text-muted-foreground">
+                <td colSpan={8} className="px-3 py-12 text-center text-muted-foreground">
                   No hay pedidos en esta vista.
                 </td>
               </tr>
             ) : (
               filtered.map((r) => (
                 <tr key={r.id} className="border-b border-border/50 align-top">
+                  <td className="px-3 py-3"><div className="font-mono font-black text-sky-700">{orderNumber(r.id)}</div><div className="mt-1 text-[10px] text-muted-foreground" title={r.id}>{r.id}</div></td>
                   <td className="px-3 py-3 text-xs">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-3 py-3">
                     <div className="font-medium">{r.customer_name}</div>
@@ -113,6 +138,10 @@ export function EnviosClient({ rows }: Props) {
                     {r.shipping_city}, {r.shipping_province} {r.shipping_postal_code ?? ""}
                   </td>
                   <td className="px-3 py-3">
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", r.status === "paid" ? "bg-emerald-100 text-emerald-800" : r.status === "pending_payment" ? "bg-amber-100 text-amber-800" : "bg-muted text-muted-foreground")}>{PAYMENT_LABELS[r.status] ?? r.status}</span>
+                    <div className="mt-2 text-xs font-bold">{money(r.amount_ars)}</div>
+                  </td>
+                  <td className="px-3 py-3">
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
                       {STATUS_LABELS[r.fulfillment_status] ?? r.fulfillment_status}
                     </span>
@@ -121,7 +150,9 @@ export function EnviosClient({ rows }: Props) {
                     ) : null}
                   </td>
                   <td className="px-3 py-3">
-                    {r.fulfillment_status === "pending_shipment" ? (
+                    {r.status !== "paid" ? (
+                      <span className="inline-flex rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">Esperando acreditación</span>
+                    ) : r.fulfillment_status === "pending_shipment" ? (
                       <div className="flex min-w-[220px] flex-col gap-2">
                         <Input
                           placeholder="Nº Correo Argentino"

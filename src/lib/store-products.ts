@@ -12,7 +12,7 @@ export type StoreProduct = {
 
 const DEFAULT_PRICES = {
   software_lifetime: 100_000,
-  combo_essential: 350_000,
+  combo_essential: 250_000,
 } as const;
 
 function resolveStorePrice(sku: string, fallback: number): number {
@@ -22,7 +22,7 @@ function resolveStorePrice(sku: string, fallback: number): number {
   }
   if (sku === "combo_essential") {
     const n = Number(process.env.STORE_COMBO_ESSENTIAL_AMOUNT);
-    return Number.isFinite(n) && n > 0 ? n : fallback;
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_PRICES.combo_essential;
   }
   return fallback;
 }
