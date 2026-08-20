@@ -348,6 +348,10 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
             ["¿Qué recibo después de comprar?", "Una vez confirmado el pago recibís el acceso necesario para descargar e instalar Tienda360."],
             ["¿Puedo probarlo antes?", "Sí. Hay disponible una versión demo para Windows."],
             ["¿Cómo pago?", "El pago se realiza de forma segura mediante Mercado Pago."],
+            ["¿Tengo soporte técnico?", "Sí. Contás con soporte técnico online para ayudarte con la instalación, la configuración y las dudas que tengas sobre el uso de Tienda360."],
+            ["¿Tiene integración con ARCA?", "Sí. La integración se configura de manera online. Tienda360 genera los archivos necesarios para establecer la comunicación con ARCA. Para completar el proceso, necesitás tener acceso a tu cuenta de ARCA, crear un punto de venta y descargar el certificado correspondiente. Si lo necesitás, el soporte técnico puede acompañarte online durante toda la configuración."],
+            ["¿Puedo usarlo en varias PC conectadas en red?", "No. Esta licencia está preparada para utilizar Tienda360 de manera local en una sola PC."],
+            ["¿Sirve para mi rubro?", "Tienda360 cuenta con distintos modos de trabajo. El modo Retail está pensado para ventas físicas en autoservicios, kioscos, minimercados y otros comercios. El modo Indumentaria permite administrar prendas con talles, colores y variantes. El modo Gastronomía incluye gestión de mesas, delivery, mostrador y comandas a cocina. Además, próximamente sumaremos un modo Textil para vender telas por metro."],
             ["¿Necesito conocimientos de informática?", "No. El sistema está pensado para ser simple de utilizar en comercios."],
           ].map(([question, answer]) => <details key={question} className="group py-5"><summary className="cursor-pointer list-none pr-8 text-base font-bold marker:hidden">{question}<span className="float-right text-emerald-700 transition group-open:rotate-45">+</span></summary><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{answer}</p></details>)}
         </div>
