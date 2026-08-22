@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2, Send } from "lucide-react";
+import { CheckCircle2, Clock3, Loader2, MessageCircle, Send } from "lucide-react";
 
 import { createComboReservation } from "@/app/reservar/actions";
 import { Button } from "@/components/ui/button";
@@ -83,24 +83,45 @@ export function ReservaForm({ comboSku, comboTitle, price }: Props) {
         delivery_type: "caba_amba_coordinar",
         payment_method: form.paymentMethod,
       });
-      toast.success("Reserva enviada. Te contactamos para coordinar la entrega.");
+      toast.success("¡Gracias! Recibimos tu reserva.");
     });
   };
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-6 text-center">
-        <h2 className="text-xl font-bold text-emerald-950">Reserva registrada</h2>
-        <p className="mt-2 text-sm leading-6 text-emerald-900/80">
-          Ya recibimos tus datos para <strong>{comboTitle}</strong>. Ahora lo vas a ver en admin y
-          te vamos a contactar para coordinar el pago y la entrega.
-        </p>
+      <div
+        role="status"
+        aria-live="polite"
+        className="overflow-hidden rounded-3xl border-2 border-emerald-300 bg-gradient-to-b from-emerald-50 to-white text-center shadow-[0_24px_70px_-32px_rgba(5,150,105,0.65)]"
+      >
+        <div className="bg-emerald-600 px-6 py-7 text-white">
+          <CheckCircle2 className="mx-auto size-16" strokeWidth={2.25} aria-hidden="true" />
+          <p className="mt-3 text-sm font-black uppercase tracking-[0.2em]">Reserva confirmada</p>
+        </div>
+        <div className="px-6 py-7 sm:px-8">
+          <h2 className="text-3xl font-black tracking-tight text-emerald-950">¡Muchas gracias!</h2>
+          <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-700">
+            Recibimos correctamente tu solicitud para <strong>{comboTitle}</strong>.
+          </p>
+          <div className="mx-auto mt-6 grid max-w-md gap-3 text-left sm:grid-cols-2">
+            <div className="rounded-2xl bg-emerald-50 p-4">
+              <MessageCircle className="size-6 text-emerald-700" aria-hidden="true" />
+              <p className="mt-2 text-sm font-bold text-emerald-950">Te contactaremos en breve</p>
+              <p className="mt-1 text-xs leading-5 text-emerald-900/70">Por teléfono o WhatsApp.</p>
+            </div>
+            <div className="rounded-2xl bg-sky-50 p-4">
+              <Clock3 className="size-6 text-sky-700" aria-hidden="true" />
+              <p className="mt-2 text-sm font-bold text-sky-950">Próximo paso</p>
+              <p className="mt-1 text-xs leading-5 text-sky-900/70">Coordinamos pago, entrega e instalación.</p>
+            </div>
+          </div>
         <Link
           href="/"
-          className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white"
+          className="mt-7 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-700 px-6 text-sm font-bold text-white transition hover:bg-emerald-800"
         >
           Volver al inicio
         </Link>
+        </div>
       </div>
     );
   }

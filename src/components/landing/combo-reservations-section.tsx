@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image, { type StaticImageData } from "next/image";
-import { X } from "lucide-react";
+import { CheckCircle2, Clock3, MessageCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createComboReservation } from "@/app/reservar/actions";
@@ -78,7 +78,7 @@ export function ComboReservationsSection({ combos }: Props) {
       }
 
       setSubmitted(true);
-      toast.success("Reserva enviada. Te vamos a contactar para coordinar.");
+      toast.success("¡Gracias! Recibimos tu reserva.");
     });
   };
 
@@ -148,14 +148,31 @@ export function ComboReservationsSection({ combos }: Props) {
             </button>
 
             {submitted ? (
-              <div className="space-y-3 pr-10">
-                <h3 className="text-2xl font-bold tracking-tight text-slate-950">Reserva registrada</h3>
-                <p className="text-sm leading-7 text-slate-600">
-                  Ya recibimos tus datos para <strong>{selected.title}</strong>. La reserva queda en el panel
-                  admin y te vamos a contactar para coordinar el pago y la entrega.
+              <div role="status" aria-live="polite" className="py-3 text-center">
+                <div className="mx-auto grid size-20 place-items-center rounded-full bg-emerald-100 ring-8 ring-emerald-50">
+                  <CheckCircle2 className="size-12 text-emerald-700" strokeWidth={2.25} aria-hidden="true" />
+                </div>
+                <p className="mt-6 text-xs font-black uppercase tracking-[0.22em] text-emerald-700">
+                  Reserva confirmada
                 </p>
-                <Button type="button" onClick={closeModal} className="mt-2">
-                  Cerrar
+                <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-950">¡Muchas gracias!</h3>
+                <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-600">
+                  Recibimos correctamente tu solicitud para <strong>{selected.title}</strong>.
+                </p>
+                <div className="mt-6 grid gap-3 text-left sm:grid-cols-2">
+                  <div className="rounded-2xl bg-emerald-50 p-4">
+                    <MessageCircle className="size-6 text-emerald-700" aria-hidden="true" />
+                    <p className="mt-2 text-sm font-bold text-emerald-950">Te contactaremos en breve</p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-900/70">Por teléfono o WhatsApp.</p>
+                  </div>
+                  <div className="rounded-2xl bg-sky-50 p-4">
+                    <Clock3 className="size-6 text-sky-700" aria-hidden="true" />
+                    <p className="mt-2 text-sm font-bold text-sky-950">Próximo paso</p>
+                    <p className="mt-1 text-xs leading-5 text-sky-900/70">Coordinamos pago, entrega e instalación.</p>
+                  </div>
+                </div>
+                <Button type="button" onClick={closeModal} className="mt-7 w-full sm:w-auto sm:min-w-40">
+                  Entendido
                 </Button>
               </div>
             ) : (
