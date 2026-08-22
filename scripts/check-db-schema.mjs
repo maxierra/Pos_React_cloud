@@ -53,6 +53,7 @@ const EXPECTED_TABLES = [
   "preload_products",
   "subscription_promo_codes",
   "download_events",
+  "combo_reservations",
 ];
 
 const EXPECTED_FUNCTIONS = [
@@ -104,6 +105,7 @@ const FEATURE_HINTS = {
   business_suppliers: "20260331100000_suppliers_orders.sql",
   subscription_promo_codes: "20260409120000_subscription_promo_codes.sql",
   download_events: "20260413193000_download_events.sql",
+  combo_reservations: "20260805143000_combo_reservations_and_software_price.sql",
 };
 
 function loadEnvFile() {

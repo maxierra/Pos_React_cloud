@@ -73,7 +73,7 @@ export async function sendMetaPurchase(input: MetaPurchase): Promise<{ ok: true 
         custom_data: {
           value: input.value,
           currency: input.currency,
-          content_name: "Tienda360",
+          content_name: "Combo Punto de Venta Tienda360",
           content_ids: [input.productSku],
           content_type: "product",
           order_id: input.eventId,

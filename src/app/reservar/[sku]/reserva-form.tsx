@@ -9,10 +9,13 @@ import { createComboReservation } from "@/app/reservar/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MetaTrackedLink } from "@/components/analytics/meta-tracked-link";
+import { trackMetaCustomEvent, trackMetaEvent } from "@/components/analytics/meta-pixel";
 
 type Props = {
   comboSku: string;
   comboTitle: string;
+  price: number;
 };
 
 const PAYMENT_OPTIONS = [
@@ -21,9 +24,10 @@ const PAYMENT_OPTIONS = [
   { value: "a_coordinar", label: "A coordinar" },
 ] as const;
 
-export function ReservaForm({ comboSku, comboTitle }: Props) {
+export function ReservaForm({ comboSku, comboTitle, price }: Props) {
   const [pending, startTransition] = React.useTransition();
   const [submitted, setSubmitted] = React.useState(false);
+  const formStarted = React.useRef(false);
   const [form, setForm] = React.useState({
     customerName: "",
     shippingAddress: "",
@@ -31,6 +35,17 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
     paymentMethod: "a_coordinar",
     notes: "",
   });
+
+  const markFormStarted = () => {
+    if (formStarted.current) return;
+    formStarted.current = true;
+    trackMetaCustomEvent("FormularioIniciado", {
+      content_name: "Combo Punto de Venta Tienda360",
+      value: price,
+      currency: "ARS",
+      delivery_type: "caba_amba_coordinar",
+    });
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +69,20 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
       }
 
       setSubmitted(true);
+      const leadValue = form.paymentMethod === "transferencia" || form.paymentMethod === "efectivo" ? Math.round(price * 0.9) : price;
+      trackMetaEvent("Lead", {
+        content_name: "Combo Punto de Venta Tienda360",
+        value: leadValue,
+        currency: "ARS",
+        delivery_type: "caba_amba_coordinar",
+      });
+      trackMetaCustomEvent("FormularioCompletado", {
+        content_name: "Combo Punto de Venta Tienda360",
+        value: leadValue,
+        currency: "ARS",
+        delivery_type: "caba_amba_coordinar",
+        payment_method: form.paymentMethod,
+      });
       toast.success("Reserva enviada. Te contactamos para coordinar la entrega.");
     });
   };
@@ -77,7 +106,7 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form onSubmit={submit} onFocus={markFormStarted} className="grid gap-4">
       <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
         <div className="text-lg font-bold text-slate-900">{comboTitle}</div>
         <p className="mt-1 text-sm text-slate-600">
@@ -85,9 +114,9 @@ export function ReservaForm({ comboSku, comboTitle }: Props) {
         </p>
       </div>
 
-      <Link href={`/comprar/${comboSku}?delivery=local`} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sky-700 px-4 text-center text-sm font-bold text-white">
+      <MetaTrackedLink event="ClickComprar" eventParams={{ content_name: "Combo Punto de Venta Tienda360", value: price, currency: "ARS", delivery_type: "caba_amba_online" }} href={`/comprar/${comboSku}?delivery=local`} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sky-700 px-4 text-center text-sm font-bold text-white">
         Prefiero pagar online con Mercado Pago
-      </Link>
+      </MetaTrackedLink>
 
       <div className="grid gap-1.5">
         <Label htmlFor="customerName">Nombre completo</Label>

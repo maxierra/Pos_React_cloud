@@ -163,6 +163,7 @@ function splitFromDetails(details: unknown) {
 export default async function CashPage({ searchParams }: { searchParams: Promise<{ date?: string; ob?: string }> }) {
   const params = await searchParams;
   const filterDate = params.date;
+  const hasDateFilter = Boolean(filterDate);
   const cookieStore = await cookies();
   const businessId = cookieStore.get("active_business_id")?.value;
 
@@ -232,14 +233,16 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   movements = (movementsData ?? []) as CashMovementRow[];
   customerPayments = (capData ?? []) as CustomerPaymentRow[];
 
-  const turnSales = openRegister
-    ? sales.filter((s: any) => String((s as any).cash_register_id ?? "") === openRegister.id)
+  const summaryRegister = hasDateFilter ? null : openRegister;
+
+  const turnSales = summaryRegister
+    ? sales.filter((s: any) => String((s as any).cash_register_id ?? "") === summaryRegister.id)
     : sales;
-  const turnMovements = openRegister
-    ? movements.filter((m: any) => String((m as any).cash_register_id ?? "") === openRegister.id)
+  const turnMovements = summaryRegister
+    ? movements.filter((m: any) => String((m as any).cash_register_id ?? "") === summaryRegister.id)
     : movements;
-  const turnCustomerPayments = openRegister
-    ? customerPayments.filter((p: any) => String((p as any).cash_register_id ?? "") === openRegister.id)
+  const turnCustomerPayments = summaryRegister
+    ? customerPayments.filter((p: any) => String((p as any).cash_register_id ?? "") === summaryRegister.id)
     : customerPayments;
 
   const [{ data: businessData, error: businessError }, { data: turnsData }] = await Promise.all([
@@ -267,7 +270,7 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   const movementNetByMethod = movementTotalsByMethod(turnMovements);
   const cobrosCuentaByMethod = customerPaymentTotalsByMethod(turnCustomerPayments);
   const pendienteCuentaCorriente = sumCuentaCorrienteSales(turnSales);
-  const openingAmount = toNum(openRegister?.opening_amount);
+  const openingAmount = toNum(summaryRegister?.opening_amount);
   const soldTotal = soldByMethod.cash + soldByMethod.card + soldByMethod.transfer + soldByMethod.mercadopago;
 
   const totalIn = movements
@@ -284,8 +287,10 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
     transfer: soldByMethod.transfer + movementNetByMethod.transfer + cobrosCuentaByMethod.transfer,
     mercadopago: soldByMethod.mercadopago + movementNetByMethod.mercadopago + cobrosCuentaByMethod.mercadopago,
   };
-  const registerTitle = openRegister ? "Caja abierta" : "Caja cerrada";
-  const registerDescription = openRegister
+  const registerTitle = hasDateFilter ? `Caja del ${filterDate}` : openRegister ? "Caja abierta" : "Caja cerrada";
+  const registerDescription = hasDateFilter
+    ? "Vista completa del día seleccionado."
+    : openRegister
     ? `Abierta el ${formatArgentinaDateTime(openRegister.opened_at)}`
     : "No hay una caja abierta. Podés abrir una nueva para comenzar a operar.";
 
@@ -301,15 +306,15 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   });
 
   const ledgerRows = [
-    ...(openRegister
+    ...(summaryRegister
       ? [
           {
-            id: `${openRegister.id}-opening`,
-            created_at: openRegister.opened_at,
+            id: `${summaryRegister.id}-opening`,
+            created_at: summaryRegister.opened_at,
             kind: "opening" as const,
             movement_type: "in" as const,
             method: "cash",
-            amount: toNum(openRegister.opening_amount),
+            amount: toNum(summaryRegister.opening_amount),
             reason: "Apertura de caja",
             notes: "",
             items: [],

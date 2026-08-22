@@ -37,7 +37,18 @@ export async function createComboReservation(
       notes: notes || null,
     });
 
-    if (error) return { error: error.message };
+    if (error) {
+      console.error("No se pudo crear la reserva de combo", {
+        code: error.code,
+        message: error.message,
+      });
+      return {
+        error:
+          error.code === "PGRST205" || error.message.includes("schema cache")
+            ? "Las reservas están temporalmente fuera de servicio. Contactanos por WhatsApp para coordinar tu compra."
+            : "No se pudo guardar la reserva. Intentá nuevamente en unos minutos.",
+      };
+    }
     return { ok: true };
   } catch {
     return { error: "No se pudo guardar la reserva." };

@@ -13,6 +13,7 @@ import type { StoreProduct } from "@/lib/store-products";
 import { formatStorePrice } from "@/lib/store-products";
 import { startStoreCheckout } from "@/app/comprar/actions";
 import { BUSINESS_TYPES, businessTypeLabel } from "@/lib/business-types";
+import { readMetaCookie, trackMetaCustomEvent, trackMetaEvent } from "@/components/analytics/meta-pixel";
 
 type Props = {
   product: StoreProduct;
@@ -22,6 +23,7 @@ type Props = {
 export function ComprarForm({ product, deliveryType = "shipping" }: Props) {
   const localInstallation = deliveryType === "local_installation";
   const [pending, startTransition] = React.useTransition();
+  const formStarted = React.useRef(false);
   const [form, setForm] = React.useState({
     email: "",
     customerName: "",
@@ -34,6 +36,17 @@ export function ComprarForm({ product, deliveryType = "shipping" }: Props) {
     shippingPostalCode: "",
     shippingNotes: "",
   });
+
+  const markFormStarted = () => {
+    if (formStarted.current) return;
+    formStarted.current = true;
+    trackMetaCustomEvent("FormularioIniciado", {
+      content_name: "Combo Punto de Venta Tienda360",
+      value: product.price_ars,
+      currency: "ARS",
+      delivery_type: localInstallation ? "caba_amba_online" : "interior",
+    });
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +98,15 @@ export function ComprarForm({ product, deliveryType = "shipping" }: Props) {
       }
     }
 
+    trackMetaEvent("InitiateCheckout", {
+      content_name: "Combo Punto de Venta Tienda360",
+      content_ids: [product.sku],
+      content_type: "product",
+      value: product.price_ars,
+      currency: "ARS",
+      delivery_type: localInstallation ? "caba_amba_online" : "interior",
+    });
+
     startTransition(async () => {
       const res = await startStoreCheckout({
         sku: product.sku,
@@ -99,17 +121,26 @@ export function ComprarForm({ product, deliveryType = "shipping" }: Props) {
         shippingPostalCode: form.shippingPostalCode,
         shippingNotes: form.shippingNotes,
         deliveryType,
+        metaFbp: readMetaCookie("_fbp"),
+        metaFbc: readMetaCookie("_fbc"),
       });
       if ("error" in res) {
         toast.error(res.error);
         return;
       }
+      trackMetaCustomEvent("FormularioCompletado", {
+        content_name: "Combo Punto de Venta Tienda360",
+        value: product.price_ars,
+        currency: "ARS",
+        delivery_type: localInstallation ? "caba_amba_online" : "interior",
+        order_id: res.orderId,
+      });
       window.location.href = res.checkoutUrl;
     });
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-5">
+    <form onSubmit={submit} onFocus={markFormStarted} className="grid gap-5">
       <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
         <div className="text-lg font-bold text-slate-900">{product.name}</div>
         <div className="mt-1 text-2xl font-bold text-sky-800">{formatStorePrice(product.price_ars)}</div>

@@ -33,6 +33,7 @@ const PENDING_MIGRATIONS = [
   "20260409120000_subscription_promo_codes.sql",
   "20260413193000_download_events.sql",
   "20260508180000_admin_product_load_totals.sql",
+  "20260805143000_combo_reservations_and_software_price.sql",
 ];
 
 function loadEnvFile() {

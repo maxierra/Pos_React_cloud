@@ -36,7 +36,7 @@ export default async function ReservarComboPage({ params }: Props) {
           Para CABA y AMBA: completá tus datos y te contactamos para coordinar entrega, instalación, capacitación y pago.
         </p>
         <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <ReservaForm comboSku={product.sku} comboTitle={product.name} />
+          <ReservaForm comboSku={product.sku} comboTitle={product.name} price={product.price_ars} />
         </div>
       </main>
     </div>

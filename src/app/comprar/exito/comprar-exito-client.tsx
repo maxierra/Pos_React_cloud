@@ -62,7 +62,7 @@ export function ComprarExitoClient({ orderId, mpStatus }: Props) {
     if (window.sessionStorage.getItem(purchaseKey)) return;
     trackMetaEvent(
       "Purchase",
-      { value: state.amountArs, currency: "ARS", content_name: "Tienda360" },
+      { value: state.amountArs, currency: "ARS", content_name: "Combo Punto de Venta Tienda360", content_ids: ["combo_essential"], content_type: "product" },
       orderId
     );
     window.sessionStorage.setItem(purchaseKey, "1");

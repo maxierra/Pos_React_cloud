@@ -30,3 +30,7 @@ alter table public.combo_reservations enable row level security;
 drop policy if exists combo_reservations_no_public_access on public.combo_reservations;
 create policy combo_reservations_no_public_access on public.combo_reservations
   for select using (false);
+
+-- Fuerza a PostgREST a descubrir la tabla inmediatamente después de aplicar
+-- esta migración, evitando errores PGRST205 por una caché de esquema antigua.
+notify pgrst, 'reload schema';
