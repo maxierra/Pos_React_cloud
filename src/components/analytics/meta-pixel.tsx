@@ -9,6 +9,7 @@ type MetaEventParams = Record<string, string | number | boolean | string[]>;
 export type MetaStandardEvent = "ViewContent" | "InitiateCheckout" | "Lead" | "Purchase";
 export type MetaCustomEvent =
   | "ClickComprar"
+  | "ClickDescargar"
   | "ClickDemo"
   | "ClickWhatsApp"
   | "FormularioIniciado"
