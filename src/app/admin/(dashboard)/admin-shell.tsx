@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Truck,
+  Download,
 } from "lucide-react";
 
 import { adminSignOut } from "@/app/admin/actions";
@@ -30,6 +31,7 @@ type NavItem = {
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Suscripciones", icon: CreditCard },
   { href: "/admin/payments", label: "Pagos", icon: CreditCard },
+  { href: "/admin/descargas", label: "Descargas", icon: Download },
   { href: "/admin/reservas", label: "Instalaciones CABA/AMBA", icon: ClipboardList },
   { href: "/admin/envios", label: "Envíos al interior", icon: Truck },
   { href: "/admin/carga-productos", label: "Carga productos", icon: PackageSearch },

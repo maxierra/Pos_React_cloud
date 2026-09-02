@@ -346,3 +346,16 @@ button.landing-cta-primary > * {
     opacity: 0;
   }
 }
+
+@keyframes tienda-marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.tienda-marquee {
+  animation: tienda-marquee-scroll 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tienda-marquee { animation: none; }
+}

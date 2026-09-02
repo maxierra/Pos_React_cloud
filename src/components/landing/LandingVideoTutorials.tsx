@@ -1,88 +1,35 @@
-import { ExternalLink, PlayCircle } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ChevronDown, ExternalLink, Play } from "lucide-react";
 
 const tutorials = [
-  {
-    title: "Configuración inicial",
-    description: "Paso a paso para dejar el sistema listo y empezar a operar.",
-    embedUrl: "https://www.youtube.com/embed/Ga6TRIi0uEY",
-    videoUrl: "https://youtu.be/Ga6TRIi0uEY",
-  },
-  {
-    title: "Carga de productos",
-    description: "Aprendé a crear productos, organizar precios y preparar tu catálogo.",
-    embedUrl: "https://www.youtube.com/embed/lE-pNOjEEug",
-    videoUrl: "https://youtu.be/lE-pNOjEEug",
-  },
-  {
-    title: "Caja diaria",
-    description: "Apertura, control y cierre de caja para ordenar la operatoria del día.",
-    embedUrl: "https://www.youtube.com/embed/5wzr0ePrL_g",
-    videoUrl: "https://youtu.be/5wzr0ePrL_g",
-  },
-  {
-    title: "Pantalla de ventas",
-    description: "Conocé la vista principal para cobrar rápido y trabajar con agilidad.",
-    embedUrl: "https://www.youtube.com/embed/_VTaCVwt1CI",
-    videoUrl: "https://youtu.be/_VTaCVwt1CI",
-  },
-];
+  ["Instalación del sistema", "Aprendé a descargar e instalar Tienda360 paso a paso.", "pLQDqRN0XpE"],
+  ["Primer ingreso", "Aprendé a iniciar sesión y entrar al sistema.", "mEWPzS6RD70"],
+  ["Creación de productos", "Creá productos, precios y categorías.", "xX_EWjoduZ0"],
+  ["Caja diaria", "Abrí, controlá y cerrá la caja del día.", "jWTHrNC3TXU"],
+  ["Ventas", "Registrá productos, cobrá y completá una venta paso a paso.", "_gnGrbQz5Dw"],
+  ["Inventario", "Controlá existencias y movimientos de stock.", "f8qx4hahRh4"],
+  ["Facturación electrónica", "Configurá y emití comprobantes electrónicos.", "eKf_n6Twk7c"],
+  ["Etiquetas", "Diseñá e imprimí etiquetas para tus productos.", "TyNRPwxu6S0"],
+  ["Estadísticas", "Interpretá las métricas principales de tu negocio.", "NYDewU_XjI8"],
+  ["Configuración", "Personalizá Tienda360 para tu comercio.", "J8Cxgc_l-iY"],
+  ["Clientes", "Registrá clientes y consultá su historial.", "h081Akg9lBc"],
+  ["Reportes", "Consultá ventas y resultados con claridad.", "hsSXo-roQ5E"],
+] as const;
 
 export function LandingVideoTutorials() {
-  return (
-    <section
-      id="tutoriales"
-      className="relative scroll-mt-24 rounded-[2rem] border border-white/80 bg-white/70 px-6 py-8 shadow-[0_24px_64px_-34px_rgba(15,23,42,0.4)] backdrop-blur md:px-8 md:py-10"
-      aria-labelledby="tutoriales-heading"
-    >
-      <div className="mx-auto max-w-5xl">
-        <h2
-          id="tutoriales-heading"
-          className="text-center font-serif text-3xl font-bold tracking-tight text-slate-900 md:text-4xl"
-        >
-          Mirá Tienda360 en funcionamiento
-        </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-7 text-slate-600 md:text-base">
-          Conocé las principales funciones del sistema antes de decidir tu compra.
-        </p>
+  const [showAll, setShowAll] = useState(false);
+  const visibleTutorials = showAll ? tutorials : tutorials.slice(0, 3);
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          {tutorials.map((tutorial) => (
-            <article
-              key={tutorial.title}
-              className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-3 shadow-lg shadow-slate-200/40"
-            >
-              <div className="relative aspect-video overflow-hidden rounded-[1.25rem] bg-slate-100">
-                <iframe
-                  src={tutorial.embedUrl}
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full"
-                  title={tutorial.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
-
-              <div className="px-2 pb-2 pt-4">
-                <p className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-                  <PlayCircle className="size-5 text-emerald-700" aria-hidden />
-                  {tutorial.title}
-                </p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">{tutorial.description}</p>
-                <a
-                  href={tutorial.videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 underline underline-offset-4"
-                >
-                  Ver en YouTube
-                  <ExternalLink className="size-4" aria-hidden />
-                </a>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  return <section id="tutoriales" className="scroll-mt-24 bg-[#f6f4ec] py-20 text-[#0a2a1e] sm:py-24" aria-labelledby="tutoriales-heading">
+    <div className="mx-auto max-w-6xl px-5 sm:px-8">
+      <div className="max-w-2xl"><p className="font-mono text-xs font-bold uppercase tracking-[.18em] text-[#2fa85a]">Tutoriales</p><h2 id="tutoriales-heading" className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Aprendé a tu ritmo</h2><p className="mt-4 leading-7 text-[#0a2a1e]/65">Videos cortos y claros para instalar, vender y administrar tu comercio con seguridad.</p></div>
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleTutorials.map(([title, description, id], index) => <article key={id} className="group overflow-hidden rounded-2xl bg-white shadow-[0_18px_40px_-28px_rgba(10,42,30,.5)] transition hover:-translate-y-1 hover:shadow-xl">
+        <div className="relative aspect-video overflow-hidden bg-[#0a2a1e]"><iframe src={`https://www.youtube-nocookie.com/embed/${id}`} title={`Tutorial: ${title}`} loading="lazy" className="absolute inset-0 size-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /><span className="pointer-events-none absolute left-3 top-3 rounded-full bg-[#ffb343] px-3 py-1 font-mono text-xs font-extrabold text-[#0a2a1e] shadow">{String(index + 1).padStart(2, "0")}</span></div>
+        <div className="p-5"><h3 className="flex items-center gap-2 font-extrabold"><span className="grid size-8 place-items-center rounded-full bg-[#fce7c4] text-[#0a2a1e]"><Play className="size-3.5 fill-current" /></span>{title}</h3><p className="mt-3 text-sm leading-6 text-[#0a2a1e]/60">{description}</p><a href={`https://youtu.be/${id}`} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#2fa85a] hover:text-[#0a2a1e]">Abrir en YouTube <ExternalLink className="size-3.5" /></a></div>
+      </article>)}</div>
+      <div className="mt-8 text-center"><button type="button" onClick={() => setShowAll((value) => !value)} aria-expanded={showAll} className="inline-flex h-11 items-center justify-center rounded-full border-2 border-[#0a2a1e]/15 bg-transparent px-5 text-sm font-extrabold hover:border-[#0a2a1e]">{showAll ? "Ver menos tutoriales" : `Ver los ${tutorials.length} tutoriales`}<ChevronDown className={`ml-2 size-4 transition ${showAll ? "rotate-180" : ""}`} /></button></div>
+    </div>
+  </section>;
 }
