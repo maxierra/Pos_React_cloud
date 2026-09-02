@@ -35,7 +35,7 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
     <header className="sticky top-0 z-50 bg-[#0a2a1e]/95 text-[#f6f4ec] backdrop-blur-xl">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-5 sm:px-8">
         <a href="#inicio" aria-label="Ir al inicio de Tienda360" className="flex items-center gap-2.5 font-black"><span className="grid size-9 place-items-center rounded-lg bg-[#ffb343] font-mono text-[10px] text-[#0a2a1e]">360</span><span className="text-lg">Tienda360</span></a>
-        <nav aria-label="Navegación principal" className="hidden items-center gap-7 text-sm font-semibold text-[#f6f4ec]/70 md:flex"><a href="#como-funciona" className="transition hover:text-[#ffb343]">Cómo funciona</a><a href="#funciones" className="transition hover:text-[#ffb343]">Funciones</a><a href="#precio" className="transition hover:text-[#ffb343]">Precio</a><a href="#tutoriales" className="transition hover:text-[#ffb343]">Tutoriales</a></nav>
+        <nav aria-label="Navegación principal" className="hidden items-center gap-7 text-sm font-semibold text-[#f6f4ec]/70 md:flex"><a href="#como-funciona" className="transition hover:text-[#ffb343]">Cómo funciona</a><a href="#carga-rapida" className="transition hover:text-[#ffb343]">Carga rápida</a><a href="#funciones" className="transition hover:text-[#ffb343]">Funciones</a><a href="#precio" className="transition hover:text-[#ffb343]">Precio</a><a href="#tutoriales" className="transition hover:text-[#ffb343]">Tutoriales</a></nav>
         <div className="flex items-center gap-3"><Link href="/auth/login" className="hidden items-center text-sm font-bold text-[#f6f4ec]/70 hover:text-white sm:inline-flex"><LogIn className="mr-2 size-4" />Ingresar</Link><LandingDownloadButton source="landing_header" ariaLabel="Descargar prueba gratis de Tienda360 por 3 días" className="inline-flex h-10 items-center rounded-full bg-[#ffb343] px-4 text-sm font-extrabold text-[#0a2a1e] transition hover:-translate-y-0.5 hover:bg-[#ffc164]"><Download className="mr-2 size-4" />Prueba gratis</LandingDownloadButton></div>
       </div>
     </header>
@@ -54,6 +54,33 @@ export default async function Home({ searchParams }: { searchParams?: Promise<{ 
     </section>
 
     <section id="como-funciona" className="scroll-mt-20 py-20 sm:py-24"><div className="mx-auto max-w-6xl px-5 sm:px-8"><div className="max-w-2xl"><p className="font-mono text-xs font-bold uppercase tracking-[.18em] text-[#2fa85a]">Cómo funciona</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">La prueba, sin letra chica</h2><p className="mt-4 text-lg text-[#0a2a1e]/65">Es el sistema completo funcionando con tu comercio real durante 3 días.</p></div><div className="mt-10 grid gap-4 lg:grid-cols-3">{steps.map(([number, title, description], index) => <article key={number} className={`relative min-h-56 overflow-hidden rounded-2xl p-7 ${index === 0 ? "bg-[#0a2a1e] text-[#f6f4ec]" : index === 1 ? "bg-[#2fa85a] text-white" : "bg-[#ffb343] text-[#0a2a1e]"}`}><span className="absolute -right-1 -top-5 font-mono text-8xl font-black opacity-15">{number}</span><h3 className="relative mt-16 text-xl font-extrabold">{title}</h3><p className="relative mt-3 text-sm leading-6 opacity-80">{description}</p></article>)}</div></div></section>
+
+    <section id="carga-rapida" className="scroll-mt-20 bg-[#0a2a1e] py-20 text-[#f6f4ec] sm:py-24">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1.08fr_.92fr] lg:gap-16">
+        <div>
+          <p className="font-mono text-xs font-bold uppercase tracking-[.18em] text-[#ffb343]">Carga rápida</p>
+          <h2 className="mt-4 max-w-2xl text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl">Mientras tus clientes compran, tu catálogo se completa.</h2>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-[#f6f4ec]/75">Cuando llega a la caja un producto que todavía no cargaste, la <strong className="text-[#f6f4ec]">Carga Rápida</strong> te permite completar lo mínimo, venderlo y guardarlo en segundos, sin frenar la venta.</p>
+          <p className="mt-5 max-w-xl text-lg leading-8 text-[#f6f4ec]/75">Tus clientes van marcando qué productos cargar primero. Así, incorporás los artículos que realmente se venden, sin pasar jornadas enteras preparando el inventario.</p>
+          <p className="mt-7 text-xl font-black text-[#ffb343]">Cargás lo que se vende. Nada más.</p>
+        </div>
+
+        <aside className="rounded-3xl border border-[#ffb343]/25 bg-[#153f31] p-6 shadow-2xl shadow-black/20 sm:p-8" aria-label="Ejemplo de carga rápida durante una venta">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-[#f6f4ec]/80">Caja — venta en curso</p>
+            <span className="shrink-0 rounded-full bg-[#ffb343] px-3 py-1 font-mono text-xs font-bold text-[#0a2a1e]">Producto nuevo</span>
+          </div>
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-4 rounded-xl border border-dashed border-[#ffb343]/55 bg-[#f6f4ec]/5 p-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#ffb343] text-xl" aria-hidden="true">🧴</span>
+              <div><p className="font-extrabold">Shampoo 400 ml</p><p className="mt-0.5 text-sm text-[#f6f4ec]/75">Cargando con Carga Rápida…</p></div>
+            </div>
+            {[["🥤", "Gaseosa 1,5 l"], ["🍫", "Chocolate 100 g"]].map(([icon, product]) => <div key={product} className="flex items-center gap-4 rounded-xl border border-[#f6f4ec]/10 bg-[#f6f4ec]/5 p-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#f6f4ec]/10 text-xl" aria-hidden="true">{icon}</span><div><p className="font-bold text-[#f6f4ec]/80">{product}</p><p className="mt-0.5 text-sm text-[#f6f4ec]/55">Ya está en tu inventario</p></div></div>)}
+          </div>
+          <div className="mt-6 flex items-center justify-between border-t border-[#f6f4ec]/15 pt-5 text-sm"><span className="text-[#f6f4ec]/75">Productos cargados hoy</span><strong className="font-mono text-[#ffb343]">+7</strong></div>
+        </aside>
+      </div>
+    </section>
 
     <section id="funciones" className="scroll-mt-20 pb-20 sm:pb-24"><div className="mx-auto max-w-6xl px-5 sm:px-8"><div className="max-w-2xl"><p className="font-mono text-xs font-bold uppercase tracking-[.18em] text-[#2fa85a]">Funciones</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Todo lo que necesitás para vender mejor</h2><p className="mt-4 text-[#0a2a1e]/65">Pensado para kioscos, almacenes, autoservicios y comercios de indumentaria.</p></div><div className="mt-10 grid overflow-hidden rounded-2xl border border-[#0a2a1e]/10 bg-[#0a2a1e]/10 sm:grid-cols-2 lg:grid-cols-3">{features.map(([Icon, title, text], index) => <article key={title} className="bg-white p-7 transition hover:bg-[#fce7c4]"><span className="grid size-10 place-items-center rounded-lg bg-[#0a2a1e] text-[#ffb343]"><Icon className="size-5" /></span><p className="mt-5 font-mono text-xs font-bold text-[#2fa85a]">{String(index + 1).padStart(2, "0")}</p><h3 className="mt-2 text-lg font-extrabold">{title}</h3><p className="mt-2 text-sm leading-6 text-[#0a2a1e]/60">{text}</p></article>)}</div></div></section>
 
