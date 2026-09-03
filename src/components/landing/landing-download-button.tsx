@@ -23,12 +23,16 @@ export function LandingDownloadButton({ source, className, ariaLabel, children }
   const descriptionId = useId();
 
   function openDownloadDialog() {
-    const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    setMobileDevice(mobileUserAgent || window.matchMedia("(max-width: 767px)").matches);
     setSuccess(false);
     setDownloadUrl("");
     setError("");
     setOpen(true);
+    try {
+      const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      setMobileDevice(mobileUserAgent || window.innerWidth < 768);
+    } catch {
+      setMobileDevice(true);
+    }
   }
 
   useEffect(() => {
@@ -74,7 +78,7 @@ export function LandingDownloadButton({ source, className, ariaLabel, children }
   return <>
     <button type="button" aria-label={ariaLabel} className={className} onClick={openDownloadDialog}>{children}</button>
     {open ? <div className="fixed inset-0 z-[100] grid place-items-center bg-[#061c14]/75 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) setOpen(false); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="relative w-full max-w-md rounded-3xl bg-[#f6f4ec] p-6 text-left text-[#0a2a1e] shadow-2xl sm:p-8">
+      <section role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-[#f6f4ec] p-6 text-left text-[#0a2a1e] shadow-2xl sm:p-8">
         <button type="button" aria-label="Cerrar formulario de descarga" onClick={() => setOpen(false)} disabled={pending} className="absolute right-4 top-4 grid size-9 place-items-center rounded-full hover:bg-black/5"><X className="size-5" /></button>
         {success ? <div className="py-3 text-center">
           <span className="mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><CheckCircle2 className="size-9" /></span>
@@ -91,9 +95,9 @@ export function LandingDownloadButton({ source, className, ariaLabel, children }
           <span className="grid size-11 place-items-center rounded-xl bg-[#ffb343]"><Download className="size-5" /></span>
           <h2 id={titleId} className="mt-5 text-2xl font-black">Descargá tu prueba gratis</h2>
           <p id={descriptionId} className="mt-2 text-sm leading-6 text-[#0a2a1e]/65">Dejanos tus datos para registrar la descarga y poder ayudarte si necesitás activar la licencia.</p>
-          {mobileDevice ? <div className="mt-4 flex gap-3 rounded-xl border border-[#ffb343]/50 bg-[#fff1d6] p-4" role="note"><Monitor className="mt-0.5 size-5 shrink-0" aria-hidden="true" /><p className="text-sm leading-5"><strong>La descarga debe hacerse desde una PC con Windows.</strong><br />Podés completar el formulario desde tu celular. Guardaremos tus datos, pero no descargaremos el instalador en este dispositivo.</p></div> : null}
+          <div className="mt-4 flex gap-3 rounded-xl border-2 border-[#ffb343] bg-[#fff1d6] p-4 md:hidden" role="alert"><Monitor className="mt-0.5 size-6 shrink-0" aria-hidden="true" /><p className="text-sm leading-5"><strong className="text-base">Estás desde un celular</strong><br />Completá el formulario para dejarnos tus datos. Después, entrá desde una <strong>PC con Windows</strong> para descargar e instalar Tienda360.</p></div>
           <form onSubmit={submit} className="mt-6 space-y-4">
-          <label className="block text-sm font-bold">Nombre completo<input name="fullName" autoComplete="name" required minLength={3} maxLength={120} autoFocus className="mt-2 h-11 w-full rounded-xl border border-[#0a2a1e]/20 bg-white px-3 font-normal outline-none focus:border-[#2fa85a] focus:ring-2 focus:ring-[#2fa85a]/20" placeholder="Ej.: María González" /></label>
+          <label className="block text-sm font-bold">Nombre completo<input name="fullName" autoComplete="name" required minLength={3} maxLength={120} autoFocus={!mobileDevice} className="mt-2 h-11 w-full rounded-xl border border-[#0a2a1e]/20 bg-white px-3 font-normal outline-none focus:border-[#2fa85a] focus:ring-2 focus:ring-[#2fa85a]/20" placeholder="Ej.: María González" /></label>
           <label className="block text-sm font-bold">Teléfono<input name="phone" type="tel" inputMode="tel" autoComplete="tel" required minLength={8} maxLength={30} className="mt-2 h-11 w-full rounded-xl border border-[#0a2a1e]/20 bg-white px-3 font-normal outline-none focus:border-[#2fa85a] focus:ring-2 focus:ring-[#2fa85a]/20" placeholder="Ej.: 11 2345 6789" /></label>
           <label className="flex items-start gap-2 text-xs leading-5 text-[#0a2a1e]/65"><input name="contactConsent" value="yes" type="checkbox" required className="mt-1 size-4 accent-[#2fa85a]" /><span>Acepto que Tienda360 me contacte únicamente para acompañar mi prueba y activación.</span></label>
           {error ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
