@@ -1,8 +1,9 @@
 import { Download, KeyRound, Phone, Users } from "lucide-react";
 
-import { updateDownloadLead } from "@/app/admin/(dashboard)/descargas/actions";
+import { updateDownloadFollowup, updateDownloadLead } from "@/app/admin/(dashboard)/descargas/actions";
 import { ClearAllDownloadLeadsButton, DeleteDownloadLeadButton } from "@/app/admin/(dashboard)/descargas/delete-controls";
 import { DownloadChart, type DownloadChartPoint } from "@/app/admin/(dashboard)/descargas/download-chart";
+import { FollowupControls } from "@/app/admin/(dashboard)/descargas/followup-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DESKTOP_DOWNLOAD_ASSET_KEY } from "@/lib/desktop-download";
@@ -19,6 +20,9 @@ type DownloadLead = {
   activation_requested: boolean;
   activation_requested_at: string | null;
   admin_note: string | null;
+  contacted_at: string | null;
+  activation_paid_at: string | null;
+  reminder_sent_at: string | null;
 };
 
 function dayKey(value: string) {
@@ -46,7 +50,7 @@ function chartPoints(map: Map<string, number>, limit: number, format: (key: stri
 
 export default async function AdminDownloadsPage() {
   const { data, error } = await createAdminClient().from("download_events")
-    .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note")
+    .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note,contacted_at,activation_paid_at,reminder_sent_at")
     .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -85,6 +89,6 @@ export default async function AdminDownloadsPage() {
 
     <section className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-5"><h2 className="text-lg font-semibold">Descargas por día</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground"><th className="px-3 py-2">Día</th><th className="px-3 py-2 text-right">Descargas</th></tr></thead><tbody>{dailyRows.map(([day, count]) => <tr key={day} className="border-b border-[var(--pos-border)]/70"><td className="px-3 py-2.5 font-medium capitalize">{dayLabel(day)}</td><td className="px-3 py-2.5 text-right font-bold">{count}</td></tr>)}</tbody></table>{dailyRows.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Todavía no hay descargas registradas.</p> : null}</div></section>
 
-    <section className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-5"><h2 className="text-lg font-semibold">Personas que descargaron</h2><p className="mt-1 text-sm text-muted-foreground">Podés marcar quién pidió la clave, guardar una nota o eliminar el registro.</p><div className="mt-4 space-y-3">{leads.map((lead) => <div key={lead.id} className="grid gap-3 rounded-xl border border-[var(--pos-border)] p-4 lg:grid-cols-[1.1fr_.8fr_.7fr_1.4fr_auto] lg:items-center"><div><p className="font-semibold">{lead.full_name || "Descarga anterior sin nombre"}</p><p className="mt-0.5 text-xs text-muted-foreground">{new Date(lead.created_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", dateStyle: "short", timeStyle: "short" })} · {lead.source}</p></div><a href={lead.phone ? `https://wa.me/${lead.phone.replace(/\D/g, "")}` : undefined} target="_blank" rel="noreferrer" className={lead.phone ? "font-mono text-sm text-emerald-600 hover:underline" : "pointer-events-none text-sm text-muted-foreground"}>{lead.phone || "Sin teléfono"}</a><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${lead.activation_requested ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>{lead.activation_requested ? "Pidió activación" : "Sin pedido"}</span><form action={updateDownloadLead} className="contents"><input type="hidden" name="id" value={lead.id} /><Input name="adminNote" defaultValue={lead.admin_note ?? ""} maxLength={500} placeholder="Nota interna…" aria-label={`Nota sobre ${lead.full_name ?? "esta descarga"}`} className="h-9" /><div className="flex flex-wrap gap-2"><Button type="submit" name="activationState" value={lead.activation_requested ? "not_requested" : "requested"} variant={lead.activation_requested ? "outline" : "default"}>{lead.activation_requested ? "Quitar marca" : "Marcar activación"}</Button><Button type="submit" name="activationState" value={lead.activation_requested ? "requested" : "not_requested"} variant="outline">Guardar nota</Button></div></form><div className="lg:col-start-5"><DeleteDownloadLeadButton id={lead.id} name={lead.full_name || "esta descarga"} /></div></div>)}</div>{leads.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Todavía no hay contactos.</p> : null}</section>
+    <section className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-5"><h2 className="text-lg font-semibold">Personas que descargaron</h2><p className="mt-1 text-sm text-muted-foreground">Saludá, ayudá, recordá el vencimiento y registrá el pago de la licencia de $35.000.</p><div className="mt-4 space-y-3">{leads.map((lead) => <div key={lead.id} className="grid gap-3 rounded-xl border border-[var(--pos-border)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{lead.full_name || "Descarga anterior sin nombre"}</p><p className="mt-0.5 text-xs text-muted-foreground">{new Date(lead.created_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", dateStyle: "short", timeStyle: "short" })} · {lead.phone || "Sin teléfono"} · {lead.source}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lead.activation_requested ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>{lead.activation_requested ? "Pidió activación" : "Sin pedido"}</span></div><FollowupControls id={lead.id} name={lead.full_name || "Hola"} phone={lead.phone} createdAt={lead.created_at} contactedAt={lead.contacted_at} paidAt={lead.activation_paid_at} reminderAt={lead.reminder_sent_at} /><form action={updateDownloadLead} className="flex flex-wrap items-center gap-2"><input type="hidden" name="id" value={lead.id} /><Input name="adminNote" defaultValue={lead.admin_note ?? ""} maxLength={500} placeholder="Nota interna…" aria-label={`Nota sobre ${lead.full_name ?? "esta descarga"}`} className="h-9 max-w-md" /><Button type="submit" name="activationState" value={lead.activation_requested ? "not_requested" : "requested"} variant="outline">{lead.activation_requested ? "Quitar marca de activación" : "Marcar pedido de activación"}</Button><Button type="submit" name="activationState" value={lead.activation_requested ? "requested" : "not_requested"} variant="outline">Guardar nota</Button><DeleteDownloadLeadButton id={lead.id} name={lead.full_name || "esta descarga"} /></form></div>)}</div>{leads.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Todavía no hay contactos.</p> : null}</section>
   </div>;
 }

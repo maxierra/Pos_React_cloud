@@ -14,6 +14,8 @@ const updateSchema = z.object({
   adminNote: z.string().trim().max(500),
 });
 
+const followupSchema = z.object({ id: z.string().uuid(), kind: z.enum(["contacted", "paid", "reminder"]) });
+
 async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,6 +40,17 @@ export async function updateDownloadLead(formData: FormData) {
   }).eq("id", parsed.data.id);
   if (error) throw new Error(error.message);
 
+  revalidatePath("/admin/descargas");
+}
+
+export async function updateDownloadFollowup(formData: FormData) {
+  await requireAdmin();
+  const parsed = followupSchema.safeParse({ id: formData.get("id"), kind: formData.get("kind") });
+  if (!parsed.success) throw new Error("Seguimiento inválido");
+  const now = new Date().toISOString();
+  const values = parsed.data.kind === "contacted" ? { contacted_at: now, contact_channel: "whatsapp" } : parsed.data.kind === "paid" ? { activation_paid_at: now } : { reminder_sent_at: now };
+  const { error } = await createAdminClient().from("download_events").update(values).eq("id", parsed.data.id);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/descargas");
 }
 
