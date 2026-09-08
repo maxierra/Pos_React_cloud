@@ -16,8 +16,14 @@ export function ConversionLandingGuard() {
       }
     };
     document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    const nav = document.querySelector(".conversion-landing .nav");
+    const access = document.createElement("a");
+    access.className = "web-access-nav";
+    access.href = "/auth/login";
+    access.textContent = "Acceder al sistema web";
+    nav?.appendChild(access);
+    return () => { document.removeEventListener("click", onClick); access.remove(); };
   }, []);
 
-  return <><a className="web-access-floating" href="/auth/login">Acceder al sistema web</a><ConversionLanding /></>;
+  return <ConversionLanding />;
 }
