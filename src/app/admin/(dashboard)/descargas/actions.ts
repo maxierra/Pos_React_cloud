@@ -3,10 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { emailIsPlatformAdmin } from "@/lib/platform-admin";
 import { DESKTOP_DOWNLOAD_ASSET_KEY } from "@/lib/desktop-download";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAdminSessionEmail } from "@/lib/platform-admin-session";
 
 const updateSchema = z.object({
   id: z.string().uuid(),
@@ -17,9 +16,8 @@ const updateSchema = z.object({
 const followupSchema = z.object({ id: z.string().uuid(), kind: z.enum(["contacted", "paid", "reminder"]) });
 
 async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.email || !emailIsPlatformAdmin(user.email)) throw new Error("No autorizado");
+  const email = await getPlatformAdminSessionEmail();
+  if (!email) throw new Error("No autorizado");
 }
 
 export async function updateDownloadLead(formData: FormData) {
