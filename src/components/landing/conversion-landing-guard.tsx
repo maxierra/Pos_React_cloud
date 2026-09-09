@@ -9,11 +9,8 @@ export function ConversionLandingGuard() {
       const target = event.target as HTMLElement | null;
       const link = target?.closest<HTMLAnchorElement>('a[href^="/api/download/windows"]');
       if (!link) return;
-      const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
-      if (mobile) {
-        event.preventDefault();
-        window.alert("La descarga solo está disponible desde una PC con Windows. Desde el celular podés dejar tus datos o acceder al sistema web.");
-      }
+      event.preventDefault();
+      document.querySelector<HTMLButtonElement>(".download-dialog-trigger")?.click();
     };
     document.addEventListener("click", onClick);
     const nav = document.querySelector(".conversion-landing .nav");
