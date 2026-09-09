@@ -6,7 +6,8 @@ import { clearAllDownloadLeads, deleteDownloadLead } from "@/app/admin/(dashboar
 import { Button } from "@/components/ui/button";
 
 export function DeleteDownloadLeadButton({ id }: { id: string; name: string }) {
-  return <form action={deleteDownloadLead}><input type="hidden" name="id" value={id} /><Button type="submit" onClick={(event) => { if (!window.confirm("¿Eliminar esta descarga? Esta acción no se puede deshacer.")) event.preventDefault(); }} variant="destructive" aria-label="Eliminar descarga"><Trash2 className="size-4" />Eliminar</Button></form>;
+  void id;
+  return <Button type="submit" formAction={deleteDownloadLead} onClick={(event) => { if (!window.confirm("¿Eliminar esta descarga? Esta acción no se puede deshacer.")) event.preventDefault(); }} variant="destructive" aria-label="Eliminar descarga"><Trash2 className="size-4" />Eliminar</Button>;
 }
 
 export function ClearAllDownloadLeadsButton({ count }: { count: number }) {
