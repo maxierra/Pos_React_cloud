@@ -1,5 +1,5 @@
 import { AlertTriangle, Download, KeyRound, PlayCircle, ShieldAlert } from "lucide-react";
-import { DESKTOP_DOWNLOAD_TRACKED_PATH } from "@/lib/desktop-download";
+import { LandingDownloadButton } from "@/components/landing/landing-download-button";
 
 const LOOM_URL = "https://www.loom.com/share/de56ee8fc0bc4724a80ec739ae89da2e";
 
@@ -28,15 +28,14 @@ export function LandingDesktopDownload() {
             <p className="text-sm text-slate-600">
               Descargá el sistema desde GitHub Releases y empezá a probarlo en minutos.
             </p>
-            <a
-              href={`${DESKTOP_DOWNLOAD_TRACKED_PATH}?source=landing`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <LandingDownloadButton
+              source="landing"
+              ariaLabel="Descargar Tienda360 para Windows"
               className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-sm font-semibold text-white shadow-md shadow-teal-200/50 transition-colors hover:bg-teal-800"
             >
               <Download className="size-4" />
               Descargar para Windows (.zip)
-            </a>
+            </LandingDownloadButton>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-amber-50/80 p-4">
