@@ -1,0 +1,22 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+export type PaymentDay = { day: string; label: string; payments: number; amount: number };
+
+export function DownloadsPaymentsPie({ downloads, payments }: { downloads: number; payments: number }) {
+  const conversion = downloads ? Math.round((payments / downloads) * 100) : 0;
+  const data = [{ name: "Descargas", value: downloads }, { name: "Pagos", value: payments }];
+  return <section className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-5 shadow-sm"><div><p className="text-xs font-semibold uppercase tracking-wider text-orange-500">Rendimiento de campañas</p><h2 className="mt-1 text-xl font-bold">Descargas vs. pagos</h2><p className="mt-1 text-sm text-muted-foreground">Conversión de personas que descargaron a clientes pagos.</p></div><div className="mt-4 grid items-center gap-5 sm:grid-cols-[220px_1fr]"><div className="mx-auto h-52 w-52"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={3}><Cell fill="#f97316" /><Cell fill="#10b981" /></Pie><Tooltip formatter={(value, name) => [Number(value ?? 0), name]} /></PieChart></ResponsiveContainer></div><div className="space-y-3"><div className="flex items-center justify-between rounded-xl bg-orange-500/10 px-4 py-3"><span className="font-semibold"><span className="mr-2 inline-block size-3 rounded-full bg-orange-500" />Descargas</span><strong>{downloads}</strong></div><div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-4 py-3"><span className="font-semibold"><span className="mr-2 inline-block size-3 rounded-full bg-emerald-500" />Pagos confirmados</span><strong>{payments}</strong></div><div className="rounded-xl border border-emerald-500/20 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tasa de conversión</p><p className="mt-1 text-3xl font-black text-emerald-700">{conversion}%</p><p className="text-xs text-muted-foreground">de las descargas terminaron en pago</p></div></div></div></section>;
+}
+
+export function PaymentsChart({ days, total, customers }: { days: PaymentDay[]; total: number; customers: Array<{ name: string; date: string }> }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return <section className="rounded-2xl border border-emerald-500/25 bg-[var(--pos-surface)] p-5 shadow-sm">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Ingresos de la semana</p><h2 className="mt-1 text-xl font-bold">Pagos de licencias</h2><p className="mt-1 text-sm text-muted-foreground">Quién pagó, qué día y cuánto llevás recaudado.</p></div><div className="rounded-xl bg-emerald-500/10 px-4 py-2 text-right"><p className="text-xs font-semibold text-emerald-700">Recaudado esta semana</p><p className="text-2xl font-black text-emerald-700">${total.toLocaleString("es-AR")}</p></div></div>
+    <div className="mt-6 h-72 w-full min-w-0">{mounted ? <ResponsiveContainer width="100%" height="100%"><BarChart data={days} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}><CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip formatter={(value, name) => [name === "amount" ? `$${Number(value ?? 0).toLocaleString("es-AR")}` : Number(value ?? 0), name === "amount" ? "Recaudado" : "Pagos"]} /><Bar dataKey="payments" name="Pagos" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={44} /></BarChart></ResponsiveContainer> : <div className="h-full rounded-xl bg-muted/20" />}</div>
+    <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{customers.map((customer) => <div key={`${customer.name}-${customer.date}`} className="flex items-center justify-between rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-sm"><span className="font-semibold">{customer.name}</span><span className="text-xs text-muted-foreground">{customer.date}</span></div>)}{customers.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay clientes pagos esta semana.</p> : null}</div>
+  </section>;
+}

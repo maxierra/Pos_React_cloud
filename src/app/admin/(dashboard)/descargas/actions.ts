@@ -11,6 +11,8 @@ const updateSchema = z.object({
   id: z.string().uuid(),
   activationState: z.enum(["requested", "not_requested"]),
   adminNote: z.string().trim().max(500),
+  activationCode: z.string().trim().max(120).optional().default(""),
+  markPaid: z.enum(["yes", "no"]).optional().default("no"),
 });
 
 const followupSchema = z.object({ id: z.string().uuid(), kind: z.enum(["contacted", "paid", "reminder"]) });
@@ -27,15 +29,20 @@ export async function updateDownloadLead(formData: FormData) {
     id: formData.get("id"),
     activationState: formData.get("activationState"),
     adminNote: formData.get("adminNote"),
+    activationCode: formData.get("activationCode") ?? "",
+    markPaid: formData.get("markPaid") ?? "no",
   });
   if (!parsed.success) throw new Error("Datos de seguimiento inválidos");
 
   const requested = parsed.data.activationState === "requested";
-  const { error } = await createAdminClient().from("download_events").update({
+  const values: Record<string, string | boolean | null> = {
     activation_requested: requested,
     activation_requested_at: requested ? new Date().toISOString() : null,
     admin_note: parsed.data.adminNote || null,
-  }).eq("id", parsed.data.id);
+    activation_code: parsed.data.activationCode || null,
+  };
+  if (parsed.data.markPaid === "yes") values.activation_paid_at = new Date().toISOString();
+  const { error } = await createAdminClient().from("download_events").update(values).eq("id", parsed.data.id);
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/descargas");

@@ -3,6 +3,7 @@ import { Download, KeyRound, Phone, Users } from "lucide-react";
 import { updateDownloadFollowup, updateDownloadLead } from "@/app/admin/(dashboard)/descargas/actions";
 import { ClearAllDownloadLeadsButton, DeleteDownloadLeadButton } from "@/app/admin/(dashboard)/descargas/delete-controls";
 import { DownloadChart, type DownloadChartPoint } from "@/app/admin/(dashboard)/descargas/download-chart";
+import { DownloadsPaymentsPie, PaymentsChart, type PaymentDay } from "@/app/admin/(dashboard)/descargas/payments-chart";
 import { FollowupControls } from "@/app/admin/(dashboard)/descargas/followup-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ type DownloadLead = {
   contacted_at: string | null;
   activation_paid_at: string | null;
   reminder_sent_at: string | null;
+  activation_code: string | null;
 };
 
 function dayKey(value: string) {
@@ -44,13 +46,21 @@ function monthKey(value: string) {
   return dayKey(value).slice(0, 7);
 }
 
+function weekLabel(value: string) {
+  return new Date(`${value}T12:00:00-03:00`).toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+}
+
+function dateLabel(value: string) {
+  return new Date(`${value}T12:00:00-03:00`).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit" });
+}
+
 function chartPoints(map: Map<string, number>, limit: number, format: (key: string) => string): DownloadChartPoint[] {
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-limit).map(([key, descargas]) => ({ key, label: format(key), descargas }));
 }
 
 export default async function AdminDownloadsPage() {
   const { data, error } = await createAdminClient().from("download_events")
-    .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note,contacted_at,activation_paid_at,reminder_sent_at")
+    .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note,contacted_at,activation_paid_at,reminder_sent_at,activation_code")
     .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -61,6 +71,7 @@ export default async function AdminDownloadsPage() {
   const daily = new Map<string, number>();
   const weekly = new Map<string, number>();
   const monthly = new Map<string, number>();
+  const paidWeekly = new Map<string, number>();
   for (const lead of leads) {
     const day = dayKey(lead.created_at);
     const week = weekKey(lead.created_at);
@@ -68,12 +79,20 @@ export default async function AdminDownloadsPage() {
     daily.set(day, (daily.get(day) ?? 0) + 1);
     weekly.set(week, (weekly.get(week) ?? 0) + 1);
     monthly.set(month, (monthly.get(month) ?? 0) + 1);
+    if (lead.activation_paid_at) {
+      const paidWeek = weekKey(lead.activation_paid_at);
+      paidWeekly.set(paidWeek, (paidWeekly.get(paidWeek) ?? 0) + 1);
+    }
   }
   const dailyRows = [...daily.entries()].slice(0, 31);
   const today = dayKey(new Date().toISOString());
   const thisWeek = weekKey(new Date().toISOString());
   const thisMonth = monthKey(new Date().toISOString());
   const activationCount = leads.filter((lead) => lead.activation_requested).length;
+  const paidThisWeek = paidWeekly.get(thisWeek) ?? 0;
+  const weekStart = new Date(`${thisWeek}T12:00:00-03:00`);
+  const paymentDays: PaymentDay[] = Array.from({ length: 7 }, (_, index) => { const date = new Date(weekStart); date.setDate(date.getDate() + index); const day = dayKey(date.toISOString()); const payments = leads.filter((lead) => lead.activation_paid_at && dayKey(lead.activation_paid_at) === day); return { day, label: dateLabel(day), payments: payments.length, amount: payments.length * 35000 }; });
+  const paidCustomers = leads.filter((lead) => lead.activation_paid_at && dayKey(lead.activation_paid_at) >= thisWeek).map((lead) => ({ name: lead.full_name || "Cliente sin nombre", date: new Date(lead.activation_paid_at!).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) }));
   const chartDaily = chartPoints(daily, 30, (key) => `${key.slice(8, 10)}/${key.slice(5, 7)}`);
   const chartWeekly = chartPoints(weekly, 12, (key) => `${key.slice(8, 10)}/${key.slice(5, 7)}`);
   const chartMonthly = chartPoints(monthly, 12, (key) => `${key.slice(5, 7)}/${key.slice(2, 4)}`);
@@ -86,6 +105,9 @@ export default async function AdminDownloadsPage() {
     </div>
 
     <DownloadChart daily={chartDaily} weekly={chartWeekly} monthly={chartMonthly} />
+    <PaymentsChart days={paymentDays} total={paidThisWeek * 35000} customers={paidCustomers} />
+    <DownloadsPaymentsPie downloads={leads.length} payments={leads.filter((lead) => Boolean(lead.activation_paid_at)).length} />
+    <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5"><h2 className="text-lg font-semibold">Pagos confirmados por semana</h2><p className="mt-1 text-sm text-muted-foreground">Clientes que marcaron pago de licencia.</p><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground"><th className="px-3 py-2">Semana desde</th><th className="px-3 py-2 text-right">Pagos</th><th className="px-3 py-2 text-right">Total</th></tr></thead><tbody>{[...paidWeekly.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 12).map(([week, count]) => <tr key={week} className="border-b border-emerald-500/10"><td className="px-3 py-2.5 font-medium capitalize">{weekLabel(week)}</td><td className="px-3 py-2.5 text-right font-bold">{count}</td><td className="px-3 py-2.5 text-right font-bold text-emerald-700">${(count * 35000).toLocaleString("es-AR")}</td></tr>)}</tbody></table>{paidWeekly.size === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Todavía no hay pagos confirmados.</p> : null}</div></section>
 
     <section className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-5"><h2 className="text-lg font-semibold">Descargas por día</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground"><th className="px-3 py-2">Día</th><th className="px-3 py-2 text-right">Descargas</th></tr></thead><tbody>{dailyRows.map(([day, count]) => <tr key={day} className="border-b border-[var(--pos-border)]/70"><td className="px-3 py-2.5 font-medium capitalize">{dayLabel(day)}</td><td className="px-3 py-2.5 text-right font-bold">{count}</td></tr>)}</tbody></table>{dailyRows.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Todavía no hay descargas registradas.</p> : null}</div></section>
 
