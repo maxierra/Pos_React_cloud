@@ -1,4 +1,5 @@
 import { ConversionLandingGuard } from "@/components/landing/conversion-landing-guard";
+import { LandingLicenseVideo } from "@/components/landing/LandingRequestedVideos";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
- return <ConversionLandingGuard />;
+ return <><ConversionLandingGuard /><LandingLicenseVideo /></>;
 }
