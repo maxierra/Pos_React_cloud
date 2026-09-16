@@ -87,7 +87,7 @@ export function LandingDownloadButton({ source, className, ariaLabel, children }
           <p id={descriptionId} className="mt-3 text-sm leading-6 text-[#0a2a1e]/65">{mobileDevice ? "Tienda360 funciona en computadoras con Windows. Entrá a esta misma página desde tu PC, completá nuevamente el formulario y comenzará la descarga." : "Tu prueba gratuita de Tienda360 ya está descargándose. Tenés 3 días para probar todas las funciones con tu comercio real."}</p>
           <p className="mt-4 rounded-xl bg-[#fce7c4] px-4 py-3 text-sm font-bold">{mobileDevice ? "El instalador no se descargó en tu celular porque solo puede utilizarse en Windows." : "¡Mucho éxito en esta nueva etapa de tu negocio!"}</p>
           <div className="mt-6 grid gap-3">
-            <a href="https://youtu.be/pLQDqRN0XpE" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0a2a1e] px-5 py-3 text-sm font-extrabold text-[#f6f4ec] hover:bg-[#0f3a2a]">Ver cómo instalar Tienda360</a>
+            <a href="https://youtu.be/b3BJw-g26BU" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0a2a1e] px-5 py-3 text-sm font-extrabold text-[#f6f4ec] hover:bg-[#0f3a2a]">Ver cómo instalar Tienda360</a>
             {downloadUrl && !mobileDevice ? <a href={downloadUrl} download="Tienda360.zip" className="text-sm font-bold text-[#2fa85a] hover:underline">¿No comenzó? Descargar nuevamente</a> : null}
             <button type="button" onClick={() => setOpen(false)} className="text-sm font-semibold text-[#0a2a1e]/60 hover:text-[#0a2a1e]">Cerrar</button>
           </div>

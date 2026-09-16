@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ExternalLink, Play } from "lucide-react";
 
 const tutorials = [
-  ["Instalación del sistema", "Aprendé a descargar e instalar Tienda360 paso a paso.", "pLQDqRN0XpE"],
+  ["Instalación del sistema", "Aprendé a descargar e instalar Tienda360 paso a paso.", "b3BJw-g26BU"],
   ["Primer ingreso", "Aprendé a iniciar sesión y entrar al sistema.", "mEWPzS6RD70"],
   ["Creación de productos", "Creá productos, precios y categorías.", "xX_EWjoduZ0"],
   ["Caja diaria", "Abrí, controlá y cerrá la caja del día.", "jWTHrNC3TXU"],
