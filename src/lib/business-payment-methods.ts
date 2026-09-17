@@ -1,4 +1,5 @@
-export type PosPaymentMethodCode = "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente";
+export type BuiltInPaymentMethodCode = "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente";
+export type PosPaymentMethodCode = string;
 
 export type BusinessPaymentMethodRow = {
   id: string;
@@ -26,7 +27,7 @@ export const PAYMENT_METHOD_ICON_OPTIONS: { value: string; label: string }[] = [
   { value: "notebook-pen", label: "Cuenta / nota" },
 ];
 
-export const DEFAULT_PAYMENT_LABELS: Record<PosPaymentMethodCode, string> = {
+export const DEFAULT_PAYMENT_LABELS: Record<BuiltInPaymentMethodCode, string> = {
   cash: "Efectivo",
   card: "Tarjeta",
   transfer: "Transferencia",

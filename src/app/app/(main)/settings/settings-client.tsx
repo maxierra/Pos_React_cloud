@@ -408,10 +408,14 @@ export function SettingsClient({
         title="Medios de pago en el POS"
         description="Nombre visible, ícono o logo URL, orden y activación."
         onClose={() => setPaymentOpen(false)}
-        maxWidthClass="max-w-4xl"
+        maxWidthClass="max-w-[1240px]"
         accent="violet"
       >
-        <PaymentMethodsManager initialRows={paymentMethods} canEdit={canEditPaymentMethods} />
+        <PaymentMethodsManager
+          initialRows={paymentMethods}
+          canEdit={canEditPaymentMethods}
+          onSaved={() => setPaymentOpen(false)}
+        />
       </ModalShell>
 
       <ModalShell

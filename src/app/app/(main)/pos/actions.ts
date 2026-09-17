@@ -92,7 +92,7 @@ async function evaluatePromotionForCart(params: {
   supabase: PosSupabaseClient;
   businessId: string;
   items: CheckoutItem[];
-  payment_method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente" | "mixed";
+  payment_method: string;
 }) {
   const { supabase, businessId, items, payment_method } = params;
 
@@ -291,9 +291,9 @@ async function evaluatePromotionForCart(params: {
 }
 
 async function checkoutSaleImpl(input: {
-  payment_method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente" | "mixed";
+  payment_method: string;
   payment_details?: {
-    split?: Array<{ method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente"; amount: number }>;
+    split?: Array<{ method: string; amount: number }>;
     cash_received?: number;
   };
   cash_received?: number;
@@ -467,7 +467,7 @@ async function checkoutSaleImpl(input: {
 export const checkoutSale = createMonitoredAction(checkoutSaleImpl, "pos/checkoutSale");
 
 async function previewPromotionImpl(input: {
-  payment_method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente" | "mixed";
+  payment_method: string;
   items: CheckoutItem[];
 }) {
   const cookieStore = await cookies();

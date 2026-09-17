@@ -42,9 +42,9 @@ async function createMercadoPagoPosQrImpl(input: {
   amountArs: number;
   description: string;
   items: MpQrCheckoutItem[];
-  payment_method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente" | "mixed";
+  payment_method: string;
   payment_details?: {
-    split?: Array<{ method: "cash" | "card" | "transfer" | "mercadopago" | "cuenta_corriente"; amount: number }>;
+    split?: Array<{ method: string; amount: number }>;
     cash_received?: number;
   };
 }) {

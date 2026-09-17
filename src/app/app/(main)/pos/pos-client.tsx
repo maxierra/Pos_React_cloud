@@ -842,9 +842,9 @@ export function PosClient({
 
   const onConfirmPayment = React.useCallback(
     (p: {
-      payment_method: "cash" | "card" | "mercadopago" | "transfer" | "cuenta_corriente" | "mixed";
+      payment_method: string;
       payment_details?: {
-        split: Array<{ method: "cash" | "card" | "mercadopago" | "transfer" | "cuenta_corriente"; amount: number }>;
+        split: Array<{ method: string; amount: number }>;
       };
       cash_received?: number;
       print_ticket?: boolean;

@@ -60,6 +60,10 @@ export function PromotionsManager() {
   const [productSearch, setProductSearch] = React.useState("");
   const [productLookupLoading, setProductLookupLoading] = React.useState(false);
   const [productResults, setProductResults] = React.useState<PromotionProduct[]>([]);
+  const paymentMethodCodes = React.useMemo(
+    () => Object.keys(paymentLabels) as PosPaymentMethodCode[],
+    [paymentLabels]
+  );
 
   const emptyRow: PromotionRuleRow = {
     id: "",
@@ -605,7 +609,7 @@ export function PromotionsManager() {
               <div className="grid gap-1.5">
                 <Label>Medios de pago</Label>
                 <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {(["cash", "card", "transfer", "mercadopago", "cuenta_corriente"] as PosPaymentMethodCode[]).map(
+                  {paymentMethodCodes.map(
                     (code) => {
                       const checked = selected.payment_methods == null || selected.payment_methods.includes(code);
                       const label = paymentLabels[code] ?? code;
@@ -629,9 +633,7 @@ export function PromotionsManager() {
                                 if (current == null) {
                                   // Pasamos de "todos" a "todos menos este"
                                   updateSelected({
-                                    payment_methods: (
-                                      ["cash", "card", "transfer", "mercadopago", "cuenta_corriente"] as PosPaymentMethodCode[]
-                                    ).filter((c) => c !== code),
+                                    payment_methods: paymentMethodCodes.filter((c) => c !== code),
                                   });
                                 } else {
                                   const next = current.filter((c) => c !== code);

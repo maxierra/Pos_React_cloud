@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   deletePaymentMethod,
+  createPaymentMethod,
   ensurePaymentMethods,
   savePaymentMethods,
   type PaymentMethodPayload,
@@ -20,6 +21,7 @@ import { PAYMENT_METHOD_ICON_OPTIONS, type BusinessPaymentMethodRow } from "@/li
 type Props = {
   initialRows: BusinessPaymentMethodRow[];
   canEdit: boolean;
+  onSaved?: () => void;
 };
 
 function toPayload(rows: BusinessPaymentMethodRow[]): PaymentMethodPayload[] {
@@ -33,15 +35,14 @@ function toPayload(rows: BusinessPaymentMethodRow[]): PaymentMethodPayload[] {
   }));
 }
 
-export function PaymentMethodsManager({ initialRows, canEdit }: Props) {
+export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) {
   const router = useRouter();
   const [rows, setRows] = React.useState<BusinessPaymentMethodRow[]>(initialRows);
   const [saving, setSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    setRows(initialRows);
-  }, [initialRows]);
+  const [newLabel, setNewLabel] = React.useState("");
+  const [newIcon, setNewIcon] = React.useState("wallet");
+  const [creating, setCreating] = React.useState(false);
 
   const updateRow = (id: string, patch: Partial<BusinessPaymentMethodRow>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -56,13 +57,17 @@ export function PaymentMethodsManager({ initialRows, canEdit }: Props) {
         return;
       }
       toast.success("Medios de pago guardados");
+      router.refresh();
+      onSaved?.();
     } finally {
       setSaving(false);
     }
   };
 
   const onDelete = async (id: string) => {
-    if (!confirm("¿Eliminar este medio? Se volverá a crear la fila por defecto al restaurar.")) return;
+    const row = rows.find((item) => item.id === id);
+    const isDefault = ["cash", "card", "transfer", "mercadopago", "cuenta_corriente"].includes(row?.method_code ?? "");
+    if (!confirm(isDefault ? "¿Eliminar este medio? Los medios predeterminados se pueden restaurar luego." : "¿Eliminar este medio de pago?")) return;
     setDeletingId(id);
     try {
       const res = await deletePaymentMethod(id);
@@ -71,9 +76,33 @@ export function PaymentMethodsManager({ initialRows, canEdit }: Props) {
         return;
       }
       toast.success("Listo. Se recargó la lista.");
+      setRows((current) => current.filter((item) => item.id !== id));
       router.refresh();
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const onCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!newLabel.trim()) {
+      toast.error("Ingresá un nombre para el medio de pago");
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await createPaymentMethod({ label: newLabel, icon_key: newIcon });
+      if (res.error || !res.row) {
+        toast.error(res.error ?? "No se pudo crear el medio de pago");
+        return;
+      }
+      setRows((current) => [...current, res.row!]);
+      setNewLabel("");
+      setNewIcon("wallet");
+      toast.success("Medio de pago agregado");
+      router.refresh();
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -98,36 +127,74 @@ export function PaymentMethodsManager({ initialRows, canEdit }: Props) {
     <div className="space-y-5">
       <div className="rounded-xl border border-violet-500/15 bg-violet-500/[0.06] px-4 py-3 dark:bg-violet-500/10">
         <p className="text-sm leading-relaxed text-muted-foreground">
+          Editá directamente cualquier campo de la tabla y luego presioná <span className="font-medium text-foreground/80">Guardar cambios</span>.
           Estos medios aparecen en el cobro del POS con el nombre y el ícono (o logo URL) que elijas. Los{" "}
           <span className="font-medium text-foreground/80">códigos internos</span> se mantienen para caja e informes.
         </p>
       </div>
 
+      {canEdit ? (
+        <form onSubmit={onCreate} className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-500/[0.035] p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Agregar medio de pago</h3>
+            <p className="text-xs text-muted-foreground">Escribí el nombre que verá el cajero en el POS.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input
+              value={newLabel}
+              onChange={(event) => setNewLabel(event.target.value)}
+              placeholder="Ej.: Cuenta DNI, MODO, Vale..."
+              maxLength={60}
+              disabled={creating}
+              className="h-11 flex-1 rounded-xl bg-background"
+              aria-label="Nombre del nuevo medio de pago"
+            />
+            <select
+              value={newIcon}
+              onChange={(event) => setNewIcon(event.target.value)}
+              disabled={creating}
+              className="h-11 rounded-xl border border-input bg-background px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-violet-500/25"
+              aria-label="Ícono del nuevo medio de pago"
+            >
+              {PAYMENT_METHOD_ICON_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <Button type="submit" disabled={creating || !newLabel.trim()} className="h-11 rounded-xl bg-violet-600 px-5 text-white hover:bg-violet-700">
+              <Plus className="mr-2 size-4" />
+              {creating ? "Agregando…" : "Agregar"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_0_0_rgba(0,0,0,0.04)_inset] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[980px] table-fixed text-sm">
             <thead>
               <tr className="border-b border-border/60 bg-gradient-to-r from-muted/80 via-muted/50 to-muted/30 text-left">
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-16">
+                <th className="w-[72px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Activo
                 </th>
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="w-[130px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Código
                 </th>
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="w-[210px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Nombre en el POS
                 </th>
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="w-[250px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Ícono
                 </th>
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[140px]">
+                <th className="w-[210px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Logo URL
                 </th>
-                <th className="px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-24">
+                <th className="w-[96px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Orden
                 </th>
                 {canEdit ? (
-                  <th className="px-4 py-3.5 w-14" aria-label="Acciones" />
+                  <th className="w-[84px] px-4 py-3.5 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Acciones
+                  </th>
                 ) : null}
               </tr>
             </thead>
@@ -207,17 +274,20 @@ export function PaymentMethodsManager({ initialRows, canEdit }: Props) {
                   </td>
                   {canEdit ? (
                     <td className="px-4 py-3 align-middle">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-10 rounded-xl border-border/80 text-destructive hover:border-destructive/40 hover:bg-destructive/10"
-                        disabled={deletingId === r.id}
-                        onClick={() => onDelete(r.id)}
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-10 rounded-xl border-border/80 text-destructive hover:border-destructive/40 hover:bg-destructive/10"
+                          disabled={deletingId === r.id}
+                          onClick={() => onDelete(r.id)}
+                          aria-label={`Eliminar ${r.label}`}
+                          title="Eliminar"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     </td>
                   ) : null}
                 </tr>
