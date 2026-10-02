@@ -13,7 +13,9 @@ export type MetaCustomEvent =
   | "ClickDemo"
   | "ClickWhatsApp"
   | "FormularioIniciado"
-  | "FormularioCompletado";
+  | "FormularioCompletado"
+  | "AgendaIniciada"
+  | "AgendaCompletada";
 
 declare global {
   interface Window {

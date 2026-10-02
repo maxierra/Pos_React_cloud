@@ -112,6 +112,7 @@ export function AdminSubscriptionsOverview({ rows, billingDays, downloadStats }:
             {downloadStats?.total ?? 0}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">24h: {downloadStats?.last24h ?? 0} · 7d: {downloadStats?.last7d ?? 0}</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Pagaron: {downloadStats?.paidConversions ?? 0} · Conversión: {(downloadStats?.paidConversionPct ?? 0).toFixed(1)}%</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Última: {lastDownload}</p>
         </div>
       </div>

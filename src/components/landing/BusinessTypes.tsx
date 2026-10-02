@@ -1,0 +1,5 @@
+import Image from "next/image";
+
+const TYPES = ["Kioscos", "Almacenes", "Minimercados", "Autoservicios", "Dietéticas", "Pet shops", "Ferreterías", "Perfumerías", "Librerías", "Indumentaria", "Zapaterías", "Carnicerías", "Verdulerías", "Fiambrerías"];
+export function BusinessTypes() { return <section className="t360-section t360-business" aria-labelledby="business-types-title"><div className="t360-wrap"><div className="t360-business-poster"><Image src="/Comercios%20para%20cada%20rubro.png" alt="Tienda360 para kioscos, almacenes, minimercados, autoservicios, dietéticas, pet shops, ferreterías, perfumerías, librerías, indumentaria, zapaterías, carnicerías, verdulerías y fiambrerías" width={2048} height={768} sizes="(max-width: 900px) 100vw, 1160px" /></div><div className="t360-business-mobile"><div className="t360-heading"><p className="t360-kicker">Comercio real</p><h2 id="business-types-title">Pensado para comercios como el tuyo</h2><p>Simple para atender detrás del mostrador. Potente para saber qué pasa en tu negocio.</p></div><div className="t360-pills">{TYPES.map(x => <span key={x}>{x}</span>)}</div></div></div></section> }
+

@@ -59,6 +59,8 @@ export type AdminDownloadStats = {
   total: number;
   last7d: number;
   last24h: number;
+  paidConversions: number;
+  paidConversionPct: number;
   lastEventAt: string | null;
 };
 
@@ -251,7 +253,7 @@ export async function loadAdminDownloadStats(): Promise<LoadAdminDownloadStatsRe
   const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [totalRes, dayRes, weekRes, lastRes] = await Promise.all([
+  const [totalRes, dayRes, weekRes, lastRes, paidRes] = await Promise.all([
     admin
       .from("download_events")
       .select("id", { count: "exact", head: true })
@@ -273,19 +275,28 @@ export async function loadAdminDownloadStats(): Promise<LoadAdminDownloadStatsRe
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("store_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "paid")
+      .not("download_event_id", "is", null),
   ]);
 
-  const firstError = totalRes.error ?? dayRes.error ?? weekRes.error ?? lastRes.error;
+  const firstError = totalRes.error ?? dayRes.error ?? weekRes.error ?? lastRes.error ?? paidRes.error;
   if (firstError) {
     return { ok: false, error: "config", message: firstError.message };
   }
 
+  const total = totalRes.count ?? 0;
+  const paidConversions = paidRes.count ?? 0;
   return {
     ok: true,
     stats: {
-      total: totalRes.count ?? 0,
+      total,
       last24h: dayRes.count ?? 0,
       last7d: weekRes.count ?? 0,
+      paidConversions,
+      paidConversionPct: total > 0 ? (paidConversions / total) * 100 : 0,
       lastEventAt: (lastRes.data as { created_at: string } | null)?.created_at ?? null,
     },
   };

@@ -5,20 +5,20 @@ import { SupportFloatingButton } from "@/components/support-floating-button";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tienda360.site"),
-  title: "Combo Tienda360 | Software + lector + impresora térmica",
+  title: "Tienda360 | Punto de venta para Windows",
   description:
-    "Combo completo: Tienda360 con licencia de por vida, lector inalámbrico e impresora térmica. Pago único y envío gratis.",
+    "Descargá gratis Tienda360 para Windows y empezá a usar tu punto de venta en menos de 5 minutos.",
   openGraph: {
-    title: "Combo Tienda360 para tu comercio",
-    description: "Software, lector inalámbrico e impresora térmica. Pago único, envío gratis y licencia de por vida.",
+    title: "Tienda360: tu punto de venta listo en minutos",
+    description: "Descarga gratis para Windows. Ventas, stock, caja, clientes y reportes en un solo lugar.",
     type: "website",
     locale: "es_AR",
     images: [{ url: "/newlogo.jpeg", alt: "Tienda360 para Windows" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Combo Tienda360 para tu comercio",
-    description: "Software, lector inalámbrico e impresora térmica. Pago único y envío gratis.",
+    title: "Tienda360: punto de venta para Windows",
+    description: "Descargalo gratis y empezá a usarlo en menos de 5 minutos.",
     images: ["/newlogo.jpeg"],
   },
 };

@@ -1,12 +1,16 @@
 import { ConversionLandingGuard } from "@/components/landing/conversion-landing-guard";
-import { LandingLicenseVideo } from "@/components/landing/LandingRequestedVideos";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
  title: "Tienda360 — Punto de venta para Windows",
- description: "Ventas, stock y caja para tu comercio. Descargá Tienda360 para Windows y probá el sistema completo durante 3 días, sin tarjeta.",
+ description: "Convertí tu PC en un punto de venta completo. Coordiná una demostración e instalación guiada de Tienda360.",
+ openGraph: {
+  title: "Tienda360 — Punto de venta para tu comercio",
+  description: "Ventas, stock, caja, ARCA y cobros QR. Mirá cómo funciona y coordiná una instalación guiada.",
+  images: [{ url: "/newlogo.jpeg", alt: "Tienda360" }],
+ },
 };
 
 export default function Home() {
- return <><ConversionLandingGuard /><LandingLicenseVideo /></>;
+ return <ConversionLandingGuard />;
 }
