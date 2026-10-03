@@ -29,8 +29,9 @@
 .t360-benefits-section{background:#f7faff}
 .t360-benefits-poster{overflow:hidden;border:1px solid #d3deea;border-radius:18px;background:#fff;box-shadow:0 22px 60px rgba(13,39,72,.12)}
 .t360-benefits-poster img{display:block;width:100%;height:auto}
+.t360-benefits-poster-mobile{display:none}
 .t360-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-@media(max-width:600px){.t360-benefits-section{padding:44px 0}.t360-benefits-poster{border-radius:12px;box-shadow:0 12px 32px rgba(13,39,72,.12)}}
+@media(max-width:600px){.t360-benefits-section{padding:44px 0}.t360-benefits-poster{display:none}.t360-benefits-poster-mobile{display:block;overflow:hidden;border:1px solid #d3deea;border-radius:12px;background:#fff;box-shadow:0 12px 32px rgba(13,39,72,.12)}.t360-benefits-poster-mobile img{display:block;width:100%;height:auto}}
 
 .t360-business-poster{overflow:hidden;border:1px solid #d2deea;border-radius:18px;background:#fff;box-shadow:0 22px 60px rgba(13,39,72,.11)}
 .t360-business-poster img{display:block;width:100%;height:auto}
