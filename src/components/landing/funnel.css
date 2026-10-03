@@ -123,3 +123,20 @@
 .t360-tutorial-more{display:flex;justify-content:center;margin-top:30px}
 @media(max-width:850px){.t360-tutorial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.t360-tutorials{padding:64px 0}.t360-tutorial-grid{grid-template-columns:1fr;gap:16px}.t360-tutorial-card h3{font-size:18px}.t360-tutorial-more .t360-button{width:100%}}
+
+.t360-mobile-store-backdrop{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(2,13,26,.72);padding:20px;backdrop-filter:blur(6px)}
+.t360-mobile-store-dialog{position:relative;width:min(100%,480px);max-height:calc(100dvh - 32px);overflow:auto;border-radius:22px;background:#fff;padding:32px 26px 24px;color:var(--ink);box-shadow:0 30px 90px rgba(0,0,0,.38);text-align:center}
+.t360-mobile-store-close{position:absolute;top:13px;right:13px;display:grid;width:38px;height:38px;place-items:center;border:0;border-radius:50%;background:#eef3f8;color:var(--navy);cursor:pointer}
+.t360-mobile-store-close svg{width:20px}
+.t360-mobile-store-icon{display:grid;width:68px;height:68px;margin:0 auto 18px;place-items:center;border-radius:18px;background:#e9f2ff;color:var(--blue)}
+.t360-mobile-store-icon svg{width:35px;height:35px}
+.t360-mobile-store-dialog .t360-kicker{margin-bottom:9px}
+.t360-mobile-store-dialog h2{margin-bottom:14px;font-size:30px;letter-spacing:-.025em}
+.t360-mobile-store-dialog>p:not(.t360-kicker){margin-bottom:22px;color:#52657b;font-size:16px}
+.t360-mobile-store-actions{display:grid;gap:10px}
+.t360-mobile-store-actions .t360-button{width:100%;min-height:52px;padding:10px 15px}
+.t360-whatsapp-share{border-color:#25d366;background:#25d366}
+.t360-whatsapp-share:hover{border-color:#20bd5a;background:#20bd5a}
+.t360-whatsapp-share svg{width:20px;flex:none}
+.t360-mobile-store-understood{border:0;background:transparent;color:#52657b;padding:8px;font-weight:750;cursor:pointer}
+@media(max-width:600px){.t360-mobile-store-backdrop{align-items:end;padding:0}.t360-mobile-store-dialog{width:100%;max-height:94dvh;border-radius:22px 22px 0 0;padding:30px 18px max(22px,env(safe-area-inset-bottom))}.t360-mobile-store-dialog h2{font-size:27px}}

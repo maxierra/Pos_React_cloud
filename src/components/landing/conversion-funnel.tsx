@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import Image from "next/image";
 import { LandingHero } from "./Hero";
 import { DemoVideo } from "./DemoVideo";
 import { TutorialVideos } from "./TutorialVideos";
+import { MobileStoreNotice } from "./MobileStoreNotice";
 import { Benefits } from "./Benefits";
 import { BusinessTypes } from "./BusinessTypes";
 import { Testimonials } from "./Testimonials";
@@ -24,18 +25,24 @@ function microsoftStoreCampaignUrl(location: "header" | "hero" | "store_band") {
 
 export function ConversionFunnel() {
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [mobileStoreOpen, setMobileStoreOpen] = useState(false);
   const begin = () => { setWizardOpen(true); trackFunnelEvent("qualification_started"); };
-  const openStore = (location: string) => trackFunnelEvent("microsoft_store_clicked", { location });
+  const closeMobileStore = useCallback(() => setMobileStoreOpen(false), []);
+  const openStore = (event: MouseEvent<HTMLAnchorElement>, location: string) => {
+    const isSmallScreen = window.matchMedia("(max-width: 820px)").matches;
+    trackFunnelEvent("microsoft_store_clicked", { location, device: isSmallScreen ? "mobile" : "desktop" });
+    if (isSmallScreen) { event.preventDefault(); setMobileStoreOpen(true); }
+  };
   useEffect(() => { trackFunnelEvent("landing_view"); }, []);
   return <div className="t360" id="inicio">
     <MetaPixel trackViewContent={false} />
     <header className="t360-header"><div className="t360-wrap t360-nav">
       <a href="#inicio" className="t360-brand"><Image src="/newlogo.jpeg" alt="" width={38} height={38} /> <span>Tienda360</span></a>
       <nav aria-label="Navegación principal"><a href="#demo">Demostración</a><a href="#funciones">Funciones</a><a href="#preguntas">Preguntas</a></nav>
-      <a className="t360-button t360-button-small" href={microsoftStoreCampaignUrl("header")} target="_blank" rel="noopener noreferrer" onClick={() => openStore("header")}>Descargar app <span aria-hidden>↗</span></a>
+      <a className="t360-button t360-button-small" href={microsoftStoreCampaignUrl("header")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "header")}>Descargar para PC <span aria-hidden>↗</span></a>
     </div></header>
     <main><LandingHero onStoreClick={openStore} storeUrl={microsoftStoreCampaignUrl("hero")} marketplaceUrl={MERCADOLIBRE_URL} />
-      <section className="t360-store-band" aria-labelledby="store-title"><div className="t360-wrap t360-store-band-inner"><div className="t360-store-seal" aria-hidden="true"><span className="t360-windows-mark"><i /><i /><i /><i /></span></div><div><p className="t360-kicker">Disponible oficialmente para Windows</p><h2 id="store-title">Instalalo directo desde Microsoft Store</h2><p>Un clic, instalación simple y actualizaciones centralizadas en tu PC.</p></div><a className="t360-store-button t360-store-button-dark" href={microsoftStoreCampaignUrl("store_band")} target="_blank" rel="noopener noreferrer" onClick={() => openStore("store_band")} aria-label="Obtener Tienda360 desde Microsoft Store (abre en una pestaña nueva)"><span className="t360-windows-mark" aria-hidden="true"><i /><i /><i /><i /></span><span><small>Obtenelo en</small><b>Microsoft Store</b></span><span className="t360-store-arrow" aria-hidden="true">↗</span></a></div></section>
+      <section className="t360-store-band" aria-labelledby="store-title"><div className="t360-wrap t360-store-band-inner"><div className="t360-store-seal" aria-hidden="true"><span className="t360-windows-mark"><i /><i /><i /><i /></span></div><div><p className="t360-kicker">Disponible oficialmente para Windows</p><h2 id="store-title">Instalalo directo desde Microsoft Store</h2><p>Aplicación exclusiva para PC con Windows 10/11.</p></div><a className="t360-store-button t360-store-button-dark" href={microsoftStoreCampaignUrl("store_band")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "store_band")} aria-label="Obtener Tienda360 desde Microsoft Store (abre en una pestaña nueva)"><span className="t360-windows-mark" aria-hidden="true"><i /><i /><i /><i /></span><span><small>Obtenelo en</small><b>Microsoft Store</b></span><span className="t360-store-arrow" aria-hidden="true">↗</span></a></div></section>
       <DemoVideo onStart={begin} /><TutorialVideos /><Benefits /><BusinessTypes /><Testimonials /><CustomerGallery />
       <section className="t360-section t360-conversion" id="implementar"><div className="t360-wrap t360-conversion-inner">
         <p className="t360-kicker">El próximo paso</p><h2>¿Querés implementarlo en tu comercio?</h2><p>Respondé unas preguntas rápidas y coordinamos una demostración e instalación guiada.</p>
@@ -47,6 +54,7 @@ export function ConversionFunnel() {
     </main>
     <footer><div className="t360-wrap t360-footer"><span>© 2026 Tienda360</span><span>Software para comercios argentinos</span><a href="/auth/login">Acceder al sistema web</a></div></footer>
     <QualificationWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
+    <MobileStoreNotice open={mobileStoreOpen} onClose={closeMobileStore} storeUrl={MICROSOFT_STORE_URL} />
   </div>;
 }
 
