@@ -10,6 +10,8 @@ const PHOTOS = [
   { src: "/clientes/WhatsApp%20Image%202026-09-15%20at%2011.09.44.jpeg", alt: "Kiosco de cercanía que trabaja con Tienda360", label: "Kioscos y comercios de cercanía" },
   { src: "/clientes/WhatsApp%20Image%202026-09-15%20at%2012.20.33.jpeg", alt: "Autoservicio y panadería que trabaja con Tienda360", label: "Autoservicios y panaderías" },
   { src: "/clientes/WhatsApp%20Image%2020256-09-15%20at%2012.20.33.jpeg", alt: "Capacitación de Tienda360 durante la atención en un comercio", label: "Capacitación con el comercio en marcha" },
+  { src: "/clientes/instalacion-comercio-10.jpeg", alt: "Configuración de Tienda360 en el puesto de atención de un comercio", label: "Configuración en el lugar de trabajo" },
+  { src: "/clientes/instalacion-comercio-11.jpeg", alt: "Puesta en marcha de una computadora con Tienda360 y lector de códigos", label: "Puesta en marcha con lector" },
 ] as const;
 
 export function CustomerGallery() {
