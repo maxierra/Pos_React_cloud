@@ -1,6 +1,6 @@
-import { Download, KeyRound, Phone, Users } from "lucide-react";
+import { CalendarClock, Download, KeyRound, Monitor, MousePointerClick, Phone, Users } from "lucide-react";
 
-import { updateDownloadFollowup, updateDownloadLead } from "@/app/admin/(dashboard)/descargas/actions";
+import { updateDownloadLead } from "@/app/admin/(dashboard)/descargas/actions";
 import { ClearAllDownloadLeadsButton, DeleteDownloadLeadButton } from "@/app/admin/(dashboard)/descargas/delete-controls";
 import { DownloadChart, type DownloadChartPoint } from "@/app/admin/(dashboard)/descargas/download-chart";
 import { DownloadsPaymentsPie, PaymentsChart, type PaymentDay } from "@/app/admin/(dashboard)/descargas/payments-chart";
@@ -25,6 +25,21 @@ type DownloadLead = {
   activation_paid_at: string | null;
   reminder_sent_at: string | null;
   activation_code: string | null;
+};
+
+type MicrosoftStoreClick = {
+  id: string;
+  location: string;
+  device: string;
+  created_at: string;
+};
+
+const storeLocationLabels: Record<string, string> = {
+  header: "Encabezado",
+  hero: "Botón principal",
+  hero_certificate: "Insignia certificada",
+  store_band: "Franja Microsoft Store",
+  mobile_share: "Enlace compartido desde celular",
 };
 
 function dayKey(value: string) {
@@ -59,15 +74,23 @@ function chartPoints(map: Map<string, number>, limit: number, format: (key: stri
 }
 
 export default async function AdminDownloadsPage() {
-  const { data, error } = await createAdminClient().from("download_events")
-    .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note,contacted_at,activation_paid_at,reminder_sent_at,activation_code")
-    .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const admin = createAdminClient();
+  const [{ data, error }, { data: storeData, error: storeError }] = await Promise.all([
+    admin.from("download_events")
+      .select("id,full_name,phone,source,created_at,activation_requested,activation_requested_at,admin_note,contacted_at,activation_paid_at,reminder_sent_at,activation_code")
+      .eq("asset_key", DESKTOP_DOWNLOAD_ASSET_KEY)
+      .order("created_at", { ascending: false })
+      .limit(1000),
+    admin.from("microsoft_store_click_events")
+      .select("id,location,device,created_at")
+      .order("created_at", { ascending: false })
+      .limit(5000),
+  ]);
 
   if (error) return <div className="mx-auto max-w-7xl p-6"><div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-5"><h1 className="text-xl font-bold">No se pudieron cargar las descargas</h1><p className="mt-2 text-sm text-muted-foreground">{error.message}. Aplicá la migración 20260902130000_download_leads.sql.</p></div></div>;
 
   const leads = (data ?? []) as DownloadLead[];
+  const storeClicks = (storeData ?? []) as MicrosoftStoreClick[];
   const daily = new Map<string, number>();
   const weekly = new Map<string, number>();
   const monthly = new Map<string, number>();
@@ -86,8 +109,24 @@ export default async function AdminDownloadsPage() {
   }
   const dailyRows = [...daily.entries()].slice(0, 31);
   const today = dayKey(new Date().toISOString());
+  const threeDaysAgoDate = new Date();
+  threeDaysAgoDate.setDate(threeDaysAgoDate.getDate() - 3);
+  const threeDaysAgo = dayKey(threeDaysAgoDate.toISOString());
   const thisWeek = weekKey(new Date().toISOString());
   const thisMonth = monthKey(new Date().toISOString());
+  const storeDaily = new Map<string, number>();
+  const storeByLocation = new Map<string, number>();
+  for (const click of storeClicks) {
+    const day = dayKey(click.created_at);
+    storeDaily.set(day, (storeDaily.get(day) ?? 0) + 1);
+    storeByLocation.set(click.location, (storeByLocation.get(click.location) ?? 0) + 1);
+  }
+  const storeClicksToday = storeDaily.get(today) ?? 0;
+  const storeClicksThreeDaysAgo = storeDaily.get(threeDaysAgo) ?? 0;
+  const storeClicksThisWeek = storeClicks.filter((click) => weekKey(click.created_at) === thisWeek).length;
+  const storeClicksThisMonth = storeClicks.filter((click) => monthKey(click.created_at) === thisMonth).length;
+  const storeDesktopClicks = storeClicks.filter((click) => click.device === "desktop").length;
+  const storeDailyRows = [...storeDaily.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 14);
   const activationCount = leads.filter((lead) => lead.activation_requested).length;
   const paidThisWeek = paidWeekly.get(thisWeek) ?? 0;
   const weekStart = new Date(`${thisWeek}T12:00:00-03:00`);
@@ -103,6 +142,19 @@ export default async function AdminDownloadsPage() {
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {[[Download, "Descargas hoy", daily.get(today) ?? 0], [Users, "Esta semana", weekly.get(thisWeek) ?? 0], [Phone, "Este mes", monthly.get(thisMonth) ?? 0], [KeyRound, "Pidieron activación", activationCount], [Download, "Total registrado", leads.length]].map(([Icon, label, value]) => { const MetricIcon = Icon as typeof Download; return <div key={String(label)} className="rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-4"><MetricIcon className="size-5 text-orange-500" /><p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-bold">{String(value)}</p></div>; })}
     </div>
+
+    <section className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-5 shadow-sm">
+      <div><p className="text-xs font-semibold uppercase tracking-wider text-sky-600">Microsoft Store</p><h2 className="mt-1 text-xl font-bold">Clics hacia la descarga</h2><p className="mt-1 text-sm text-muted-foreground">Mide cuántas personas salieron hacia Microsoft Store. Un clic no confirma que la aplicación se haya instalado.</p></div>
+      {storeError ? <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>Falta habilitar el registro.</b> Aplicá la migración <code>20261004120000_microsoft_store_click_events.sql</code>.</div> : <>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[[MousePointerClick, "Clics hoy", storeClicksToday], [CalendarClock, "Cumplen 3 días hoy", storeClicksThreeDaysAgo], [Users, "Esta semana", storeClicksThisWeek], [Monitor, "Desde PC", storeDesktopClicks], [MousePointerClick, "Total", storeClicks.length]].map(([Icon, label, value]) => { const MetricIcon = Icon as typeof MousePointerClick; return <div key={String(label)} className="rounded-xl border border-sky-500/20 bg-background p-4"><MetricIcon className="size-5 text-sky-600" /><p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-bold">{String(value)}</p></div>; })}
+        </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <div className="overflow-x-auto rounded-xl border bg-background p-4"><h3 className="font-semibold">Últimos 14 días con clics</h3><table className="mt-3 w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground"><th className="py-2">Día</th><th className="py-2 text-right">Clics</th></tr></thead><tbody>{storeDailyRows.map(([day, count]) => <tr key={day} className="border-b last:border-0"><td className="py-2.5 capitalize">{dayLabel(day)}</td><td className="py-2.5 text-right font-bold">{count}</td></tr>)}</tbody></table>{storeDailyRows.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Todavía no hay clics registrados.</p> : null}</div>
+          <div className="overflow-x-auto rounded-xl border bg-background p-4"><h3 className="font-semibold">Origen de los clics</h3><table className="mt-3 w-full text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground"><th className="py-2">Botón</th><th className="py-2 text-right">Clics</th></tr></thead><tbody>{[...storeByLocation.entries()].sort(([, a], [, b]) => b - a).map(([location, count]) => <tr key={location} className="border-b last:border-0"><td className="py-2.5">{storeLocationLabels[location] ?? location}</td><td className="py-2.5 text-right font-bold">{count}</td></tr>)}</tbody></table>{storeByLocation.size === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Todavía no hay datos por botón.</p> : null}<p className="mt-4 rounded-lg bg-sky-500/10 p-3 text-xs text-muted-foreground"><b>{storeClicksThisMonth} clics este mes.</b> Compará “Cumplen 3 días hoy” con los contactos y pagos que recibas para estimar la conversión.</p></div>
+        </div>
+      </>}
+    </section>
 
     <DownloadChart daily={chartDaily} weekly={chartWeekly} monthly={chartMonthly} />
     <PaymentsChart days={paymentDays} total={paidThisWeek * 50000} customers={paidCustomers} />

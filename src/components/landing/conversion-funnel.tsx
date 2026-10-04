@@ -16,12 +16,12 @@ import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { Handshake } from "lucide-react";
 import "./funnel.css";
 
-const MICROSOFT_STORE_URL = "https://apps.microsoft.com/detail/9PLJGFFQ6K8R?hl=es-ar&gl=AR";
 const MERCADOLIBRE_URL = "https://www.mercadolibre.com.ar/software-para-comercios/up/MLAU5183643963";
 const COMBO_INICIAL_URL = "https://www.mercadolibre.com.ar/combo-punto-de-venta-sistema--impresora-de-ticket-y-lector/up/MLAU5294453977";
 
-function microsoftStoreCampaignUrl(location: "header" | "hero" | "store_band") {
-  return `${MICROSOFT_STORE_URL}&cid=tienda360_landing_${location}`;
+function microsoftStoreTrackingUrl(location: "header" | "hero" | "hero_certificate" | "store_band" | "mobile_share", absolute = false) {
+  const path = `/api/store/microsoft?location=${location}`;
+  return absolute ? `https://tienda360.site${path}` : path;
 }
 
 export function ConversionFunnel() {
@@ -40,10 +40,10 @@ export function ConversionFunnel() {
     <header className="t360-header"><div className="t360-wrap t360-nav">
       <a href="#inicio" className="t360-brand"><Image src="/newlogo.jpeg" alt="" width={38} height={38} /> <span>Tienda360</span></a>
       <nav aria-label="Navegación principal"><a href="#demo">Demostración</a><a href="#funciones">Funciones</a><a href="#preguntas">Preguntas</a></nav>
-      <a className="t360-button t360-button-small" href={microsoftStoreCampaignUrl("header")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "header")}>Descargar para PC <span aria-hidden>↗</span></a>
+      <a className="t360-button t360-button-small" href={microsoftStoreTrackingUrl("header")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "header")}>Descargar para PC <span aria-hidden>↗</span></a>
     </div></header>
-    <main><LandingHero onStoreClick={openStore} storeUrl={microsoftStoreCampaignUrl("hero")} marketplaceUrl={MERCADOLIBRE_URL} />
-      <section className="t360-store-band" aria-labelledby="store-title"><div className="t360-wrap t360-store-band-inner"><div className="t360-store-seal" aria-hidden="true"><span className="t360-windows-mark"><i /><i /><i /><i /></span></div><div><p className="t360-kicker">Disponible oficialmente para Windows</p><h2 id="store-title">Instalalo directo desde Microsoft Store</h2><p>Aplicación exclusiva para PC con Windows 10/11.</p></div><a className="t360-store-button t360-store-button-dark" href={microsoftStoreCampaignUrl("store_band")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "store_band")} aria-label="Obtener Tienda360 desde Microsoft Store (abre en una pestaña nueva)"><span className="t360-windows-mark" aria-hidden="true"><i /><i /><i /><i /></span><span><small>Obtenelo en</small><b>Microsoft Store</b></span><span className="t360-store-arrow" aria-hidden="true">↗</span></a></div></section>
+    <main><LandingHero onStoreClick={openStore} storeUrl={microsoftStoreTrackingUrl("hero")} certificateStoreUrl={microsoftStoreTrackingUrl("hero_certificate")} marketplaceUrl={MERCADOLIBRE_URL} />
+      <section className="t360-store-band" aria-labelledby="store-title"><div className="t360-wrap t360-store-band-inner"><div className="t360-store-seal" aria-hidden="true"><span className="t360-windows-mark"><i /><i /><i /><i /></span></div><div><p className="t360-kicker">Disponible oficialmente para Windows</p><h2 id="store-title">Instalalo directo desde Microsoft Store</h2><p>Aplicación exclusiva para PC con Windows 10/11.</p></div><a className="t360-store-button t360-store-button-dark" href={microsoftStoreTrackingUrl("store_band")} target="_blank" rel="noopener noreferrer" onClick={(event) => openStore(event, "store_band")} aria-label="Obtener Tienda360 desde Microsoft Store (abre en una pestaña nueva)"><span className="t360-windows-mark" aria-hidden="true"><i /><i /><i /><i /></span><span><small>Obtenelo en</small><b>Microsoft Store</b></span><span className="t360-store-arrow" aria-hidden="true">↗</span></a></div></section>
       <DemoVideo onStart={begin} /><TutorialVideos /><Benefits />
       <section className="t360-section t360-starter-combo" aria-labelledby="starter-combo-title"><div className="t360-wrap t360-starter-combo-grid"><div className="t360-starter-combo-image"><Image src="/combo250.png" alt="Combo inicial Tienda360 con sistema de punto de venta, impresora de tickets y lector de códigos de barras" width={1254} height={1254} sizes="(max-width: 800px) calc(100vw - 40px), 50vw" /></div><div className="t360-starter-combo-copy"><p className="t360-kicker">Todo para comenzar</p><h2 id="starter-combo-title">Combo inicial Tienda360</h2><p className="t360-starter-combo-lead">Una solución ideal para poner en marcha tu punto de venta con los elementos esenciales desde el primer día.</p><ul><li>Sistema de punto de venta Tienda360</li><li>Impresora térmica de tickets</li><li>Lector de códigos de barras</li></ul><div className="t360-starter-shipping"><span aria-hidden="true">✓</span><div><b>Disponible en todo el país</b><small>Compralo online y recibilo mediante Mercado Libre.</small></div></div><a className="t360-button t360-mercadolibre-button t360-starter-combo-button" href={COMBO_INICIAL_URL} target="_blank" rel="noopener noreferrer" onClick={() => trackFunnelEvent("mercadolibre_clicked", { location: "starter_combo", product: "combo_inicial" })} aria-label="Ver el combo inicial Tienda360 en Mercado Libre (abre en una pestaña nueva)"><span className="t360-mercadolibre-logo" aria-hidden="true"><Handshake /></span><span>Ver combo en Mercado Libre</span><span aria-hidden="true">↗</span></a><small className="t360-mercadolibre-note">Compra protegida a través de Mercado Libre</small></div></div></section>
       <BusinessTypes /><Testimonials /><CustomerGallery />
@@ -57,7 +57,7 @@ export function ConversionFunnel() {
     </main>
     <footer><div className="t360-wrap t360-footer"><span>© 2026 Tienda360</span><span>Software para comercios argentinos</span><a href="/auth/login">Acceder al sistema web</a></div></footer>
     <QualificationWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
-    <MobileStoreNotice open={mobileStoreOpen} onClose={closeMobileStore} storeUrl={MICROSOFT_STORE_URL} />
+    <MobileStoreNotice open={mobileStoreOpen} onClose={closeMobileStore} storeUrl={microsoftStoreTrackingUrl("mobile_share", true)} />
   </div>;
 }
 
