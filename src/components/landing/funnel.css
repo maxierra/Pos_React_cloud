@@ -140,3 +140,27 @@
 .t360-whatsapp-share svg{width:20px;flex:none}
 .t360-mobile-store-understood{border:0;background:transparent;color:#52657b;padding:8px;font-weight:750;cursor:pointer}
 @media(max-width:600px){.t360-mobile-store-backdrop{align-items:end;padding:0}.t360-mobile-store-dialog{width:100%;max-height:94dvh;border-radius:22px 22px 0 0;padding:30px 18px max(22px,env(safe-area-inset-bottom))}.t360-mobile-store-dialog h2{font-size:27px}}
+
+/* Sello de confianza visible en el primer pantallazo. */
+.t360-microsoft-certificate{position:absolute;top:-160px;right:0;z-index:2;width:210px;overflow:hidden;border:3px solid #fff;border-radius:12px;background:#fff;box-shadow:0 16px 38px rgba(7,28,52,.3);transition:transform .18s ease,box-shadow .18s ease}
+.t360-microsoft-certificate:hover{transform:translateY(-3px) rotate(1deg);box-shadow:0 20px 44px rgba(7,28,52,.36)}
+.t360-microsoft-certificate img{display:block;width:100%;height:auto;max-height:none;border-radius:9px;object-fit:contain}
+@media(max-width:900px){.t360-microsoft-certificate{position:relative;top:auto;right:auto;display:block;width:190px;margin:16px 0 0 auto}}
+@media(max-width:600px){.t360-microsoft-certificate{width:160px;border-width:2px;border-radius:9px}.t360-microsoft-certificate img{border-radius:7px}}
+
+/* Combo inicial: hardware y sistema listos para comenzar. */
+.t360-starter-combo{background:#fff}
+.t360-starter-combo-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);align-items:center;gap:72px}
+.t360-starter-combo-image{overflow:hidden;border:1px solid #d3deea;border-radius:20px;background:#f4f7fa;box-shadow:0 24px 65px rgba(13,39,72,.13)}
+.t360-starter-combo-image img{display:block;width:100%;height:auto}
+.t360-starter-combo-copy{max-width:520px}
+.t360-starter-combo-copy h2{margin-bottom:20px}
+.t360-starter-combo-lead{color:var(--muted);font-size:19px;line-height:1.65}
+.t360-starter-combo-copy ul{display:grid;gap:12px;margin:25px 0;padding:0;list-style:none;color:#30465e;font-weight:700}
+.t360-starter-combo-copy li:before{content:'✓';display:inline-grid;width:22px;height:22px;margin-right:10px;place-items:center;border-radius:50%;background:#e6f6ea;color:var(--green);font-size:12px;font-weight:900}
+.t360-starter-shipping{display:flex;align-items:center;gap:13px;margin:26px 0;border:1px solid #cbdced;border-radius:11px;background:#f3f8ff;padding:15px 17px}
+.t360-starter-shipping>span{display:grid;width:34px;height:34px;flex:none;place-items:center;border-radius:50%;background:var(--blue);color:#fff;font-weight:900}
+.t360-starter-shipping div{display:grid}.t360-starter-shipping b{color:var(--navy)}.t360-starter-shipping small{color:var(--muted)}
+.t360-starter-combo-button{width:100%;min-height:58px}
+@media(max-width:800px){.t360-starter-combo-grid{grid-template-columns:1fr;gap:36px}.t360-starter-combo-copy{max-width:none}.t360-starter-combo-image{width:min(580px,100%);margin:auto}}
+@media(max-width:600px){.t360-starter-combo-grid{gap:28px}.t360-starter-combo-image{border-radius:14px}.t360-starter-combo-lead{font-size:17px}.t360-starter-shipping{align-items:flex-start}.t360-starter-combo-button{font-size:13px;padding-inline:12px}}
