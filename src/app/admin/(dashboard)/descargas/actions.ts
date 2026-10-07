@@ -16,6 +16,12 @@ const updateSchema = z.object({
 });
 
 const followupSchema = z.object({ id: z.string().uuid(), kind: z.enum(["contacted", "paid", "reminder"]) });
+const storeSaleSchema = z.object({
+  saleDate: z.iso.date(),
+  quantity: z.coerce.number().int().min(1).max(1000),
+  unitAmount: z.coerce.number().min(0).max(9999999999),
+  note: z.string().trim().max(300).optional().default(""),
+});
 
 async function requireAdmin() {
   const email = await getPlatformAdminSessionEmail();
@@ -74,4 +80,22 @@ export async function clearAllDownloadLeads() {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/descargas");
   revalidatePath("/admin");
+}
+
+export async function createMicrosoftStoreSale(formData: FormData) {
+  await requireAdmin();
+  const parsed = storeSaleSchema.safeParse({ saleDate: formData.get("saleDate"), quantity: formData.get("quantity"), unitAmount: formData.get("unitAmount"), note: formData.get("note") ?? "" });
+  if (!parsed.success) throw new Error("Revisá la fecha, la cantidad y el importe de la venta");
+  const { error } = await createAdminClient().from("microsoft_store_sales").insert({ sale_date: parsed.data.saleDate, quantity: parsed.data.quantity, total_amount: parsed.data.unitAmount, note: parsed.data.note || null });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/descargas");
+}
+
+export async function deleteMicrosoftStoreSale(formData: FormData) {
+  await requireAdmin();
+  const parsed = z.string().uuid().safeParse(formData.get("id"));
+  if (!parsed.success) throw new Error("Venta inválida");
+  const { error } = await createAdminClient().from("microsoft_store_sales").delete().eq("id", parsed.data);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/descargas");
 }
