@@ -150,6 +150,11 @@
 
 /* Combo inicial: hardware y sistema listos para comenzar. */
 .t360-starter-combo{background:#fff}
+.t360-product-loading{background:linear-gradient(180deg,#fff 0,#f3f7fb 100%)}
+.t360-product-loading-poster{overflow:hidden;border:1px solid #d2deea;border-radius:18px;background:#fff;box-shadow:0 22px 60px rgba(13,39,72,.12)}
+.t360-product-loading-poster img{display:block;width:100%;height:auto}
+.t360-product-loading-mobile{display:none}
+@media(max-width:600px){.t360-product-loading{padding:44px 0}.t360-product-loading-poster{display:none}.t360-product-loading-mobile{display:block;overflow:hidden;border:1px solid #d2deea;border-radius:12px;background:#fff;box-shadow:0 14px 38px rgba(13,39,72,.12)}.t360-product-loading-mobile img{display:block;width:100%;height:auto}}
 .t360-starter-combo-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);align-items:center;gap:72px}
 .t360-starter-combo-image{overflow:hidden;border:1px solid #d3deea;border-radius:20px;background:#f4f7fa;box-shadow:0 24px 65px rgba(13,39,72,.13)}
 .t360-starter-combo-image img{display:block;width:100%;height:auto}
