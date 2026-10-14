@@ -7,10 +7,10 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tienda360.site"),
   title: "Tienda360 | Punto de venta para Windows",
   description:
-    "Descargá gratis Tienda360 para Windows y empezá a usar tu punto de venta en menos de 5 minutos.",
+    "Comprá Tienda360 para Windows con licencia definitiva, instalación incluida y sin abono mensual.",
   openGraph: {
     title: "Tienda360: tu punto de venta listo en minutos",
-    description: "Descarga gratis para Windows. Ventas, stock, caja, clientes y reportes en un solo lugar.",
+    description: "Licencia definitiva para Windows. Ventas, stock, caja, clientes y reportes en un solo lugar.",
     type: "website",
     locale: "es_AR",
     images: [{ url: "/newlogo.jpeg", alt: "Tienda360 para Windows" }],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Tienda360: punto de venta para Windows",
-    description: "Descargalo gratis y empezá a usarlo en menos de 5 minutos.",
+    description: "Compralo una vez y usalo sin abono mensual.",
     images: ["/newlogo.jpeg"],
   },
 };

@@ -57,6 +57,10 @@
 .t360-buy-block small{color:#6c6650;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.05em}
 .t360-buy-block b{margin-top:3px;color:#263147;font-size:14px}
 .t360-buy-block .t360-hero-marketplace{min-height:48px;box-shadow:none;white-space:nowrap}
+.t360-buy-block-primary{max-width:650px;padding:15px 16px 15px 20px;box-shadow:0 12px 32px rgba(58,52,0,.1)}
+.t360-buy-block-primary small{font-size:11px}
+.t360-buy-block-primary b{font-size:15px}
+.t360-purchase-note{margin:10px 0 0;color:#637083;font-size:12px}
 @media(max-width:600px){.t360-hero-marketplace{width:100%}.t360-buy-block{display:grid;padding:15px}.t360-buy-block>div{text-align:center}.t360-buy-block .t360-hero-marketplace{width:100%}.t360-action-label{text-align:center}}
 
 .t360-testimonials{background:#fff}
@@ -143,7 +147,6 @@
 
 /* Sello de confianza visible en el primer pantallazo. */
 .t360-microsoft-certificate{position:absolute;top:-160px;right:0;z-index:2;width:210px;overflow:hidden;border:3px solid #fff;border-radius:12px;background:#fff;box-shadow:0 16px 38px rgba(7,28,52,.3);transition:transform .18s ease,box-shadow .18s ease}
-.t360-microsoft-certificate:hover{transform:translateY(-3px) rotate(1deg);box-shadow:0 20px 44px rgba(7,28,52,.36)}
 .t360-microsoft-certificate img{display:block;width:100%;height:auto;max-height:none;border-radius:9px;object-fit:contain}
 @media(max-width:900px){.t360-microsoft-certificate{position:relative;top:auto;right:auto;display:block;width:190px;margin:16px 0 0 auto}}
 @media(max-width:600px){.t360-microsoft-certificate{width:160px;border-width:2px;border-radius:9px}.t360-microsoft-certificate img{border-radius:7px}}

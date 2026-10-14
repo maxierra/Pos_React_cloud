@@ -13,16 +13,18 @@ export function SupportFloatingButton() {
   const message = encodeURIComponent("Hola, necesito soporte técnico con Tienda360.");
   const whatsappHref = `https://wa.me/${SUPPORT_PHONE_E164}?text=${message}`;
 
+  if (pathname === "/") return null;
+
   return (
     <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2">
-      {pathname !== "/" ? <a
+      <a
         href={`mailto:${SUPPORT_MAIL}`}
         className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/95 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur hover:bg-sky-50"
         aria-label="Enviar mail a soporte"
       >
         <Mail className="size-3.5" />
         {SUPPORT_MAIL}
-      </a> : null}
+      </a>
       <a
         href={whatsappHref}
         target="_blank"
