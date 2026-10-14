@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 type StoreClick = { id: string; location: string; device: string; country_code: string | null; region: string | null; city: string | null; created_at: string };
+type MercadoLibreClick = { id: string; location: string; device: string; created_at: string };
 type StoreSale = { id: string; sale_date: string; quantity: number; total_amount: number | string; note: string | null; created_at: string };
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -23,12 +24,14 @@ function money(value: number) { return `$${value.toLocaleString("es-AR", { maxim
 
 export default async function AdminDownloadsPage() {
   const admin = createAdminClient();
-  const [{ data: clickData, error: clickError }, { data: saleData, error: saleError }] = await Promise.all([
+  const [{ data: clickData, error: clickError }, { data: saleData, error: saleError }, { data: mercadoLibreData, error: mercadoLibreError }] = await Promise.all([
     admin.from("microsoft_store_click_events").select("id,location,device,country_code,region,city,created_at").order("created_at", { ascending: false }).limit(5000),
     admin.from("microsoft_store_sales").select("id,sale_date,quantity,total_amount,note,created_at").order("sale_date", { ascending: false }).order("created_at", { ascending: false }).limit(1000),
+    admin.from("mercadolibre_click_events").select("id,location,device,created_at").order("created_at", { ascending: false }).limit(5000),
   ]);
   const clicks = (clickData ?? []) as StoreClick[];
   const sales = (saleData ?? []) as StoreSale[];
+  const mercadoLibreClicks = (mercadoLibreData ?? []) as MercadoLibreClick[];
   const nowIso = new Date().toISOString();
   const today = dayKey(nowIso);
   const thisWeek = weekKey(nowIso);
@@ -49,6 +52,10 @@ export default async function AdminDownloadsPage() {
   const clicksThisWeek = clicks.filter((click) => weekKey(click.created_at) === thisWeek).length;
   const clicksThisMonth = clicks.filter((click) => monthKey(click.created_at) === thisMonth).length;
   const clicksThisMonthRows = clicks.filter((click) => monthKey(click.created_at) === thisMonth);
+  const mercadoLibreToday = mercadoLibreClicks.filter((click) => dayKey(click.created_at) === today).length;
+  const mercadoLibreThisWeek = mercadoLibreClicks.filter((click) => weekKey(click.created_at) === thisWeek).length;
+  const mercadoLibreThisMonth = mercadoLibreClicks.filter((click) => monthKey(click.created_at) === thisMonth).length;
+  const mercadoLibreMobile = mercadoLibreClicks.filter((click) => click.device === "mobile").length;
   const provinceCounts = new Map<string, number>();
   let unknownProvinceClicks = 0;
   for (const click of clicksThisMonthRows) {
@@ -68,7 +75,16 @@ export default async function AdminDownloadsPage() {
   const recentDays = [...daily].sort(([a], [b]) => b.localeCompare(a)).slice(0, 14);
 
   return <div className="mx-auto w-full max-w-7xl space-y-7 px-4 py-8">
-    <header><p className="text-xs font-semibold uppercase tracking-wider text-sky-600">Microsoft Store</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Descargas y ventas</h1><p className="mt-2 text-sm text-muted-foreground">Seguimiento simple de clics hacia la descarga y pagos detectados desde ahora.</p></header>
+    <header><p className="text-xs font-semibold uppercase tracking-wider text-sky-600">Canales de venta</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Clics y ventas</h1><p className="mt-2 text-sm text-muted-foreground">Seguimiento de las salidas hacia Mercado Libre y Microsoft Store.</p></header>
+    {mercadoLibreError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>No se pudieron cargar los clics de Mercado Libre.</b> Aplicá la migración <code>20261014120000_mercadolibre_click_events.sql</code>.</div> : null}
+
+    <section className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-5 shadow-sm">
+      <div><p className="text-xs font-semibold uppercase tracking-wider text-yellow-700">Mercado Libre</p><h2 className="mt-1 text-xl font-bold">Interés desde la landing</h2><p className="mt-1 text-sm text-muted-foreground">Cada clic se registra antes de abrir la publicación.</p></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
+        [MousePointerClick, "Clics hoy", mercadoLibreToday], [CalendarDays, "Clics esta semana", mercadoLibreThisWeek], [MousePointerClick, "Clics este mes", mercadoLibreThisMonth], [Monitor, "Desde celular", mercadoLibreMobile],
+      ].map(([Icon, label, value]) => { const MetricIcon = Icon as typeof MousePointerClick; return <div key={String(label)} className="rounded-xl border border-yellow-500/20 bg-background p-4"><MetricIcon className="size-5 text-yellow-600" /><p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-bold">{String(value)}</p></div>; })}</div>
+      <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100"><b>Abandono potencial:</b> Mercado Libre todavía no envía la confirmación de compra a Tienda360. Estos clics muestran intención; para calcular cuántos no compraron hay que conectar las ventas de Mercado Libre o cargarlas manualmente.</div>
+    </section>
     {clickError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>No se pudieron cargar los clics.</b> {clickError.message}</div> : null}
     {saleError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>Falta habilitar el registro de ventas.</b> Aplicá la migración <code>20261005120000_microsoft_store_sales.sql</code>.</div> : null}
 

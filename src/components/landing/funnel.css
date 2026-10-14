@@ -4,6 +4,26 @@
 @media(max-width:600px){.t360-wrap{width:min(100% - 28px,1160px)}.t360-nav{height:64px;gap:10px}.t360-brand span{font-size:17px}.t360-brand img{width:34px;height:34px}.t360-button-small{margin-left:auto;min-height:40px;padding:0 13px;font-size:12px}.t360-hero{padding:52px 0}.t360 h1{font-size:42px}.t360-lead{font-size:18px}.t360-actions{display:grid}.t360-actions .t360-button{width:100%}.t360-checks{grid-template-columns:1fr;font-size:13px}.t360-hero-visual span{display:none}.t360-section{padding:64px 0}.t360 h2{font-size:34px}.t360-heading{margin-bottom:30px}.t360-benefits{grid-template-columns:1fr}.t360-benefits article{min-height:auto;padding:22px 18px}.t360-support,.t360-faq{gap:28px}.t360-footer{flex-direction:column}.t360-wizard{width:100%;max-width:none;max-height:94dvh;margin:auto 0 0;border-radius:18px 18px 0 0}.t360-wizard-shell{min-height:82dvh;padding:26px 18px 20px}.t360-close{right:14px;top:14px}.t360-progress{padding-right:46px}.t360-progress i{width:20px}.t360-wizard-copy{padding:24px 40px 8px 0}.t360-wizard-copy h2,.t360-scheduler h2,.t360-result h2{font-size:26px}.t360-options,.t360-fields{grid-template-columns:1fr}.t360-fields label:first-child{grid-column:auto}.t360-consent{grid-column:auto!important}.t360-options button{min-height:52px}.t360-wizard-footer{position:sticky;bottom:0;background:#fff;padding-bottom:max(0px,env(safe-area-inset-bottom))}.t360-wizard-footer .t360-button{padding:0 16px}.t360-days{grid-template-columns:repeat(2,1fr)}.t360-times{grid-template-columns:repeat(2,1fr)}.t360-result{padding:45px 0}.t360-price-grid article{padding:26px}}
 @media(prefers-reduced-motion:reduce){.t360 *{scroll-behavior:auto!important;transition:none!important}}
 
+/* Recorrido visual del producto. */
+.t360-banner-section{overflow:hidden;background:#071c34;padding:72px 0 58px;color:#fff}
+.t360-banner-heading{text-align:center;margin:0 auto 30px}
+.t360-banner-heading .t360-kicker{color:#67a8ff}
+.t360-banner-heading h2{margin-bottom:0;color:#fff}
+.t360-banner-carousel{position:relative;overflow:hidden;border:1px solid #36506e;border-radius:20px;background:#102e50;box-shadow:0 25px 70px rgba(0,0,0,.35);touch-action:pan-y;user-select:none}
+.t360-banner-track{display:flex;transition:transform .55s cubic-bezier(.22,.8,.3,1);will-change:transform}
+.t360-banner-slide{min-width:100%;margin:0;background:#fff}
+.t360-banner-slide img{display:block;width:100%;height:auto;pointer-events:none}
+.t360-banner-arrow{position:absolute;top:50%;z-index:2;display:grid;width:48px;height:48px;place-items:center;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(7,28,52,.82);color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.28);cursor:pointer;transform:translateY(-50%);backdrop-filter:blur(6px)}
+.t360-banner-arrow:hover{background:var(--blue)}
+.t360-banner-arrow span{font-size:38px;line-height:.8;margin-top:-3px}
+.t360-banner-arrow-prev{left:18px}
+.t360-banner-arrow-next{right:18px}
+.t360-banner-dots{display:flex;justify-content:center;gap:9px;margin-top:20px}
+.t360-banner-dots button{width:9px;height:9px;border:0;border-radius:99px;background:#7890aa;padding:0;cursor:pointer;transition:width .2s,background .2s}
+.t360-banner-dots button.active{width:28px;background:#67a8ff}
+.t360-banner-swipe-hint{display:none}
+@media(max-width:600px){.t360-banner-section{padding:48px 0 40px}.t360-banner-heading{margin-bottom:22px}.t360-banner-heading h2{font-size:30px}.t360-banner-carousel{border-radius:12px}.t360-banner-arrow{width:40px;height:40px;background:rgba(7,28,52,.76)}.t360-banner-arrow-prev{left:8px}.t360-banner-arrow-next{right:8px}.t360-banner-arrow span{font-size:32px}.t360-banner-dots{margin-top:16px}.t360-banner-dots button{width:10px;height:10px}.t360-banner-dots button.active{width:25px}.t360-banner-swipe-hint{display:block;margin:9px 0 0;color:#aebed0;text-align:center;font-size:12px}}
+
 /* Microsoft Store: CTA principal de descarga y refuerzo de confianza. */
 .t360-store-button{display:inline-flex;min-height:58px;align-items:center;gap:12px;border:1px solid #071c34;border-radius:10px;background:#071c34;color:#fff;padding:8px 14px;text-decoration:none;box-shadow:0 10px 25px rgba(7,28,52,.2);transition:transform .15s,box-shadow .15s,background .15s}
 .t360-store-button:hover{background:#102e50;box-shadow:0 14px 32px rgba(7,28,52,.26);transform:translateY(-2px)}
