@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const MERCADOLIBRE_URL = "https://www.mercadolibre.com.ar/software-para-comercios/up/MLAU5183643963";
-const LOCATIONS = new Set(["hero"]);
+const LOCATIONS = new Set(["hero", "price", "final"]);
 const ARGENTINA_REGIONS: Record<string, string> = {
   A: "Salta", B: "Buenos Aires", C: "Ciudad Autónoma de Buenos Aires", D: "San Luis",
   E: "Entre Ríos", F: "La Rioja", G: "Santiago del Estero", H: "Chaco",

@@ -5,8 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const MICROSOFT_STORE_URL = "https://apps.microsoft.com/detail/9PLJGFFQ6K8R?hl=es-ar&gl=AR";
-const LOCATIONS = new Set(["header", "hero", "hero_certificate", "store_band", "mobile_share"]);
+const MICROSOFT_STORE_URL = "https://apps.microsoft.com/detail/9PLJGFFQ6K8R?hl=es-ar&gl=AR&ocid=pdpshare";
+const LOCATIONS = new Set(["header", "hero", "hero_certificate", "store_band", "mobile_share", "final", "mobile_bar"]);
 const ARGENTINA_REGIONS: Record<string, string> = {
   A: "Salta", B: "Buenos Aires", C: "Ciudad Autónoma de Buenos Aires", D: "San Luis",
   E: "Entre Ríos", F: "La Rioja", G: "Santiago del Estero", H: "Chaco",
@@ -58,7 +58,7 @@ function getApproximateGeography(request: NextRequest) {
   return { countryCode, region, city };
 }
 
-export async function GET(request: NextRequest) {
+async function recordClick(request: NextRequest) {
   const requestedLocation = request.nextUrl.searchParams.get("location") ?? "hero";
   const location = LOCATIONS.has(requestedLocation) ? requestedLocation : "hero";
   const userAgent = (request.headers.get("user-agent") ?? "").slice(0, 500);
@@ -83,5 +83,16 @@ export async function GET(request: NextRequest) {
     console.warn("[microsoft-store-click] could not persist click", error);
   }
 
+  return location;
+}
+
+export async function GET(request: NextRequest) {
+  const location = await recordClick(request);
+
   return NextResponse.redirect(`${MICROSOFT_STORE_URL}&cid=tienda360_landing_${location}`, { status: 307 });
+}
+
+export async function POST(request: NextRequest) {
+  await recordClick(request);
+  return new NextResponse(null, { status: 204 });
 }

@@ -11,6 +11,7 @@ export function trackFunnelEvent(name: FunnelEvent, params: Record<string, strin
   else if (name === "whatsapp_clicked") trackMetaCustomEvent("ClickWhatsApp", params);
   else if (name === "hero_cta_click") trackMetaCustomEvent("ClickDemo", params);
   else if (name === "microsoft_store_clicked") trackMetaCustomEvent("ClickDescargar", params);
+  else if (name === "mercadolibre_clicked") trackMetaCustomEvent("ClickComprar", params);
   else if (name === "qualification_started") trackMetaCustomEvent("FormularioIniciado", params);
   else if (name === "qualification_completed") trackMetaCustomEvent("FormularioCompletado", params);
 }

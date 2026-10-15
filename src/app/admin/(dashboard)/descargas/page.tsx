@@ -13,7 +13,8 @@ type MercadoLibreClick = { id: string; location: string; device: string; created
 type StoreSale = { id: string; sale_date: string; quantity: number; total_amount: number | string; note: string | null; created_at: string };
 
 const TZ = "America/Argentina/Buenos_Aires";
-const storeLocationLabels: Record<string, string> = { header: "Encabezado", hero: "Botón principal", hero_certificate: "Insignia certificada", store_band: "Franja Microsoft Store", mobile_share: "Enlace compartido desde celular" };
+const storeLocationLabels: Record<string, string> = { header: "Encabezado", hero: "Demo principal", hero_certificate: "Insignia certificada", store_band: "Franja Microsoft Store", mobile_share: "Enlace compartido desde celular", final: "Demo final", mobile_bar: "Barra fija móvil" };
+const mercadoLibreLocationLabels: Record<string, string> = { hero: "Compra principal", price: "Tarjeta de precio", final: "Compra final" };
 
 function dayKey(value: string | Date) { return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)); }
 function dayLabel(value: string) { return new Date(`${value}T12:00:00-03:00`).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" }); }
@@ -56,6 +57,8 @@ export default async function AdminDownloadsPage() {
   const mercadoLibreThisWeek = mercadoLibreClicks.filter((click) => weekKey(click.created_at) === thisWeek).length;
   const mercadoLibreThisMonth = mercadoLibreClicks.filter((click) => monthKey(click.created_at) === thisMonth).length;
   const mercadoLibreMobile = mercadoLibreClicks.filter((click) => click.device === "mobile").length;
+  const mercadoLibreByLocation = new Map<string, number>();
+  for (const click of mercadoLibreClicks) mercadoLibreByLocation.set(click.location, (mercadoLibreByLocation.get(click.location) ?? 0) + 1);
   const provinceCounts = new Map<string, number>();
   let unknownProvinceClicks = 0;
   for (const click of clicksThisMonthRows) {
@@ -83,12 +86,14 @@ export default async function AdminDownloadsPage() {
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
         [MousePointerClick, "Clics hoy", mercadoLibreToday], [CalendarDays, "Clics esta semana", mercadoLibreThisWeek], [MousePointerClick, "Clics este mes", mercadoLibreThisMonth], [Monitor, "Desde celular", mercadoLibreMobile],
       ].map(([Icon, label, value]) => { const MetricIcon = Icon as typeof MousePointerClick; return <div key={String(label)} className="rounded-xl border border-yellow-500/20 bg-background p-4"><MetricIcon className="size-5 text-yellow-600" /><p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-bold">{String(value)}</p></div>; })}</div>
+      <div className="mt-4 rounded-xl border border-yellow-500/20 bg-background p-4"><h3 className="font-semibold">Clics por botón de compra</h3><div className="mt-3 grid gap-2 sm:grid-cols-3">{["hero", "price", "final"].map((location) => <div key={location} className="flex items-center justify-between rounded-lg bg-yellow-500/5 px-3 py-2 text-sm"><span>{mercadoLibreLocationLabels[location]}</span><b>{mercadoLibreByLocation.get(location) ?? 0}</b></div>)}</div></div>
       <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100"><b>Abandono potencial:</b> Mercado Libre todavía no envía la confirmación de compra a Tienda360. Estos clics muestran intención; para calcular cuántos no compraron hay que conectar las ventas de Mercado Libre o cargarlas manualmente.</div>
     </section>
     {clickError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>No se pudieron cargar los clics.</b> {clickError.message}</div> : null}
     {saleError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm"><b>Falta habilitar el registro de ventas.</b> Aplicá la migración <code>20261005120000_microsoft_store_sales.sql</code>.</div> : null}
 
     <section className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-5 shadow-sm">
+      <div className="mb-5"><p className="text-xs font-semibold uppercase tracking-wider text-sky-700">Microsoft Store · Demo</p><h2 className="mt-1 text-xl font-bold">Descargas iniciadas desde la landing</h2><p className="mt-1 text-sm text-muted-foreground">Cada clic se registra antes de abrir la ficha oficial de Microsoft Store.</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[
         [MousePointerClick, "Clics hoy", daily.get(today) ?? 0], [CalendarDays, "Clics esta semana", clicksThisWeek], [MousePointerClick, "Clics este mes", clicksThisMonth], [Monitor, "Desde PC", clicks.filter((click) => click.device === "desktop").length], [ShoppingCart, "Ventas este mes", quantityThisMonth],
       ].map(([Icon, label, value]) => { const MetricIcon = Icon as typeof MousePointerClick; return <div key={String(label)} className="rounded-xl border border-sky-500/20 bg-background p-4"><MetricIcon className="size-5 text-sky-600" /><p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-bold">{String(value)}</p></div>; })}</div>
