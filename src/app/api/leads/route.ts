@@ -9,8 +9,8 @@ const requests = new Map<string, { count: number; reset: number }>();
 const text = z.string().trim().min(2).max(100);
 const nullableUrlText = z.string().trim().max(500).nullable().optional();
 const createSchema = z.object({
-  fullName: text, whatsapp: z.string().regex(/^549\d{10}$/), locality: text,
-  businessType: z.enum(BUSINESS_TYPES), pcStatus: z.enum(PC_OPTIONS), readerStatus: z.enum(READER_OPTIONS), intent: z.enum(INTENT_OPTIONS),
+  fullName: text, whatsapp: z.string().regex(/^549\d{10}$/), locality: text.default("No informada"),
+  businessType: z.enum(BUSINESS_TYPES), pcStatus: z.enum(PC_OPTIONS), readerStatus: z.enum(READER_OPTIONS), intent: z.enum(INTENT_OPTIONS).default("learn"),
   consent: z.literal(true), attribution: z.object({
     utmSource: z.string().max(200).nullable().optional(), utmMedium: z.string().max(200).nullable().optional(), utmCampaign: z.string().max(200).nullable().optional(),
     utmContent: z.string().max(200).nullable().optional(), utmTerm: z.string().max(200).nullable().optional(), landingUrl: z.string().url().max(500), referrer: nullableUrlText,

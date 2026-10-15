@@ -2,7 +2,7 @@ export const landingConfig = {
   whatsappNumber: "5491123145742",
   whatsappBase: "https://wa.me/5491123145742",
   loginUrl: "/auth/login",
-  demoUrl: (location: "hero" | "final" | "mobile_bar") =>
+  demoUrl: (location: "hero" | "store_band" | "final" | "mobile_bar") =>
     `/api/store/microsoft?location=${location}`,
   demoUser: "admin",
   demoPassword: "admin123",

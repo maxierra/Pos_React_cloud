@@ -13,7 +13,7 @@ export function LandingHero() {
           <h1>Vendé, facturá y controlá tu stock <em>desde una sola pantalla</em></h1>
           <p className="lp-lead">Tienda360 es el punto de venta para tu comercio. Escaneás, cobrás con QR y emitís la factura ARCA. Lo pagás una sola vez, sin abono mensual.</p>
           <div className="lp-actions">
-            <DemoDownloadLink className="lp-button lp-button-microsoft" href={landingConfig.demoUrl("hero")} target="_blank" rel="noopener noreferrer" location="hero"><MicrosoftStoreMark /><span><small>Descargar gratis desde</small>Microsoft Store</span></DemoDownloadLink>
+            <DemoDownloadLink className="lp-button lp-button-microsoft" href={landingConfig.demoUrl("hero")} target="_blank" rel="noopener noreferrer" location="hero"><MicrosoftStoreMark /><span><small>Acceso gratuito</small>Probar la demo</span></DemoDownloadLink>
             <TrackedLink className="lp-button lp-button-mercadolibre" href={landingConfig.purchaseUrl("hero")} target="_blank" rel="noopener noreferrer" event="mercadolibre_clicked" location="hero"><MercadoLibreMark /><span><small>Compra directa en</small>Mercado Libre</span></TrackedLink>
           </div>
           <div className="lp-demo-access"><div><strong>Demo oficial y segura</strong><span>Aplicación certificada por Microsoft · Instalación sencilla</span></div><dl><div><dt>Usuario</dt><dd>{landingConfig.demoUser}</dd></div><div><dt>Contraseña</dt><dd>{landingConfig.demoPassword}</dd></div></dl></div>

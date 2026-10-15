@@ -1,26 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from "react";
-import { Copy, MessageCircle, MonitorDown, X } from "lucide-react";
+import { useEffect, useRef, useState, type AnchorHTMLAttributes, type FormEvent, type ReactNode } from "react";
+import { Check, Copy, MessageCircle, MonitorDown, X } from "lucide-react";
+import { BUSINESS_TYPES, type PcOption, type ReaderOption } from "@/lib/leads/types";
+import { readLeadAttribution } from "@/lib/leads/utm";
 import { trackFunnelEvent } from "@/lib/leads/analytics";
+import { landingConfig } from "@/lib/landing-config";
+import { MicrosoftStoreMark } from "./store-marks";
 
-type Props = AnchorHTMLAttributes<HTMLAnchorElement> & {
-  location: "hero" | "final" | "mobile_bar";
-  children: ReactNode;
-};
-
+type Props = AnchorHTMLAttributes<HTMLAnchorElement> & { location: "hero" | "store_band" | "final" | "mobile_bar"; children: ReactNode };
+const PC_OPTIONS: readonly [PcOption, string][] = [["windows", "Sí"], ["unsure", "No estoy seguro/a"], ["no_pc", "Todavía no"]];
+const READER_OPTIONS: readonly [ReaderOption, string][] = [["yes", "Sí"], ["no", "No"], ["want_one", "Quiero asesoramiento"]];
 const LANDING_URL = "https://tienda360.site";
 
+function normalizeArgentinePhone(raw: string) {
+  let value = raw.replace(/\D/g, "");
+  if (value.startsWith("00")) value = value.slice(2);
+  if (value.startsWith("54")) value = value.slice(2);
+  if (value.startsWith("0")) value = value.slice(1);
+  if (value.length === 12 && value.slice(2, 4) === "15") value = value.slice(0, 2) + value.slice(4);
+  return value.length === 10 ? `549${value}` : "";
+}
+
 function isMobileDevice() {
-  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
-    || window.matchMedia("(max-width: 700px)").matches;
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || window.matchMedia("(max-width: 700px)").matches;
 }
 
 export function DemoDownloadLink({ location, children, onClick, ...props }: Props) {
   const [open, setOpen] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const shareText = `Tienda360 se instala en una PC con Windows 10 u 11. Abrí este enlace desde la computadora para descargar la demo gratis: ${LANDING_URL}`;
+  const shareText = `Quiero probar Tienda360 en mi PC. Enlace: ${LANDING_URL}`;
 
   useEffect(() => {
     if (!open) return;
@@ -30,36 +43,40 @@ export function DemoDownloadLink({ location, children, onClick, ...props }: Prop
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(LANDING_URL);
-    setCopied(true);
-    trackFunnelEvent("microsoft_store_clicked", { location: "mobile_notice", action: "copy_link" });
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const whatsapp = normalizeArgentinePhone(String(form.get("whatsapp") ?? ""));
+    if (!whatsapp) return setError("Ingresá un WhatsApp argentino válido con código de área.");
+    setBusy(true); setError("");
+    const response = await fetch("/api/leads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      fullName: String(form.get("fullName") ?? "").trim(), whatsapp, businessType: form.get("businessType"),
+      pcStatus: form.get("pcStatus"), readerStatus: form.get("readerStatus"), consent: true, attribution: readLeadAttribution(),
+    }) });
+    const data = await response.json().catch(() => ({})); setBusy(false);
+    if (!response.ok) return setError(data.error || "No pudimos guardar tus datos. Probá nuevamente.");
+    setSent(true);
+    trackFunnelEvent("qualification_completed", { location, classification: data.classification });
+    if (!isMobileDevice()) window.location.assign(landingConfig.demoUrl(location));
   }
 
+  async function copyLink() { await navigator.clipboard.writeText(LANDING_URL); setCopied(true); }
+
   return <>
-    <a {...props} onClick={(event) => {
-      if (isMobileDevice()) {
-        event.preventDefault();
-        setCopied(false);
-        setOpen(true);
-        void fetch(`/api/store/microsoft?location=${location}`, { method: "POST", keepalive: true });
-        trackFunnelEvent("hero_cta_click", { location, action: "mobile_blocked" });
-      } else {
-        trackFunnelEvent("hero_cta_click", { location });
-      }
-      onClick?.(event);
-    }}>{children}</a>
+    <a {...props} onClick={(event) => { event.preventDefault(); setOpen(true); setSent(false); setError(""); trackFunnelEvent("qualification_started", { location }); onClick?.(event); }}>{children}</a>
     {open ? <div className="lp-demo-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <section className="lp-demo-modal" role="dialog" aria-modal="true" aria-labelledby="demo-mobile-title">
-        <button ref={closeButton} className="lp-demo-modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar aviso"><X /></button>
-        <span className="lp-demo-modal-icon" aria-hidden="true"><MonitorDown /></span>
-        <p className="lp-kicker">Aplicación para computadora</p>
-        <h2 id="demo-mobile-title">La demo se instala en una PC con Windows</h2>
-        <p>Estás navegando desde un celular. Enviate el enlace o copialo para abrirlo después en tu PC con Windows 10 u 11.</p>
-        <div className="lp-demo-modal-actions">
-          <a className="lp-button lp-button-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" onClick={() => trackFunnelEvent("whatsapp_clicked", { location: "mobile_demo_share" })}><MessageCircle /> Enviarme el enlace por WhatsApp</a>
-          <button className="lp-button lp-button-outline" type="button" onClick={copyLink}><Copy /> {copied ? "Enlace copiado ✓" : "Copiar enlace para la PC"}</button>
-        </div>
+      <section className="lp-demo-modal lp-demo-form-modal" role="dialog" aria-modal="true" aria-labelledby="demo-title">
+        <button ref={closeButton} className="lp-demo-modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar"><X /></button>
+        {!sent ? <><span className="lp-demo-modal-icon" aria-hidden="true"><MonitorDown /></span><p className="lp-kicker">Demo gratuita</p><h2 id="demo-title">Probá Tienda360</h2><p>Dejanos estos datos para darte acceso y ayudarte si tenés alguna duda.</p>
+          <form className="lp-demo-lead-form" onSubmit={submit}>
+            <div className="lp-demo-fields"><label>Nombre<input name="fullName" autoComplete="name" required minLength={2} /></label><label>WhatsApp<input name="whatsapp" inputMode="tel" autoComplete="tel" placeholder="Ej. 11 2345 6789" required /></label><label>Tipo de comercio<select name="businessType" defaultValue="" required><option value="" disabled>Elegí una opción</option>{BUSINESS_TYPES.map(type => <option key={type}>{type}</option>)}</select></label></div>
+            <fieldset><legend>¿Tenés PC con Windows 10 u 11?</legend><p>Necesita 4 GB de RAM; recomendamos 8 GB.</p><div className="lp-demo-options">{PC_OPTIONS.map(([value, label]) => <label key={value}><input type="radio" name="pcStatus" value={value} required /><span>{label}</span></label>)}</div></fieldset>
+            <fieldset><legend>¿Tenés lector de códigos?</legend><div className="lp-demo-options">{READER_OPTIONS.map(([value, label]) => <label key={value}><input type="radio" name="readerStatus" value={value} required /><span>{label}</span></label>)}</div></fieldset>
+            {error ? <p className="lp-demo-error" role="alert">{error}</p> : null}<button className="lp-button lp-button-amber" type="submit" disabled={busy}>{busy ? "Preparando acceso…" : "Recibir acceso a la demo"}</button><small>Usaremos tu WhatsApp solamente para ayudarte con Tienda360.</small>
+          </form>
+        </> : <div className="lp-demo-success"><span className="lp-demo-success-icon"><Check /></span><p className="lp-kicker">Acceso habilitado</p><h2 id="demo-title">¡Ya podés probar Tienda360!</h2><p>Ingresá con usuario <strong>{landingConfig.demoUser}</strong> y contraseña <strong>{landingConfig.demoPassword}</strong>.</p>
+          {isMobileDevice() ? <div className="lp-demo-modal-actions"><p>La aplicación se instala en una PC con Windows. Enviate el enlace para abrirlo desde tu computadora.</p><a className="lp-button lp-button-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviarme el enlace</a><button className="lp-button lp-button-outline" type="button" onClick={copyLink}><Copy /> {copied ? "Enlace copiado ✓" : "Copiar enlace"}</button></div> : <a className="lp-button lp-button-microsoft lp-demo-store-link" href={landingConfig.demoUrl(location)} target="_blank" rel="noopener noreferrer"><MicrosoftStoreMark /><span><small>Descargar gratis desde</small>Microsoft Store</span></a>}
+        </div>}
       </section>
     </div> : null}
   </>;
