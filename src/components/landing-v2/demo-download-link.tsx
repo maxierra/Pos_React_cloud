@@ -11,7 +11,7 @@ import { MicrosoftStoreMark } from "./store-marks";
 type Props = AnchorHTMLAttributes<HTMLAnchorElement> & { location: "hero" | "store_band" | "final" | "mobile_bar"; children: ReactNode };
 const PC_OPTIONS: readonly [PcOption, string][] = [["windows", "Sí"], ["unsure", "No estoy seguro/a"], ["no_pc", "Todavía no"]];
 const READER_OPTIONS: readonly [ReaderOption, string][] = [["yes", "Sí"], ["no", "No"], ["want_one", "Quiero asesoramiento"]];
-const LANDING_URL = "https://tienda360.site";
+const LANDING_URL = "https://www.tienda360.site";
 
 function normalizeArgentinePhone(raw: string) {
   let value = raw.replace(/\D/g, "");
@@ -23,7 +23,11 @@ function normalizeArgentinePhone(raw: string) {
 }
 
 function isMobileDevice() {
-  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || window.matchMedia("(max-width: 700px)").matches;
+  const navigatorWithHints = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+  return navigatorWithHints.userAgentData?.mobile === true
+    || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
+    || window.matchMedia("(max-width: 900px)").matches
+    || window.matchMedia("(pointer: coarse)").matches;
 }
 
 export function DemoDownloadLink({ location, children, onClick, ...props }: Props) {
@@ -33,7 +37,7 @@ export function DemoDownloadLink({ location, children, onClick, ...props }: Prop
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const shareText = `Quiero probar Tienda360 en mi PC. Enlace: ${LANDING_URL}`;
+  const shareText = `Tienda360 es un programa para PC con Windows 10 u 11. Abrí este enlace desde la computadora para descargar e instalar la demo: ${LANDING_URL}`;
 
   useEffect(() => {
     if (!open) return;
@@ -75,7 +79,7 @@ export function DemoDownloadLink({ location, children, onClick, ...props }: Prop
             {error ? <p className="lp-demo-error" role="alert">{error}</p> : null}<button className="lp-button lp-button-amber" type="submit" disabled={busy}>{busy ? "Preparando acceso…" : "Recibir acceso a la demo"}</button><small>Usaremos tu WhatsApp solamente para ayudarte con Tienda360.</small>
           </form>
         </> : <div className="lp-demo-success"><span className="lp-demo-success-icon"><Check /></span><p className="lp-kicker">Acceso habilitado</p><h2 id="demo-title">¡Ya podés probar Tienda360!</h2><p>Ingresá con usuario <strong>{landingConfig.demoUser}</strong> y contraseña <strong>{landingConfig.demoPassword}</strong>.</p>
-          {isMobileDevice() ? <div className="lp-demo-modal-actions"><p>La aplicación se instala en una PC con Windows. Enviate el enlace para abrirlo desde tu computadora.</p><a className="lp-button lp-button-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviarme el enlace</a><button className="lp-button lp-button-outline" type="button" onClick={copyLink}><Copy /> {copied ? "Enlace copiado ✓" : "Copiar enlace"}</button></div> : <a className="lp-button lp-button-microsoft lp-demo-store-link" href={landingConfig.demoUrl(location)} target="_blank" rel="noopener noreferrer"><MicrosoftStoreMark /><span><small>Descargar gratis desde</small>Microsoft Store</span></a>}
+          {isMobileDevice() ? <div className="lp-demo-modal-actions"><div className="lp-demo-pc-notice"><MonitorDown /><p><strong>Continuá desde una PC</strong><span>Tienda360 es un programa para Windows 10 u 11 y no se instala en el celular. Enviate el enlace y abrí <b>www.tienda360.site</b> desde tu computadora.</span></p></div><a className="lp-button lp-button-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviarme el enlace por WhatsApp</a><button className="lp-button lp-button-outline" type="button" onClick={copyLink}><Copy /> {copied ? "Enlace copiado ✓" : "Copiar www.tienda360.site"}</button></div> : <a className="lp-button lp-button-microsoft lp-demo-store-link" href={landingConfig.demoUrl(location)} target="_blank" rel="noopener noreferrer"><MicrosoftStoreMark /><span><small>Descargar gratis desde</small>Microsoft Store</span></a>}
         </div>}
       </section>
     </div> : null}
