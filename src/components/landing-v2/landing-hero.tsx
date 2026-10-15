@@ -17,7 +17,7 @@ export function LandingHero() {
             <TrackedLink className="lp-button lp-button-mercadolibre" href={landingConfig.purchaseUrl("hero")} target="_blank" rel="noopener noreferrer" event="mercadolibre_clicked" location="hero"><MercadoLibreMark /><span><small>Compra directa en</small>Mercado Libre</span></TrackedLink>
           </div>
           <div className="lp-demo-access"><div><strong>Demo oficial y segura</strong><span>Aplicación certificada por Microsoft · Instalación sencilla</span></div><dl><div><dt>Usuario</dt><dd>{landingConfig.demoUser}</dd></div><div><dt>Contraseña</dt><dd>{landingConfig.demoPassword}</dd></div></dl></div>
-          <p className="lp-note"><strong>Para PC con Windows 10 u 11.</strong> La demo es exclusivamente para probar el sistema. Si comprás la licencia, incluimos instalación, capacitación y soporte por WhatsApp de 10 a 18 h.</p>
+          <p className="lp-note"><strong>Para PC con Windows 10 u 11.</strong> La demo es exclusivamente para probar el sistema. Si comprás la licencia, incluimos instalación, capacitación y soporte técnico por WhatsApp de lunes a viernes de 9 a 18 h.</p>
         </div>
         <TicketAnimation />
       </div>
