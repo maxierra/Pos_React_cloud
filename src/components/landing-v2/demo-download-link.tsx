@@ -32,6 +32,7 @@ function isMobileDevice() {
 
 export function DemoDownloadLink({ location, children, onClick, ...props }: Props) {
   const [open, setOpen] = useState(false);
+  const [mobileNotice, setMobileNotice] = useState(false);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -67,11 +68,11 @@ export function DemoDownloadLink({ location, children, onClick, ...props }: Prop
   async function copyLink() { await navigator.clipboard.writeText(LANDING_URL); setCopied(true); }
 
   return <>
-    <a {...props} onClick={(event) => { event.preventDefault(); setOpen(true); setSent(false); setError(""); trackFunnelEvent("qualification_started", { location }); onClick?.(event); }}>{children}</a>
+    <a {...props} onClick={(event) => { event.preventDefault(); const mobile = isMobileDevice(); setMobileNotice(mobile); setOpen(true); setSent(false); setError(""); trackFunnelEvent(mobile ? "hero_cta_click" : "qualification_started", { location, action: mobile ? "mobile_notice" : "open_form" }); onClick?.(event); }}>{children}</a>
     {open ? <div className="lp-demo-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <section className="lp-demo-modal lp-demo-form-modal" role="dialog" aria-modal="true" aria-labelledby="demo-title">
         <button ref={closeButton} className="lp-demo-modal-close" type="button" onClick={() => setOpen(false)} aria-label="Cerrar"><X /></button>
-        {!sent ? <><span className="lp-demo-modal-icon" aria-hidden="true"><MonitorDown /></span><p className="lp-kicker">Demo gratuita</p><h2 id="demo-title">Probá Tienda360</h2><p>Dejanos estos datos para darte acceso y ayudarte si tenés alguna duda.</p>
+        {mobileNotice ? <div className="lp-demo-success"><span className="lp-demo-modal-icon lp-demo-mobile-icon" aria-hidden="true"><MonitorDown /></span><p className="lp-kicker">Aplicación para computadora</p><h2 id="demo-title">Continuá desde una PC con Windows</h2><p>Tienda360 no se instala en el celular. Abrí <strong>www.tienda360.site</strong> desde una PC con Windows 10 u 11 para completar tus datos y descargar la demo.</p><div className="lp-demo-modal-actions"><a className="lp-button lp-button-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviarme el enlace por WhatsApp</a><button className="lp-button lp-button-outline" type="button" onClick={copyLink}><Copy /> {copied ? "Enlace copiado ✓" : "Copiar www.tienda360.site"}</button></div></div> : !sent ? <><span className="lp-demo-modal-icon" aria-hidden="true"><MonitorDown /></span><p className="lp-kicker">Demo gratuita</p><h2 id="demo-title">Probá Tienda360</h2><p>Dejanos estos datos para darte acceso y ayudarte si tenés alguna duda.</p>
           <form className="lp-demo-lead-form" onSubmit={submit}>
             <div className="lp-demo-fields"><label>Nombre<input name="fullName" autoComplete="name" required minLength={2} /></label><label>WhatsApp<input name="whatsapp" inputMode="tel" autoComplete="tel" placeholder="Ej. 11 2345 6789" required /></label><label>Tipo de comercio<select name="businessType" defaultValue="" required><option value="" disabled>Elegí una opción</option>{BUSINESS_TYPES.map(type => <option key={type}>{type}</option>)}</select></label></div>
             <fieldset><legend>¿Tenés PC con Windows 10 u 11?</legend><p>Necesita 4 GB de RAM; recomendamos 8 GB.</p><div className="lp-demo-options">{PC_OPTIONS.map(([value, label]) => <label key={value}><input type="radio" name="pcStatus" value={value} required /><span>{label}</span></label>)}</div></fieldset>
