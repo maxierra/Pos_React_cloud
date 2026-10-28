@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 
 import { ClientesClient, type ClienteRow } from "@/app/app/(main)/clientes/clientes-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { createClient } from "@/lib/supabase/server";
 
 function toNum(v: unknown) {
@@ -35,48 +34,27 @@ export default async function ClientesPage() {
 
   const supabase = await createClient();
 
-  const [{ data: customers }, { data: ccSales }, { data: payments }] = await Promise.all([
-    supabase
-      .from("business_customers")
-      .select("id,name,phone,email,address,credit_limit")
-      .eq("business_id", businessId)
-      .order("name", { ascending: true }),
-    supabase
-      .from("sales")
-      .select("customer_id,total,payment_method,payment_details")
-      .eq("business_id", businessId)
-      .eq("status", "paid")
-      .not("customer_id", "is", null),
-    supabase.from("customer_account_payments").select("customer_id,amount").eq("business_id", businessId),
-  ]);
+  const { data: customers, error: customersError } = await supabase
+    .from("business_customers")
+    .select("id,name,phone,email,address,credit_limit")
+    .eq("business_id", businessId)
+    .order("name", { ascending: true });
 
-  const charges = new Map<string, number>();
-  for (const s of ccSales ?? []) {
-    const id = String((s as { customer_id: string | null }).customer_id ?? "");
-    if (!id) continue;
-    const row = s as { payment_method: string; payment_details?: unknown; total: unknown };
-    const ccAmount = saleCuentaCorrienteAmount({
-      paymentMethod: row.payment_method,
-      paymentDetails: row.payment_details,
-      total: row.total as number | string | null | undefined,
-    });
-    if (ccAmount <= 0) continue;
-    charges.set(id, (charges.get(id) ?? 0) + ccAmount);
-  }
+  if (customersError) throw customersError;
 
-  const pays = new Map<string, number>();
-  for (const p of payments ?? []) {
-    const id = String((p as { customer_id: string }).customer_id ?? "");
-    if (!id) continue;
-    pays.set(id, (pays.get(id) ?? 0) + toNum((p as { amount: unknown }).amount));
-  }
+  const balances = await Promise.all(
+    (customers ?? []).map(async (customer) => {
+      const { data, error } = await supabase.rpc("customer_balance", { p_customer_id: customer.id });
+      if (error) throw error;
+      return [customer.id, toNum(data)] as const;
+    })
+  );
+  const balancesByCustomer = new Map(balances);
 
   const rows: ClienteRow[] = (customers ?? []).map((c: Record<string, unknown>) => {
     const id = String(c.id ?? "");
-    const ch = charges.get(id) ?? 0;
-    const py = pays.get(id) ?? 0;
     const creditLimit = toNum(c.credit_limit);
-    const balance = Math.round((ch - py + Number.EPSILON) * 100) / 100;
+    const balance = balancesByCustomer.get(id) ?? 0;
     const available = Math.max(0, Math.round((creditLimit - balance + Number.EPSILON) * 100) / 100);
     return {
       id,

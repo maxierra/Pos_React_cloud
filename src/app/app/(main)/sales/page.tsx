@@ -18,6 +18,7 @@ type SaleRow = {
   status: string;
   created_at: string;
   cash_register_id: string | null;
+  customer_id: string | null;
 };
 
 type DisplaySaleRow = {
@@ -28,6 +29,7 @@ type DisplaySaleRow = {
   status: string;
   total: string | number;
   cash_register_id: string | null;
+  customer_id: string | null;
   isSplit?: boolean;
   isSplitFirst?: boolean;
   matchedProducts?: string[];
@@ -64,6 +66,7 @@ function expandSalesRows(sales: SaleRow[]): DisplaySaleRow[] {
             status: s.status,
             total: part.amount,
             cash_register_id: s.cash_register_id,
+            customer_id: s.customer_id,
             isSplit: true,
             isSplitFirst: idx === 0,
           });
@@ -80,6 +83,7 @@ function expandSalesRows(sales: SaleRow[]): DisplaySaleRow[] {
       status: s.status,
       total: s.total,
       cash_register_id: s.cash_register_id,
+      customer_id: s.customer_id,
     });
   }
 
@@ -206,7 +210,7 @@ export default async function SalesPage({
 
   let query = supabase
     .from("sales")
-    .select("id,total,payment_method,payment_details,status,created_at,cash_register_id")
+    .select("id,total,payment_method,payment_details,status,created_at,cash_register_id,customer_id")
     .eq("business_id", businessId);
 
   if (filterDate) {
@@ -247,6 +251,24 @@ export default async function SalesPage({
   const sales = (salesData ?? []) as SaleRow[];
   const turns = (turnsData ?? []) as CashRegisterOption[];
   const saleIds = sales.map((sale) => sale.id);
+  const customerIds = Array.from(
+    new Set(sales.map((sale) => sale.customer_id).filter((id): id is string => Boolean(id)))
+  );
+  const customersById = new Map<string, string>();
+
+  if (customerIds.length > 0) {
+    const { data: customersData, error: customersError } = await supabase
+      .from("business_customers")
+      .select("id,name")
+      .eq("business_id", businessId)
+      .in("id", customerIds);
+
+    if (customersError) throw customersError;
+    for (const customer of customersData ?? []) {
+      customersById.set(String(customer.id), String(customer.name));
+    }
+  }
+
   let matchedProductsBySaleId = new Map<string, string[]>();
 
   if (filterProduct && saleIds.length > 0) {
@@ -319,6 +341,10 @@ export default async function SalesPage({
         "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium " +
         methodBadgeClass(row.payment_method),
       splitSummary,
+      customerName:
+        row.payment_method === "cuenta_corriente" && row.customer_id
+          ? customersById.get(row.customer_id) ?? null
+          : null,
       statusLabel,
       statusClassName:
         "inline-flex items-center rounded-lg border px-2 py-1 text-[11px] font-medium " +

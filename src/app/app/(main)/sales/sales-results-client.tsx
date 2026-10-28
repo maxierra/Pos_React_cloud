@@ -38,6 +38,7 @@ export type SalesDisplayRow = {
   saleId: string;
   canVoid: boolean;
   splitSummary?: string | null;
+  customerName?: string | null;
 };
 
 function moneyAr(value: number) {
@@ -173,6 +174,11 @@ export function SalesResultsClient({
                                 {row.splitSummary ? (
                                   <div className="max-w-[280px] text-[11px] leading-snug text-muted-foreground">
                                     {row.splitSummary}
+                                  </div>
+                                ) : null}
+                                {row.paymentLabel === "Cuenta corriente" ? (
+                                  <div className="max-w-[220px] text-[11px] leading-snug text-muted-foreground">
+                                    Cliente: <span className="font-medium text-foreground">{row.customerName ?? "Sin identificar"}</span>
                                   </div>
                                 ) : null}
                               </div>
