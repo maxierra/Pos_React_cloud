@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { BusinessPaymentMethodRow } from "@/lib/business-payment-methods";
-import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
 import { normalizeBusinessType } from "@/lib/business-types";
 import { isMissingOnboardingColumnError } from "@/lib/onboarding-column";
 import type { ScaleBarcodeMode } from "@/lib/scale-barcode";
@@ -207,45 +206,30 @@ export default async function PosPage({
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
-  const [{ data: customerRows }, { data: ccSales }, { data: capPayments }] = await Promise.all([
+  const [{ data: customerRows }, { data: customerBalanceRows, error: customerBalancesError }] = await Promise.all([
     supabase
       .from("business_customers")
       .select("id,name,credit_limit")
       .eq("business_id", businessId)
       .order("name", { ascending: true }),
-    supabase
-      .from("sales")
-      .select("customer_id,total,payment_method,payment_details")
-      .eq("business_id", businessId)
-      .eq("status", "paid")
-      .not("customer_id", "is", null),
-    supabase.from("customer_account_payments").select("customer_id,amount").eq("business_id", businessId),
+    supabase.rpc("business_customer_balances", { p_business_id: businessId }),
   ]);
 
-  const charges = new Map<string, number>();
-  for (const s of ccSales ?? []) {
-    const id = String((s as { customer_id: string | null }).customer_id ?? "");
-    if (!id) continue;
-    const row = s as { payment_method: string; payment_details?: unknown; total: unknown };
-    const ccAmount = saleCuentaCorrienteAmount({
-      paymentMethod: row.payment_method,
-      paymentDetails: row.payment_details,
-      total: row.total as number | string | null | undefined,
-    });
-    if (ccAmount <= 0) continue;
-    charges.set(id, (charges.get(id) ?? 0) + ccAmount);
+  if (customerBalancesError) {
+    throw new Error(`customer_balances: ${customerBalancesError.message}`);
   }
-  const pays = new Map<string, number>();
-  for (const p of capPayments ?? []) {
-    const id = String((p as { customer_id: string }).customer_id ?? "");
+
+  const balances = new Map<string, number>();
+  for (const row of customerBalanceRows ?? []) {
+    const id = String((row as { customer_id: string }).customer_id ?? "");
     if (!id) continue;
-    pays.set(id, (pays.get(id) ?? 0) + toNum((p as { amount: unknown }).amount));
+    balances.set(id, toNum((row as { balance: unknown }).balance));
   }
 
   const posCustomers: PosCustomerCredit[] = ((customerRows ?? []) as Record<string, unknown>[]).map((c) => {
     const id = String(c.id ?? "");
     const creditLimit = toNum(c.credit_limit);
-    const balance = Math.round(((charges.get(id) ?? 0) - (pays.get(id) ?? 0) + Number.EPSILON) * 100) / 100;
+    const balance = Math.round(((balances.get(id) ?? 0) + Number.EPSILON) * 100) / 100;
     const available = Math.max(0, Math.round((creditLimit - balance + Number.EPSILON) * 100) / 100);
     return {
       id,

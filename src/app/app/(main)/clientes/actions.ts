@@ -100,6 +100,7 @@ async function recordCustomerPaymentImpl(input: {
 
   revalidatePath("/app/clientes");
   revalidatePath("/app/cash");
+  revalidatePath("/app/pos");
 }
 
 async function updateCustomerPaymentImpl(input: {
@@ -134,6 +135,7 @@ async function updateCustomerPaymentImpl(input: {
   revalidatePath("/app/clientes");
   revalidatePath(`/app/clientes/${input.customer_id}`);
   revalidatePath("/app/cash");
+  revalidatePath("/app/pos");
 }
 
 export const saveCustomer = createMonitoredAction(saveCustomerImpl, "clientes/saveCustomer");
