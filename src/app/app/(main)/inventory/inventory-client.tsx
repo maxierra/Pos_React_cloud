@@ -18,7 +18,7 @@ export type InventoryProductRow = {
   scale_code: string | null;
   category: string | null;
   price: string | number;
-  cost: string | number;
+  cost: string | number | null;
   sold_by_weight: boolean;
   stock: number;
   stock_decimal: string | number;
@@ -59,6 +59,14 @@ function formatDateAr(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return new Intl.DateTimeFormat("es-AR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+function moneyAr(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export function InventoryClient({ products }: Props) {
@@ -121,12 +129,31 @@ export function InventoryClient({ products }: Props) {
       if (d == null) return false;
       return d >= 0 && d <= expDays;
     });
+    let inventoryCostValue = 0;
+    let productsWithoutCost = 0;
+
+    for (const product of allActive) {
+      const stock = Math.max(
+        0,
+        product.sold_by_weight ? toNumber(product.stock_decimal) : toNumber(product.stock)
+      );
+      if (stock <= 0) continue;
+
+      const cost = toNumber(product.cost);
+      if (product.cost == null || cost <= 0) {
+        productsWithoutCost += 1;
+        continue;
+      }
+      inventoryCostValue += stock * cost;
+    }
 
     return {
       products: allActive.length,
       low: low.length,
       expired: expired.length,
       expSoon: expSoon.length,
+      inventoryCostValue,
+      productsWithoutCost,
     };
   }, [products, expiringDays]);
 
@@ -164,7 +191,21 @@ export function InventoryClient({ products }: Props) {
 
   return (
     <div className="mt-6 grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <Card className="border-sky-500/25 bg-sky-500/5 sm:col-span-2 lg:col-span-1 xl:col-span-1">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-sky-700/80 dark:text-sky-300">Mercadería disponible al costo</CardDescription>
+            <CardTitle className="text-2xl text-sky-800 dark:text-sky-200">
+              {moneyAr(totals.inventoryCostValue)}
+            </CardTitle>
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Costo × stock disponible de productos activos.
+              {totals.productsWithoutCost > 0
+                ? ` No incluye ${totals.productsWithoutCost} producto${totals.productsWithoutCost === 1 ? "" : "s"} con stock y sin costo cargado.`
+                : ""}
+            </p>
+          </CardHeader>
+        </Card>
         <Card className="border-emerald-500/25 bg-emerald-500/5">
           <CardHeader className="pb-2">
             <CardDescription className="text-emerald-700/80 dark:text-emerald-300">Productos activos</CardDescription>
