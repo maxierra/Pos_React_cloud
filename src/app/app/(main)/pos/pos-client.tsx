@@ -548,7 +548,10 @@ export function PosClient({
             !["button", "submit", "reset", "checkbox", "radio", "file"].includes(target.type)));
       const paymentNumberMatch = /^(?:Numpad|Digit)([1-9])$/.exec(e.code);
       if (!paymentOpen && paymentNumberMatch) {
-        if (isTextEntryTarget) {
+        const focusedWeightInput =
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.matches("[data-pos-weight-input='true']");
+        if (isTextEntryTarget || focusedWeightInput) {
           numpadPaymentArmedRef.current = false;
           return;
         }

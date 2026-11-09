@@ -310,6 +310,7 @@ export function CartPanel({
                           }
                         }}
                         type="number"
+                        data-pos-weight-input={item.sold_by_weight ? "true" : undefined}
                         step={item.sold_by_weight ? (isAmountMode ? 1 : 10) : 1}
                         inputMode={item.sold_by_weight ? "decimal" : "numeric"}
                         className={cn(
