@@ -19,7 +19,7 @@ type Props = {
 export function SearchBar({ inputRef, value, onChange, onKeyDown, className, placeholder }: Props) {
   return (
     <div className={cn("relative", className)}>
-      <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center gap-2 text-muted-foreground">
+      <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center gap-2 text-cyan-300">
         <Search className="size-4" />
       </div>
 
@@ -30,17 +30,16 @@ export function SearchBar({ inputRef, value, onChange, onKeyDown, className, pla
         onKeyDown={onKeyDown}
         placeholder={placeholder ?? "Buscar por nombre o escanear código de barras..."}
         className={cn(
-          "h-12 rounded-2xl bg-[var(--pos-surface-2)] pl-10 pr-4 text-base lg:pr-24",
-          "border border-[var(--pos-border)]",
-          "focus-visible:ring-3 focus-visible:ring-[var(--pos-glow)] focus-visible:border-[var(--pos-accent)]"
+          "h-10 rounded-xl border border-sky-300/35 bg-[#081a36]/55 pl-10 pr-4 text-sm text-white shadow-inner placeholder:text-blue-100/60 lg:h-12 lg:rounded-2xl lg:pr-24 lg:text-base",
+          "focus-visible:border-cyan-300/80 focus-visible:ring-3 focus-visible:ring-cyan-300/20 focus-visible:shadow-[0_0_26px_-8px_rgba(34,211,238,.7)]"
         )}
       />
 
       <div className="pointer-events-none absolute inset-y-0 right-3 hidden items-center gap-2 lg:flex">
-        <span className="rounded-lg border border-[var(--pos-border)] bg-[var(--pos-surface)] px-2 py-1 text-[11px] font-medium text-muted-foreground">
+        <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300">
           F2
         </span>
-        <div className="flex size-9 items-center justify-center rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface)] text-muted-foreground">
+        <div className="flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300">
           <Barcode className="size-4" />
         </div>
       </div>
