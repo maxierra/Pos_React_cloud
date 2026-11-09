@@ -158,6 +158,10 @@ async function getArcaClient(businessId: string, environment: FiscalEnvironment)
     key,
     cuit: numericCuit,
     production: environment === "prod",
+    // ARCA's SOAP endpoint may still negotiate a legacy DH group. The SDK's
+    // compatibility agent lowers the DH-size threshold while keeping
+    // certificate verification enabled.
+    useHttpsAgent: true,
     ticketStorage: new MemoryTicketStorage({
       cuit: numericCuit,
       production: environment === "prod",
