@@ -105,6 +105,7 @@ export type FiscalVoucherOption = {
 };
 
 export const VOUCHER_TYPE_LABELS: Record<number, string> = {
+  1: "Factura A",
   6: "Factura B",
   7: "Nota de Debito B",
   8: "Nota de Credito B",
@@ -133,6 +134,11 @@ export const MONOTRIBUTO_VOUCHER_OPTIONS: FiscalVoucherOption[] = [
 ];
 
 export const RESPONSABLE_INSCRIPTO_VOUCHER_OPTIONS: FiscalVoucherOption[] = [
+  {
+    type: 1,
+    label: "Factura A",
+    description: "Para clientes Responsable Inscripto con CUIT y condición fiscal compatible.",
+  },
   {
     type: 6,
     label: "Factura B",

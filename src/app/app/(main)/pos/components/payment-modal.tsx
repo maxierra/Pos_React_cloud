@@ -30,6 +30,9 @@ import type { FiscalCustomerData, FiscalCustomerTaxCondition, TaxCondition } fro
 type PaymentMethod = PosPaymentMethodCode;
 type PaymentMethodOrMixed = PaymentMethod | "mixed";
 
+// ARCA pide identificar al consumidor final en operaciones desde este importe.
+const FISCAL_CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+
 type TicketPreviewItem = {
   line_id: string;
   product_id: string | null;
@@ -556,8 +559,11 @@ export function PaymentModal({
   const riFiscalFlowEnabled = Boolean(fiscalConfig?.isActive && fiscalConfig.taxCondition === "ri");
   const facturaASuggested =
     riFiscalFlowEnabled &&
-    (fiscalCustomerTaxCondition === "ri" || fiscalCustomerTaxCondition === "monotributista");
-  const fiscalCustomerRequired = riFiscalFlowEnabled;
+    fiscalCustomerTaxCondition === "ri";
+  const fiscalCustomerRequired =
+    riFiscalFlowEnabled &&
+    (fiscalCustomerTaxCondition !== "consumidor_final" ||
+      finalTotal >= FISCAL_CONSUMER_IDENTIFICATION_THRESHOLD);
   const fiscalCustomerNameTrimmed = fiscalCustomerName.trim();
   const fiscalCustomerDocumentNumberTrimmed = fiscalCustomerDocumentNumber.trim();
   const fiscalCustomerReady =
@@ -596,7 +602,7 @@ export function PaymentModal({
       <AnimatePresence>
         {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#030817]/75 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#030817]/75 p-2 backdrop-blur-md sm:p-4"
           role="dialog"
           aria-modal="true"
           initial={{ opacity: 0 }}
@@ -607,13 +613,13 @@ export function PaymentModal({
           }}
         >
           <motion.div
-            className="w-full max-w-lg overflow-hidden rounded-3xl border border-blue-300/20 bg-[#101a2e] text-[#eaf2ff] shadow-[0_30px_90px_-28px_rgba(37,99,235,.65)] [--background:#0b1220] [--card:#101a2e] [--foreground:#eaf2ff] [--muted-foreground:#94a3b8] [--pos-surface:#101a2e] [--pos-surface-2:#17243a] [--pos-border:rgba(96,165,250,.24)]"
+            className="my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-blue-300/20 bg-[#101a2e] text-[#eaf2ff] shadow-[0_30px_90px_-28px_rgba(37,99,235,.65)] [--background:#0b1220] [--card:#101a2e] [--foreground:#eaf2ff] [--muted-foreground:#94a3b8] [--pos-surface:#101a2e] [--pos-surface-2:#17243a] [--pos-border:rgba(96,165,250,.24)]"
             initial={{ y: 16, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 16, opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.18 }}
           >
-            <div className="flex items-center justify-between border-b border-blue-300/15 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,.24),transparent_42%),linear-gradient(135deg,#152744,#111a2e)] px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-blue-300/15 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,.24),transparent_42%),linear-gradient(135deg,#152744,#111a2e)] px-4 py-3 sm:px-5 sm:py-4">
               <div className="flex items-center gap-3">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-950/40"><CreditCard className="size-5" /></span>
                 <div>
@@ -626,8 +632,8 @@ export function PaymentModal({
               </Button>
             </div>
 
-            <div className="flex flex-col max-h-[85vh]">
-              <div className="overflow-y-auto px-5 py-4">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-4">
                 <div className="relative overflow-hidden rounded-2xl border border-emerald-400/25 bg-[radial-gradient(circle_at_50%_120%,rgba(57,255,20,.18),transparent_52%),linear-gradient(135deg,#0b1712,#10251b)] p-4 shadow-inner">
                   <div aria-hidden="true" className="absolute -right-8 -top-10 size-24 rounded-full border border-[#39ff14]/20" />
                   <div className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">Total a cobrar</div>
@@ -657,7 +663,7 @@ export function PaymentModal({
                   ) : null}
                 </div>
 
-                <div className="mt-3 rounded-2xl border border-blue-300/15 bg-[#17243a]/80 p-3 shadow-inner">
+                <div className="mt-3 rounded-2xl border border-blue-300/15 bg-[#17243a]/80 p-2.5 shadow-inner sm:p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -669,7 +675,7 @@ export function PaymentModal({
                       {printTicket ? "Impresión activa" : "Solo vista previa"}
                     </span>
                   </div>
-                  <div className="mx-auto max-w-sm rounded-lg border bg-white px-4 py-3 font-mono text-[11px] text-black shadow-sm">
+                  <div className="mx-auto max-w-sm rounded-lg border bg-white px-3 py-2.5 font-mono text-[10px] text-black shadow-sm sm:px-4 sm:py-3 sm:text-[11px]">
                     <div className="text-center">
                       <div className="font-bold">{business?.name ?? "Mi Negocio"}</div>
                       {business?.address ? <div>{business.address}</div> : null}
@@ -1001,17 +1007,17 @@ export function PaymentModal({
                 ) : null}
 
                 {riFiscalFlowEnabled ? (
-                  <div className="grid gap-3 rounded-xl border border-amber-400/30 bg-amber-50/70 p-4">
-                    <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-3 rounded-xl border border-blue-300/20 bg-[#121f35] p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.22em] text-amber-700">
+                        <div className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
                           Datos fiscales
                         </div>
-                        <p className="mt-1 text-xs text-amber-900/80">
-                          Cargalos antes de cobrar para dejar lista la emision fiscal del cliente.
+                        <p className="mt-1 text-xs leading-snug text-slate-400">
+                          Datos del receptor para el comprobante fiscal.
                         </p>
                       </div>
-                      <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-amber-700 shadow-sm">
+                      <div className="shrink-0 rounded-full border border-blue-300/20 bg-blue-400/10 px-2.5 py-1.5 text-[10px] font-semibold text-blue-100 sm:text-[11px]">
                         {facturaASuggested ? "Perfil para Factura A" : "Perfil para Factura B"}
                       </div>
                     </div>
@@ -1028,7 +1034,7 @@ export function PaymentModal({
                           setFiscalCustomerTaxCondition(next);
                           setFiscalCustomerDocumentType(next === "consumidor_final" ? "dni" : "cuit");
                         }}
-                        className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                       >
                         <option value="consumidor_final">Consumidor final</option>
                         <option value="monotributista">Monotributista</option>
@@ -1037,7 +1043,7 @@ export function PaymentModal({
                       </select>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-3 lg:grid-cols-2">
                       <div className="grid gap-1.5">
                         <Label htmlFor="fiscal-name" className="text-xs font-semibold">
                           Nombre o razon social
@@ -1047,7 +1053,7 @@ export function PaymentModal({
                           value={fiscalCustomerName}
                           onChange={(e) => setFiscalCustomerName(e.target.value)}
                           placeholder="Ej: Juan Perez o ACME SA"
-                          className="h-11"
+                          className="h-10 min-w-0"
                         />
                       </div>
 
@@ -1055,12 +1061,12 @@ export function PaymentModal({
                         <Label htmlFor="fiscal-document-type" className="text-xs font-semibold">
                           Documento
                         </Label>
-                        <div className="grid grid-cols-[120px_1fr] gap-2">
+                        <div className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] gap-2 sm:grid-cols-[120px_minmax(0,1fr)]">
                           <select
                             id="fiscal-document-type"
                             value={fiscalCustomerDocumentType}
                             onChange={(e) => setFiscalCustomerDocumentType(e.target.value as "dni" | "cuit")}
-                            className="h-11 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                            className="h-10 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:px-3"
                           >
                             <option value="dni">DNI</option>
                             <option value="cuit">CUIT</option>
@@ -1069,15 +1075,15 @@ export function PaymentModal({
                             value={fiscalCustomerDocumentNumber}
                             onChange={(e) => setFiscalCustomerDocumentNumber(e.target.value)}
                             placeholder={fiscalCustomerDocumentType === "cuit" ? "20XXXXXXXXX" : "30111222"}
-                            className="h-11"
+                            className="h-10 min-w-0"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-white/70 bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-slate-700">
+                    <div className="rounded-lg border border-slate-700 bg-[#0b1220] px-3 py-2 text-[11px] leading-relaxed text-slate-400">
                       {facturaASuggested
-                        ? "Este perfil queda preparado para probar Factura A en la siguiente etapa."
+                        ? "Se emitirá Factura A si está habilitada para este punto de venta; necesitás informar un CUIT válido."
                         : "Este perfil sigue el circuito comun de venta y comprobante al consumidor final."}
                     </div>
                   </div>
@@ -1113,7 +1119,7 @@ export function PaymentModal({
                 </div>
               </div>
 
-              <div className="border-t border-blue-300/15 bg-[#0b1220]/90 p-4 backdrop-blur-sm">
+              <div className="shrink-0 border-t border-blue-300/15 bg-[#0b1220]/95 p-3 backdrop-blur-sm sm:p-4">
                 <Button
                   ref={confirmButtonRef}
                   type="button"

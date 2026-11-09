@@ -9,12 +9,13 @@ export type VoucherItem = {
   unitPrice: number;
 };
 
+const VOUCHER_TYPE_FACTURA_A = 1;
 const VOUCHER_TYPE_FACTURA_B = 6;
 const VOUCHER_TYPE_NC_B = 8;
 const VOUCHER_TYPE_FACTURA_C = 11;
 const VOUCHER_TYPE_NC_C = 13;
 
-type SupportedFacturaType = 6 | 11;
+type SupportedFacturaType = 1 | 6 | 11;
 type SupportedCreditNoteType = 8 | 13;
 
 function formatAfipDate(d: Date): string {
@@ -27,6 +28,8 @@ function formatAfipDateDisplay(d: Date): string {
 
 function voucherTypeLabel(voucherType: number) {
   switch (voucherType) {
+    case VOUCHER_TYPE_FACTURA_A:
+      return "Factura A";
     case VOUCHER_TYPE_FACTURA_B:
       return "Factura B";
     case VOUCHER_TYPE_NC_B:
@@ -41,7 +44,7 @@ function voucherTypeLabel(voucherType: number) {
 }
 
 function assertSupportedFacturaType(voucherType?: number): SupportedFacturaType {
-  if (voucherType === VOUCHER_TYPE_FACTURA_B || voucherType === VOUCHER_TYPE_FACTURA_C) {
+  if (voucherType === VOUCHER_TYPE_FACTURA_A || voucherType === VOUCHER_TYPE_FACTURA_B || voucherType === VOUCHER_TYPE_FACTURA_C) {
     return voucherType;
   }
   return VOUCHER_TYPE_FACTURA_C;
@@ -54,7 +57,7 @@ function creditNoteTypeForInvoiceType(voucherType: number): SupportedCreditNoteT
 }
 
 function receiverVatConditionForVoucherType(voucherType: SupportedFacturaType | SupportedCreditNoteType) {
-  return voucherType === VOUCHER_TYPE_FACTURA_B || voucherType === VOUCHER_TYPE_NC_B ? 5 : 5;
+  return voucherType === VOUCHER_TYPE_FACTURA_A ? 1 : 5;
 }
 
 function digitsOnly(value: string | number) {
@@ -174,13 +177,19 @@ export async function issueFiscalVoucher(params: {
   const { afip, cuit } = await getAfipClient(params.businessId, params.environment);
   const pos = await getDefaultPos(params.businessId, params.environment);
   const voucherType = assertSupportedFacturaType(params.voucherType ?? fiscalConfig.default_voucher_type);
+  const buyerDocType = params.buyerDocType ?? 99;
+  const buyerDocNumber = params.buyerDocNumber ?? "0";
 
   const total = params.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const roundedTotal = Math.round(total * 100) / 100;
+  const isFacturaWithIva = voucherType === VOUCHER_TYPE_FACTURA_A || voucherType === VOUCHER_TYPE_FACTURA_B;
+  if (voucherType === VOUCHER_TYPE_FACTURA_A && (buyerDocType !== 80 || digitsOnly(buyerDocNumber).length !== 11)) {
+    throw new Error("Factura A requiere CUIT de 11 dígitos del cliente");
+  }
+  const netAmount = isFacturaWithIva ? Math.round((roundedTotal / 1.21) * 100) / 100 : roundedTotal;
+  const ivaAmount = isFacturaWithIva ? Math.round((roundedTotal - netAmount) * 100) / 100 : 0;
   const now = new Date();
   const issueDate = formatAfipDateDisplay(now);
-  const buyerDocType = params.buyerDocType ?? 99;
-  const buyerDocNumber = params.buyerDocNumber ?? "0";
 
   const voucherData = {
     CantReg: 1,
@@ -194,13 +203,14 @@ export async function issueFiscalVoucher(params: {
     CbteFch: formatAfipDate(now),
     ImpTotal: roundedTotal,
     ImpTotConc: 0,
-    ImpNeto: roundedTotal,
+    ImpNeto: netAmount,
     ImpOpEx: 0,
-    ImpIVA: 0,
+    ImpIVA: ivaAmount,
     ImpTrib: 0,
     MonId: "PES",
     MonCotiz: 1,
     CondicionIVAReceptorId: receiverVatConditionForVoucherType(voucherType),
+    ...(isFacturaWithIva ? { Iva: [{ Id: 5, BaseImp: netAmount, Importe: ivaAmount }] } : {}),
   };
 
   const result = await afip.ElectronicBilling.createNextVoucher(voucherData);

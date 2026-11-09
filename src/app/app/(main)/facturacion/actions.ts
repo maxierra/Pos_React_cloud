@@ -43,6 +43,22 @@ export async function emitFiscalVoucherForSale(params: {
   const defaultVoucherType =
     Number((config as { default_voucher_type?: number | null }).default_voucher_type) ||
     defaultFiscalVoucherTypeForTaxCondition(taxCondition);
+  const requestedVoucherType =
+    taxCondition === "ri" && params.fiscalCustomer?.taxCondition === "ri" && params.fiscalCustomer.documentType === "cuit"
+      ? 1
+      : defaultVoucherType;
+
+  let voucherType = defaultVoucherType;
+  if (requestedVoucherType === 1) {
+    const { data: pos } = await supabase
+      .from("fiscal_points_of_sale")
+      .select("voucher_types")
+      .eq("business_id", businessId)
+      .eq("environment", config.environment)
+      .eq("is_default", true)
+      .maybeSingle();
+    if (pos?.voucher_types?.includes(1)) voucherType = 1;
+  }
 
   try {
     const result = await issueFiscalVoucher({
@@ -50,7 +66,7 @@ export async function emitFiscalVoucherForSale(params: {
       environment: config.environment as "homolog" | "prod",
       saleId: params.saleId,
       items: params.items,
-      voucherType: defaultVoucherType,
+      voucherType,
       buyerDocType: fiscalDocumentTypeToAfipCode(params.fiscalCustomer),
       buyerDocNumber: params.fiscalCustomer?.documentNumber,
       buyerName: params.fiscalCustomer?.name,
@@ -63,7 +79,7 @@ export async function emitFiscalVoucherForSale(params: {
       business_id: businessId,
       environment: config.environment,
       sale_id: params.saleId,
-      voucher_type: defaultVoucherType,
+      voucher_type: voucherType,
       pos_number: 0,
       voucher_number: 0,
       issue_date: new Date().toISOString().slice(0, 10),

@@ -406,10 +406,9 @@ export function FiscalConfigForm({
             <span className="text-xs font-medium">Comprobantes habilitados</span>
             {activeTaxCondition === "ri" ? (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2 text-xs leading-relaxed text-emerald-950 dark:text-emerald-200">
-                <strong>Responsable inscripto:</strong> este punto de venta queda preparado para emitir
-                <strong> Factura A</strong> y <strong>Factura B</strong>.
+                <strong>Responsable inscripto:</strong> habilita en este punto de venta los comprobantes que selecciones.
                 <span className="block mt-1 text-emerald-900/80 dark:text-emerald-300/90">
-                  Factura A aplica cuando el cliente tiene condicion fiscal compatible. Factura B aplica para consumidor final.
+                  Factura A requiere CUIT y condición fiscal compatible. Factura B se usa para consumidor final.
                 </span>
               </div>
             ) : null}
