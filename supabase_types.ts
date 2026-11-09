@@ -90,6 +90,7 @@ export interface Database {
           icon_url: string | null
           is_active: boolean
           sort_order: number
+          surcharge_percent: number
           created_at: string
           updated_at: string
         }
@@ -102,6 +103,7 @@ export interface Database {
           icon_url?: string | null
           is_active?: boolean
           sort_order?: number
+          surcharge_percent?: number
           created_at?: string
           updated_at?: string
         }
@@ -114,6 +116,7 @@ export interface Database {
           icon_url?: string | null
           is_active?: boolean
           sort_order?: number
+          surcharge_percent?: number
           created_at?: string
           updated_at?: string
         }

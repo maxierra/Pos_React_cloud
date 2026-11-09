@@ -64,6 +64,11 @@ export type TicketData = {
     total_before: number;
     total_after: number;
   } | null;
+  surcharge?: {
+    method: "card";
+    percent: number;
+    amount: number;
+  } | null;
 };
 
 function escapeHtml(value: string) {
@@ -122,6 +127,7 @@ export function formatSaleTicketPlainText(data: TicketData): string {
     kind,
     created_at,
     promotion,
+    surcharge,
   } = data;
   const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
   const fiscalNumber = data.fiscal
@@ -170,13 +176,16 @@ export function formatSaleTicketPlainText(data: TicketData): string {
 
   const promo = promotion && promotion.amount > 0 ? promotion : null;
   const baseTotal = promo ? promo.total_before : total;
-  const finalTotal = promo ? promo.total_after : total;
+  const finalTotal = total;
   const change = cashReceived ? Math.max(0, cashReceived - finalTotal) : 0;
 
   lines.push(PLAIN_SEP);
   if (promo) {
     lines.push(`Subtotal: $${baseTotal.toFixed(2)}`);
     lines.push(`Promo ${promo.name} (${promo.percent.toFixed(1)}%): -$${promo.amount.toFixed(2)}`);
+  }
+  if (surcharge && surcharge.amount > 0) {
+    lines.push(`Recargo tarjeta (${surcharge.percent.toFixed(2).replace(/\.00$/, "")}%): +$${surcharge.amount.toFixed(2)}`);
   }
   lines.push(`TOTAL: $${finalTotal.toFixed(2)}`);
   if (paymentMethod) {
@@ -227,6 +236,7 @@ export function generateTicketHtml(data: TicketData) {
     created_at,
     closureData,
     promotion,
+    surcharge,
     fiscal,
   } = data;
   const printedAt = created_at ? new Date(created_at).toLocaleString("es-AR") : new Date().toLocaleString("es-AR");
@@ -246,7 +256,7 @@ export function generateTicketHtml(data: TicketData) {
 
   const promo = promotion && promotion.amount > 0 ? promotion : null;
   const baseTotal = promo ? promo.total_before : total;
-  const finalTotal = promo ? promo.total_after : total;
+  const finalTotal = total;
   const change = cashReceived ? Math.max(0, cashReceived - finalTotal) : 0;
   const fiscalNumber = fiscal
     ? `${String(fiscal.posNumber).padStart(4, "0")}-${String(fiscal.voucherNumber).padStart(8, "0")}`
@@ -388,6 +398,14 @@ export function generateTicketHtml(data: TicketData) {
         }
       </div>
       `
+          : ""
+      }
+      ${
+        surcharge && surcharge.amount > 0
+          ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:#d97706;">
+          <span>Recargo tarjeta (${surcharge.percent.toFixed(2).replace(/\.00$/, "")}%)</span>
+          <span>+$${surcharge.amount.toFixed(2)}</span>
+        </div>`
           : ""
       }
     `}

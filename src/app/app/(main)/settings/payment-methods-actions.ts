@@ -15,6 +15,7 @@ export type PaymentMethodPayload = {
   icon_url: string;
   is_active: boolean;
   sort_order: number;
+  surcharge_percent: number;
 };
 
 export async function createPaymentMethod(input: {
@@ -69,8 +70,9 @@ export async function createPaymentMethod(input: {
       icon_url: null,
       is_active: true,
       sort_order: nextOrder,
+      surcharge_percent: 0,
     })
-    .select("id, business_id, method_code, label, icon_key, icon_url, is_active, sort_order")
+    .select("id, business_id, method_code, label, icon_key, icon_url, is_active, sort_order, surcharge_percent")
     .single();
 
   if (error || !data) return { error: error?.message ?? "No se pudo crear el medio de pago." };
@@ -113,6 +115,7 @@ export async function savePaymentMethods(rows: PaymentMethodPayload[]): Promise<
     const icon_url = (r.icon_url ?? "").trim() || null;
     const icon_key = (r.icon_key ?? "banknote").trim() || "banknote";
     const sort_order = Number.isFinite(r.sort_order) ? Math.round(r.sort_order) : 0;
+    const surcharge_percent = Math.min(100, Math.max(0, Number(r.surcharge_percent) || 0));
 
     const { error } = await supabase
       .from("business_payment_methods")
@@ -122,6 +125,7 @@ export async function savePaymentMethods(rows: PaymentMethodPayload[]): Promise<
         icon_url,
         is_active: Boolean(r.is_active),
         sort_order,
+        surcharge_percent: surcharge_percent,
         updated_at: new Date().toISOString(),
       })
       .eq("id", r.id)

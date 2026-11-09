@@ -33,10 +33,9 @@ import { isAndroidUserAgent, printTicket as printTicketRawBt } from "@/utils/pri
 import { useIsMobilePos } from "@/hooks/use-is-mobile-pos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { BusinessType } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Bike, Columns3, History, NotebookPen, Save, ScanLine, Store, Tags, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeft, Bike, CheckCircle2, ChevronDown, Columns3, DollarSign, History, NotebookPen, Plus, Save, ScanLine, Store, Tags, UtensilsCrossed } from "lucide-react";
 import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 import { voucherTypeLabel, type FiscalCustomerData, type TaxCondition } from "@/features/billing/types";
 
@@ -154,6 +153,11 @@ export function PosClient({
   const cobrarGuideRef = React.useRef<HTMLDivElement>(null);
   const [pending, startTransition] = React.useTransition();
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [saleSuccess, setSaleSuccess] = React.useState<{
+    total: number;
+    paymentLabel: string;
+    saleId: string;
+  } | null>(null);
   const [scannerOpen, setScannerOpen] = React.useState(false);
   const [serviceMode, setServiceMode] = React.useState<"counter" | "delivery" | "tables">(() => {
     if (businessType !== "gastronomy") return "counter";
@@ -175,9 +179,18 @@ export function PosClient({
   const [serviceNotes, setServiceNotes] = React.useState("");
   const [serviceStatus, setServiceStatus] = React.useState<string>("delivery_new");
   const [notesModalOpen, setNotesModalOpen] = React.useState(false);
-  const [quickSaleOpen, setQuickSaleOpen] = React.useState(false);
   const [quickSaleCategoryId, setQuickSaleCategoryId] = React.useState<string>(quickSaleCategories[0]?.id ?? "");
   const [quickSaleAmount, setQuickSaleAmount] = React.useState("");
+  const quickSaleAmountRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (!saleSuccess) return;
+    const timeoutId = window.setTimeout(() => {
+      setSaleSuccess(null);
+      window.setTimeout(() => searchRef.current?.focus(), 0);
+    }, 2000);
+    return () => window.clearTimeout(timeoutId);
+  }, [saleSuccess]);
 
   /** When set, auto-open payment once cart loads for this table. */
   const [pendingPaymentForTable, setPendingPaymentForTable] = React.useState(false);
@@ -199,6 +212,11 @@ export function PosClient({
     sizes,
     filteredCount,
     visible,
+    paginated,
+    page: productPage,
+    totalPages: productTotalPages,
+    pageSize: productPageSize,
+    setPage: setProductPage,
     visibleCount,
     loadMore,
     findByBarcodeOrName,
@@ -210,6 +228,8 @@ export function PosClient({
   );
   const paymentLabelMap = React.useMemo(() => buildPaymentLabelMap(paymentMethodConfig), [paymentMethodConfig]);
   const defaultPaymentMethod = activePaymentMethods[0]?.method_code ?? "cash";
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState(defaultPaymentMethod);
+  const numpadPaymentArmedRef = React.useRef(false);
   const gastronomyModes = React.useMemo(
     () =>
       [
@@ -310,8 +330,7 @@ export function PosClient({
       duration: 900,
     });
     setQuickSaleAmount("");
-    setQuickSaleOpen(false);
-    searchRef.current?.focus();
+    window.setTimeout(() => quickSaleAmountRef.current?.focus(), 0);
   }, [cart, parseQuickSaleAmount, quickSaleAmount, quickSaleCategoryId, quickSaleCategories]);
 
   const loadOrderIntoCart = React.useCallback(
@@ -520,6 +539,30 @@ export function PosClient({
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const paymentNumberMatch = /^(?:Numpad|Digit)([1-9])$/.exec(e.code);
+      if (!paymentOpen && paymentNumberMatch) {
+        const shortcutIndex = Number(paymentNumberMatch[1]) - 1;
+        const shortcutMethod =
+          shortcutIndex < activePaymentMethods.length
+            ? activePaymentMethods[shortcutIndex]?.method_code
+            : shortcutIndex === activePaymentMethods.length
+              ? "mixed"
+              : null;
+        if (shortcutMethod) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setSelectedPaymentMethod(shortcutMethod);
+          numpadPaymentArmedRef.current = true;
+        }
+        return;
+      }
+      if (!paymentOpen && e.key === "Enter" && numpadPaymentArmedRef.current) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        numpadPaymentArmedRef.current = false;
+        openPayment();
+        return;
+      }
       if (e.key === "F2") {
         e.preventDefault();
         searchRef.current?.focus();
@@ -529,15 +572,16 @@ export function PosClient({
         openPayment();
       }
       if (e.key === "Escape") {
+        numpadPaymentArmedRef.current = false;
         if (paymentOpen) {
           e.preventDefault();
           closePayment();
         }
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closePayment, openPayment, paymentOpen]);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [activePaymentMethods, closePayment, openPayment, paymentOpen]);
 
   React.useEffect(() => {
     searchRef.current?.focus();
@@ -901,6 +945,10 @@ export function PosClient({
             }
 
             const promo = (res as { promotion?: CheckoutPromotion | null }).promotion;
+            const chargedTotal = Number((res as { total?: number }).total);
+            const surcharge = (res as {
+              surcharge?: { method: "card"; percent: number; amount: number } | null;
+            }).surcharge;
             const fiscal = (res as { fiscal?: {
               voucherTypeLabel: string;
               posNumber: number;
@@ -923,7 +971,7 @@ export function PosClient({
                 kind: "sale" as const,
                 business,
                 items: cart.items,
-                total: promo?.total_after ?? cart.total,
+                total: Number.isFinite(chargedTotal) ? chargedTotal : promo?.total_after ?? cart.total,
                 saleId: res.saleId,
                 paymentMethod: p.payment_method,
                 paymentSplit: p.payment_details?.split
@@ -936,6 +984,7 @@ export function PosClient({
                 paymentMethodLabels: paymentLabelMap,
                 cashReceived: p.cash_received,
                 promotion: promo ?? null,
+                surcharge: surcharge ?? null,
                 fiscal: fiscal
                   ? {
                       voucherTypeLabel: fiscal.voucherTypeLabel,
@@ -963,7 +1012,7 @@ export function PosClient({
                       issue_date: new Date().toISOString().slice(0, 10),
                       buyer_name: customerName ?? "Consumidor Final",
                       buyer_doc_number: p.fiscal_customer?.documentNumber ?? "0",
-                      total: promo?.total_after ?? cart.total,
+                      total: Number.isFinite(chargedTotal) ? chargedTotal : promo?.total_after ?? cart.total,
                       cae: fiscal.cae,
                       cae_expires_at: fiscal.caeExpiresAt,
                       status: "approved",
@@ -993,6 +1042,11 @@ export function PosClient({
 
             cart.clear();
             closePayment();
+            setSaleSuccess({
+              total: Number.isFinite(chargedTotal) ? chargedTotal : promo?.total_after ?? cart.total,
+              paymentLabel: paymentLabelMap[p.payment_method] ?? (p.payment_method === "mixed" ? "Pago mixto" : p.payment_method),
+              saleId: res.saleId,
+            });
             const fiscalHint = fiscal
               ? ` · ${fiscal.voucherTypeLabel} ${fiscal.cae.slice(0, 8)}…`
               : "";
@@ -1193,7 +1247,7 @@ export function PosClient({
         title={cart.items.length > 0 ? "Cobrar la venta" : "Escaneá o buscá un producto"}
         description={
           cart.items.length > 0
-            ? "Tocá «Cobrar», elegí el medio de pago y confirmá el cobro. Con eso completás tu primera venta guiada."
+            ? "Elegí el medio de pago en las tarjetas y tocá «Cobrar» para revisar y confirmar la venta."
             : "Usá el buscador/escáner para agregar un producto al carrito. Después te guiamos al botón Cobrar."
         }
       />
@@ -1493,32 +1547,19 @@ export function PosClient({
               </div>
             )}
 
-            {/* Search + scan row */}
-            <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-stretch lg:gap-3">
-              {quickSaleCategories.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="order-1 h-14 w-full shrink-0 gap-2 rounded-2xl border-sky-500/30 bg-sky-500/5 text-base font-semibold hover:bg-sky-500/10 lg:order-3 lg:h-12 lg:w-auto lg:min-w-[10rem] lg:rounded-xl"
-                  onClick={() => setQuickSaleOpen(true)}
-                >
-                  <Tags className="size-5" />
-                  Agregar rubro
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                className="order-1 h-14 w-full shrink-0 gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10 lg:order-2 lg:h-12 lg:w-auto lg:min-w-[9rem] lg:rounded-xl"
-                onClick={() => setScannerOpen(true)}
-              >
-                <ScanLine className="size-5" />
-                {catalogMode ? "Escanear opcional" : "Escanear"}
-              </Button>
+            {/* Search + quick sale + scan row */}
+            <div
+              className={cn(
+                "grid w-full grid-cols-2 gap-2 lg:items-stretch lg:gap-3",
+                quickSaleCategories.length > 0
+                  ? "lg:grid-cols-[minmax(18rem,1fr)_minmax(22rem,auto)_auto]"
+                  : "lg:grid-cols-[minmax(18rem,1fr)_auto]"
+              )}
+            >
               <div
                 ref={searchGuideRef}
                 className={cn(
-                  "order-2 min-w-0 flex-1 lg:order-1",
+                  "order-1 col-span-2 min-w-0 lg:col-span-1",
                   posGuideActive &&
                     cart.items.length === 0 &&
                     "relative z-[82] rounded-2xl shadow-[0_0_0_4px_rgba(16,185,129,0.55),0_8px_40px_-8px_rgba(16,185,129,0.35)]"
@@ -1532,11 +1573,75 @@ export function PosClient({
                   placeholder={catalogMode ? "Buscar por nombre o categoría..." : undefined}
                 />
               </div>
+
+              {quickSaleCategories.length > 0 ? (
+                <div className="order-2 col-span-2 grid h-10 min-w-0 grid-cols-[minmax(0,1fr)_8rem_2.75rem] overflow-hidden rounded-xl border border-cyan-300/50 bg-blue-950/45 shadow-[0_8px_24px_-16px_rgba(34,211,238,.8)] lg:col-span-1 lg:h-12 lg:grid-cols-[minmax(9rem,1fr)_8rem_3rem]">
+                  <label className="relative min-w-0 border-r border-cyan-200/20">
+                    <Tags className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-cyan-300" />
+                    <span className="sr-only">Rubro</span>
+                    <select
+                      aria-label="Rubro para venta manual"
+                      className="h-full w-full cursor-pointer appearance-none truncate bg-transparent pl-9 pr-8 text-xs font-semibold text-blue-50 outline-none focus:bg-cyan-300/10 lg:text-sm"
+                      value={quickSaleCategoryId}
+                      onChange={(e) => setQuickSaleCategoryId(e.target.value)}
+                    >
+                      {quickSaleCategories.map((row) => (
+                        <option key={row.id} value={row.id} className="bg-slate-950 text-white">
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-cyan-300 drop-shadow-[0_0_5px_rgba(34,211,238,.75)]" strokeWidth={2.5} />
+                  </label>
+
+                  <label className="relative min-w-0 border-r border-cyan-200/20">
+                    <DollarSign className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-emerald-300" />
+                    <span className="sr-only">Importe manual</span>
+                    <Input
+                      ref={quickSaleAmountRef}
+                      inputMode="decimal"
+                      aria-label="Importe manual"
+                      placeholder="Importe"
+                      className="h-full rounded-none border-0 bg-transparent pl-7 pr-2 text-xs font-bold text-white shadow-none placeholder:text-blue-200/65 focus-visible:ring-0 lg:text-sm"
+                      value={quickSaleAmount}
+                      onChange={(e) => setQuickSaleAmount(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addQuickSaleToCart();
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Agregar importe manual a la venta"
+                    title="Agregar importe manual"
+                    className="h-full w-full rounded-none bg-cyan-400/10 text-cyan-200 hover:bg-cyan-300/25 hover:text-white"
+                    onClick={addQuickSaleToCart}
+                  >
+                    <Plus className="size-5" />
+                  </Button>
+                </div>
+              ) : null}
+
+              <Button
+                type="button"
+                variant="outline"
+                className="order-3 col-span-2 h-10 w-full shrink-0 gap-1.5 rounded-xl border-cyan-300/50 bg-blue-950/35 px-2 text-xs font-semibold text-cyan-100 shadow-[0_8px_24px_-16px_rgba(34,211,238,.8)] hover:bg-cyan-300/15 hover:text-white lg:col-span-1 lg:h-12 lg:w-auto lg:min-w-[9rem] lg:text-base"
+                onClick={() => setScannerOpen(true)}
+              >
+                <ScanLine className="size-5" />
+                {catalogMode ? "Escanear opcional" : "Escanear"}
+              </Button>
             </div>
           </div>
         }
         left={
-          <div>
+          <div className="flex h-full min-h-0 flex-col">
             {/* Gastronomy mode panel — hidden when a table is selected (compact bar in header handles it) */}
             {businessType === "gastronomy" && gastronomyModes.length > 0 && !(serviceMode === "tables" && selectedTableId) ? (
               <div className="mb-4 space-y-3 rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-3">
@@ -1618,14 +1723,18 @@ export function PosClient({
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="text-sm font-semibold">{catalogMode ? "Catálogo" : "Productos"}</div>
               <div className="text-xs text-muted-foreground">
-                Mostrando {visible.length} / {filteredCount}
+                Mostrando {Math.min((productPage - 1) * productPageSize + 1, filteredCount)}–{Math.min(productPage * productPageSize, filteredCount)} de {filteredCount}
               </div>
             </div>
             <ProductGrid
-              products={visible}
+              products={paginated}
               onAdd={addProduct}
               onLoadMore={loadMore}
-              hasMore={hasMore}
+              hasMore={false}
+              page={productPage}
+              totalPages={productTotalPages}
+              totalCount={filteredCount}
+              onPageChange={setProductPage}
               mode={catalogMode ? "catalog" : "table"}
               lastAddedProductId={cart.lastAddedProductId}
               onConsumeLastAdded={cart.consumeLastAdded}
@@ -1646,6 +1755,9 @@ export function PosClient({
               onSetQty={cart.setQty}
               onRemove={cart.remove}
               onOpenPayment={openPayment}
+              paymentMethods={activePaymentMethods}
+              selectedPaymentMethod={selectedPaymentMethod}
+              onSelectPaymentMethod={setSelectedPaymentMethod}
               onFocusScanner={() => searchRef.current?.focus()}
               lastAddedProductId={cart.lastAddedProductId}
             />
@@ -1653,71 +1765,6 @@ export function PosClient({
         }
       />
       )}
-
-      {quickSaleOpen ? (
-        <div
-          className="fixed inset-0 z-[58] flex items-center justify-center bg-black/50 p-4"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setQuickSaleOpen(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div>
-                <div className="text-base font-semibold tracking-tight">Agregar por rubro</div>
-                <div className="text-xs text-muted-foreground">Cargá un importe rápido sin código de producto.</div>
-              </div>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setQuickSaleOpen(false)}>
-                <X className="size-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="quick-sale-category">Rubro</Label>
-                <select
-                  id="quick-sale-category"
-                  className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={quickSaleCategoryId}
-                  onChange={(e) => setQuickSaleCategoryId(e.target.value)}
-                >
-                  {quickSaleCategories.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="quick-sale-amount">Importe</Label>
-                <Input
-                  id="quick-sale-amount"
-                  inputMode="decimal"
-                  placeholder="Ej: 12500"
-                  value={quickSaleAmount}
-                  onChange={(e) => setQuickSaleAmount(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addQuickSaleToCart();
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="button" className="flex-1" onClick={addQuickSaleToCart}>
-                  Agregar a la venta
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setQuickSaleOpen(false)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <BarcodeScanner
         open={scannerOpen}
@@ -1735,7 +1782,8 @@ export function PosClient({
         items={cart.items}
         business={business}
         pending={pending}
-        defaultMethod={defaultPaymentMethod}
+        defaultMethod={selectedPaymentMethod === "mixed" ? defaultPaymentMethod : selectedPaymentMethod}
+        preselectedMethod={selectedPaymentMethod}
         paymentMethodConfig={paymentMethodConfig}
         customers={posCustomers}
         mercadoPagoQrReady={mercadoPagoQrReady}
@@ -1744,6 +1792,36 @@ export function PosClient({
         onConfirm={onConfirmPayment}
         onMercadoPagoAutoPaid={onMercadoPagoAutoPaid}
       />
+
+      {saleSuccess ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-3xl border border-emerald-500/25 bg-card p-6 text-center shadow-2xl">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-9" strokeWidth={2.2} />
+            </div>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight">Venta exitosa</h2>
+            <p className="mt-1 text-sm text-muted-foreground">El cobro se registró correctamente.</p>
+            <div className="mt-5 rounded-2xl border bg-muted/30 px-4 py-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total cobrado</div>
+              <div className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                ${saleSuccess.total.toFixed(2)}
+              </div>
+              <div className="mt-2 text-sm font-medium">{saleSuccess.paymentLabel}</div>
+              <div className="mt-1 font-mono text-[10px] text-muted-foreground">Venta #{saleSuccess.saleId.slice(0, 8)}</div>
+            </div>
+            <Button
+              type="button"
+              className="mt-5 h-12 w-full rounded-xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+              onClick={() => {
+                setSaleSuccess(null);
+                window.setTimeout(() => searchRef.current?.focus(), 0);
+              }}
+            >
+              Nueva venta
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Notes modal for table orders */}
       {notesModalOpen && (

@@ -57,10 +57,12 @@ export type PosProduct = {
 };
 
 export function useProducts(products: PosProduct[]) {
+  const PAGE_SIZE = 12;
   const [query, setQueryState] = React.useState("");
   const [selectedCategory, setSelectedCategoryState] = React.useState("all");
   const [selectedSize, setSelectedSizeState] = React.useState("all");
   const [visibleCount, setVisibleCount] = React.useState(48);
+  const [page, setPageState] = React.useState(1);
 
   const searchTokens = React.useMemo(() => tokenizeSearchQuery(query), [query]);
   const hasSearchQuery = searchTokens.length > 0;
@@ -99,19 +101,32 @@ export function useProducts(products: PosProduct[]) {
   }, [products, hasSearchQuery, searchTokens, query, selectedCategory, selectedSize]);
 
   const visible = React.useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = React.useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  );
+
+  const setPage = React.useCallback((nextPage: number) => {
+    setPageState(Math.max(1, nextPage));
+  }, []);
 
   const setQuery = React.useCallback((value: string) => {
     setVisibleCount(48);
+    setPageState(1);
     setQueryState(value);
   }, []);
 
   const setSelectedCategory = React.useCallback((value: string) => {
     setVisibleCount(48);
+    setPageState(1);
     setSelectedCategoryState(value);
   }, []);
 
   const setSelectedSize = React.useCallback((value: string) => {
     setVisibleCount(48);
+    setPageState(1);
     setSelectedSizeState(value);
   }, []);
 
@@ -157,6 +172,11 @@ export function useProducts(products: PosProduct[]) {
     sizes,
     filteredCount: filtered.length,
     visible,
+    paginated,
+    page: currentPage,
+    totalPages,
+    pageSize: PAGE_SIZE,
+    setPage,
     visibleCount,
     loadMore,
     findByBarcodeOrName,

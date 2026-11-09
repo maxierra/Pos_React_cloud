@@ -106,7 +106,7 @@ export default async function SettingsPage() {
 
     const { data: pm } = await supabase
       .from("business_payment_methods")
-      .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order")
+      .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order,surcharge_percent")
       .eq("business_id", businessId)
       .order("sort_order", { ascending: true });
 

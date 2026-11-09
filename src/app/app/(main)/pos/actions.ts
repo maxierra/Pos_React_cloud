@@ -330,10 +330,28 @@ async function checkoutSaleImpl(input: {
     payment_method: input.payment_method,
   });
 
+  const netTotalBeforeSurcharge = Math.max(
+    0,
+    Math.round((totalBeforeDiscount - (appliedPromotion?.discountAmount ?? 0)) * 100) / 100
+  );
+  const { data: cardMethod } = await supabase
+    .from("business_payment_methods")
+    .select("surcharge_percent")
+    .eq("business_id", businessId)
+    .eq("method_code", "card")
+    .maybeSingle();
+  const cardSurchargePercent =
+    input.payment_method === "card"
+      ? Math.min(100, Math.max(0, Number(cardMethod?.surcharge_percent) || 0))
+      : 0;
+  const cardSurchargeAmount =
+    Math.round((netTotalBeforeSurcharge * cardSurchargePercent) + Number.EPSILON) / 100;
+
   const basePaymentDetails = (input.payment_details ?? null) as CheckoutPaymentDetails | null;
-  const promotionDetails = appliedPromotion
-    ? {
-        ...(basePaymentDetails ?? {}),
+  const checkoutDetails = {
+    ...(basePaymentDetails ?? {}),
+    ...(appliedPromotion
+      ? {
         promotion: {
           rule_id: appliedPromotion.ruleId,
           name: appliedPromotion.name,
@@ -344,13 +362,24 @@ async function checkoutSaleImpl(input: {
           total_after: Math.max(0, Math.round((totalBeforeDiscount - appliedPromotion.discountAmount) * 100) / 100),
         },
       }
-    : basePaymentDetails;
+      : {}),
+    ...(cardSurchargeAmount > 0
+      ? {
+          surcharge: {
+            method: "card",
+            percent: cardSurchargePercent,
+            amount: cardSurchargeAmount,
+            base_amount: netTotalBeforeSurcharge,
+          },
+        }
+      : {}),
+  };
 
   const { data, error } = await supabase.rpc("create_sale_with_items", {
     p_business_id: businessId,
     p_items: items,
     p_payment_method: input.payment_method,
-    p_payment_details: promotionDetails ?? null,
+    p_payment_details: Object.keys(checkoutDetails).length > 0 ? checkoutDetails : null,
     p_customer_id: input.customer_id ?? null,
   });
 
@@ -406,9 +435,7 @@ async function checkoutSaleImpl(input: {
   revalidatePath("/app/onboarding");
   revalidatePath("/app/facturacion");
 
-  const saleTotal = appliedPromotion
-    ? Math.max(0, Math.round((totalBeforeDiscount - appliedPromotion.discountAmount) * 100) / 100)
-    : items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+  const saleTotal = Math.round((netTotalBeforeSurcharge + cardSurchargeAmount) * 100) / 100;
 
   let fiscal: Awaited<ReturnType<typeof emitFiscalVoucherForSale>> = null;
 
@@ -449,6 +476,10 @@ async function checkoutSaleImpl(input: {
     documentOutputMode:
       ((fiscalConfig as { document_output_mode?: "ticket" | "factura" | null } | null)?.document_output_mode ??
         "factura") as "ticket" | "factura",
+    total: saleTotal,
+    surcharge: cardSurchargeAmount > 0
+      ? { method: "card", percent: cardSurchargePercent, amount: cardSurchargeAmount }
+      : null,
     promotion: appliedPromotion
       ? {
           name: appliedPromotion.name,

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import QRCode from "react-qr-code";
 
-import { Landmark, X } from "lucide-react";
+import { CreditCard, Landmark, X } from "lucide-react";
 
 import { previewPromotion } from "@/app/app/(main)/pos/actions";
 import { createMercadoPagoPosQr } from "@/app/app/(main)/pos/mp-qr-actions";
@@ -71,6 +71,8 @@ type Props = {
   business: TicketBusinessInfo;
   pending: boolean;
   defaultMethod?: PaymentMethod;
+  /** Medio elegido en la pantalla principal; evita volver a pedirlo en el modal. */
+  preselectedMethod?: PaymentMethodOrMixed;
   /** Todos los medios configurados (activos e inactivos); el modal usa los activos. */
   paymentMethodConfig: BusinessPaymentMethodRow[];
   /** Clientes del negocio (para venta en cuenta corriente). */
@@ -159,6 +161,7 @@ export function PaymentModal({
   business,
   pending,
   defaultMethod = "cash",
+  preselectedMethod,
   paymentMethodConfig,
   customers = [],
   mercadoPagoQrReady = false,
@@ -195,6 +198,8 @@ export function PaymentModal({
   const [receivedInput, setReceivedInput] = React.useState<string>(String(total));
   const received = React.useMemo(() => parseMoneyLoose(receivedInput), [receivedInput]);
   const receivedRef = React.useRef<HTMLInputElement | null>(null);
+  const confirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const transferConfirmButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const [mixed, setMixed] = React.useState(false);
   const [m1, setM1] = React.useState<PaymentMethod>(initialSplitMethod);
@@ -247,9 +252,9 @@ export function PaymentModal({
       return;
     }
     paymentModalWasOpenRef.current = true;
-    setMethod(null);
+    setMethod(preselectedMethod && preselectedMethod !== "mixed" ? preselectedMethod : null);
     setReceivedInput(String(total));
-    setMixed(false);
+    setMixed(preselectedMethod === "mixed");
     setM1(initialSplitMethod);
     setTransferConfirmOpen(false);
     setMpQrData(null);
@@ -273,7 +278,7 @@ export function PaymentModal({
     setFiscalCustomerDocumentNumber("");
     setPreviewOpen(false);
     setPendingPayload(null);
-  }, [open, total, activeSorted, initialSplitMethod]);
+  }, [open, total, activeSorted, initialSplitMethod, preselectedMethod]);
 
   const effectivePaymentMethod: PaymentMethodOrMixed = mixed ? "mixed" : method ?? "cash";
 
@@ -319,7 +324,10 @@ export function PaymentModal({
 
   const promo = promoPreview;
   const baseTotal = promo?.total_before ?? total;
-  const finalTotal = promo?.total_after ?? total;
+  const netTotal = promo?.total_after ?? total;
+  const cardSurchargePercent = Number(rowFor("card")?.surcharge_percent ?? 0);
+  const cardSurchargeAmount = !mixed && method === "card" ? round2((netTotal * cardSurchargePercent) / 100) : 0;
+  const finalTotal = round2(netTotal + cardSurchargeAmount);
 
   React.useEffect(() => {
     if (!open) return;
@@ -335,6 +343,31 @@ export function PaymentModal({
       receivedRef.current?.select();
     }, 0);
   }, [open, mixed, method]);
+
+  React.useEffect(() => {
+    if (!open || previewOpen || transferConfirmOpen) return;
+    const onEnterToConfirm = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      confirmButtonRef.current?.click();
+    };
+    window.addEventListener("keydown", onEnterToConfirm, { capture: true });
+    return () => window.removeEventListener("keydown", onEnterToConfirm, { capture: true });
+  }, [open, previewOpen, transferConfirmOpen]);
+
+  React.useEffect(() => {
+    if (!open || !transferConfirmOpen || !pendingPayload) return;
+    window.setTimeout(() => transferConfirmButtonRef.current?.focus(), 0);
+    const onEnterToConfirmTransfer = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      transferConfirmButtonRef.current?.click();
+    };
+    window.addEventListener("keydown", onEnterToConfirmTransfer, { capture: true });
+    return () => window.removeEventListener("keydown", onEnterToConfirmTransfer, { capture: true });
+  }, [open, pendingPayload, transferConfirmOpen]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -563,7 +596,7 @@ export function PaymentModal({
       <AnimatePresence>
         {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#030817]/75 p-4 backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           initial={{ opacity: 0 }}
@@ -574,16 +607,19 @@ export function PaymentModal({
           }}
         >
           <motion.div
-            className="w-full max-w-lg rounded-2xl border bg-card shadow-xl"
+            className="w-full max-w-lg overflow-hidden rounded-3xl border border-blue-300/20 bg-[#101a2e] text-[#eaf2ff] shadow-[0_30px_90px_-28px_rgba(37,99,235,.65)] [--background:#0b1220] [--card:#101a2e] [--foreground:#eaf2ff] [--muted-foreground:#94a3b8] [--pos-surface:#101a2e] [--pos-surface-2:#17243a] [--pos-border:rgba(96,165,250,.24)]"
             initial={{ y: 16, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 16, opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.18 }}
           >
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div>
-                <div className="text-sm font-semibold tracking-tight">Cobro</div>
-                <div className="text-xs text-muted-foreground">Confirmá el pago</div>
+            <div className="flex items-center justify-between border-b border-blue-300/15 bg-[radial-gradient(circle_at_15%_0%,rgba(59,130,246,.24),transparent_42%),linear-gradient(135deg,#152744,#111a2e)] px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-950/40"><CreditCard className="size-5" /></span>
+                <div>
+                  <div className="text-base font-bold tracking-tight text-white">Confirmar cobro</div>
+                  <div className="text-xs text-blue-200/70">Revisá el total y finalizá la venta</div>
+                </div>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={onClose}>
                 <X className="size-4" />
@@ -592,9 +628,10 @@ export function PaymentModal({
 
             <div className="flex flex-col max-h-[85vh]">
               <div className="overflow-y-auto px-5 py-4">
-                <div className="rounded-xl border bg-[var(--pos-surface-2)]/30 p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total a cobrar</div>
-                  <div className="mt-0.5 text-3xl font-bold tracking-tight text-[var(--pos-accent)]">
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-400/25 bg-[radial-gradient(circle_at_50%_120%,rgba(57,255,20,.18),transparent_52%),linear-gradient(135deg,#0b1712,#10251b)] p-4 shadow-inner">
+                  <div aria-hidden="true" className="absolute -right-8 -top-10 size-24 rounded-full border border-[#39ff14]/20" />
+                  <div className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300">Total a cobrar</div>
+                  <div className="relative mt-0.5 text-4xl font-black tracking-tight text-[#57ff35] drop-shadow-[0_0_14px_rgba(57,255,20,.55)]">
                     ${finalTotal.toFixed(2)}
                   </div>
                   {promo ? (
@@ -609,12 +646,91 @@ export function PaymentModal({
                       </div>
                     </div>
                   ) : null}
+                  {cardSurchargeAmount > 0 ? (
+                    <div className="mt-1 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
+                      <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
+                      <span>+${cardSurchargeAmount.toFixed(2)}</span>
+                    </div>
+                  ) : null}
                   {promoLoading ? (
                     <div className="mt-1 text-[10px] text-muted-foreground">Calculando promociones…</div>
                   ) : null}
                 </div>
 
+                <div className="mt-3 rounded-2xl border border-blue-300/15 bg-[#17243a]/80 p-3 shadow-inner">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        Vista previa del ticket
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Así se verá el detalle impreso</div>
+                    </div>
+                    <span className="rounded-full border border-blue-300/15 bg-[#0b1220] px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-200/70">
+                      {printTicket ? "Impresión activa" : "Solo vista previa"}
+                    </span>
+                  </div>
+                  <div className="mx-auto max-w-sm rounded-lg border bg-white px-4 py-3 font-mono text-[11px] text-black shadow-sm">
+                    <div className="text-center">
+                      <div className="font-bold">{business?.name ?? "Mi Negocio"}</div>
+                      {business?.address ? <div>{business.address}</div> : null}
+                      {business?.phone ? <div>Tel: {business.phone}</div> : null}
+                      {business?.ticket_header ? <div className="mt-1">{business.ticket_header}</div> : null}
+                    </div>
+                    <div className="my-2 border-b border-dashed border-black/50" />
+                    <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                      {items.map((item) => (
+                        <div key={item.line_id} className="flex items-start justify-between gap-3">
+                          <span className="min-w-0 flex-1 break-words">{item.name} x{item.quantity}</span>
+                          <span className="shrink-0">${round2(item.quantity * item.unit_price).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="my-2 border-b border-dashed border-black/50" />
+                    {promo ? (
+                      <>
+                        <div className="flex justify-between gap-3">
+                          <span>Subtotal</span>
+                          <span>${baseTotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span>Promo {promo.name}</span>
+                          <span>-${promo.amount.toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : null}
+                    {cardSurchargeAmount > 0 ? (
+                      <div className="flex justify-between gap-3">
+                        <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
+                        <span>+${cardSurchargeAmount.toFixed(2)}</span>
+                      </div>
+                    ) : null}
+                    <div className="mt-1 flex justify-between gap-3 border-t border-dashed border-black/50 pt-1 text-sm font-bold">
+                      <span>TOTAL</span>
+                      <span>${finalTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-1 flex justify-between gap-3">
+                      <span>Pago</span>
+                      <span>{resolveLabel(effectivePaymentMethod)}</span>
+                    </div>
+                    {!mixed && method === "cash" ? (
+                      <>
+                        <div className="mt-1 flex justify-between gap-3">
+                          <span>Recibido</span>
+                          <span>${received.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 font-bold">
+                          <span>Vuelto</span>
+                          <span>${change.toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : null}
+                    {business?.ticket_footer ? <div className="mt-3 text-center font-bold">{business.ticket_footer}</div> : null}
+                    <div className="mt-2 text-center">Gracias por su compra</div>
+                  </div>
+                </div>
+
                 <div className="mt-3 grid gap-2.5">
+                  {!preselectedMethod ? (
                   <div className="flex items-center justify-between rounded-xl border bg-background px-4 py-2.5">
                     <div>
                       <div className="text-sm font-medium">Pago mixto</div>
@@ -650,6 +766,7 @@ export function PaymentModal({
                     />
                   </button>
                 </div>
+                  ) : null}
 
                 {mixed ? (
                   <div className="grid gap-3 rounded-xl border bg-background p-4">
@@ -763,7 +880,7 @@ export function PaymentModal({
                       </div>
                     ) : null}
                   </div>
-                ) : (
+                ) : method === "cash" ? (
                 <div className="grid gap-2">
                   <Label htmlFor="received">Monto recibido</Label>
                   <Input
@@ -778,7 +895,7 @@ export function PaymentModal({
                     disabled={method !== "cash"}
                   />
                 </div>
-                )}
+                ) : null}
 
                   <div className="flex items-center justify-between rounded-xl border bg-background px-4 py-2.5">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Vuelto</div>
@@ -957,7 +1074,7 @@ export function PaymentModal({
                   </div>
                 ) : null}
 
-                <div className="grid gap-2">
+                {!preselectedMethod ? <div className="grid gap-2">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Método rápido</div>
                   <div
                     className={cn(
@@ -982,15 +1099,16 @@ export function PaymentModal({
                       </Button>
                     ))}
                   </div>
-                </div>
+                </div> : null}
 
                 </div>
               </div>
 
-              <div className="border-t p-4 bg-muted/5 backdrop-blur-sm">
+              <div className="border-t border-blue-300/15 bg-[#0b1220]/90 p-4 backdrop-blur-sm">
                 <Button
+                  ref={confirmButtonRef}
                   type="button"
-                  className="w-full h-12 text-base font-bold bg-[var(--pos-accent)] text-black hover:bg-[var(--pos-accent)]/80 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.1)] active:scale-[0.98]"
+                  className="h-13 w-full rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-violet-600 text-base font-extrabold text-white shadow-[0_12px_30px_-12px_rgba(59,130,246,.9)] transition-all hover:brightness-110 active:scale-[0.98]"
                   disabled={
                     pending ||
                     (mixed ? splitDiff !== 0 || amountExceedsTotal : false) ||
@@ -1026,10 +1144,23 @@ export function PaymentModal({
                     }
 
                     setPendingPayload(nextPayload);
-                    setPreviewOpen(true);
+                    if (payloadInvolvesTransfer(nextPayload)) {
+                      setTransferConfirmOpen(true);
+                      return;
+                    }
+                    if (mercadopagoAmountInPayload(nextPayload, finalTotal) > 0 && mercadoPagoQrReady) {
+                      setPreviewOpen(true);
+                      return;
+                    }
+                    onConfirm({
+                      ...nextPayload,
+                      print_ticket: printTicket,
+                      customer_id: payloadUsesCuentaCorriente(nextPayload) ? customerId || null : null,
+                      fiscal_customer: fiscalCustomerPayload,
+                    });
                   }}
                 >
-                  {pending ? "Procesando..." : "REVISAR Y COBRAR (ENTER)"}
+                  {pending ? "Procesando..." : "CONFIRMAR COBRO (ENTER)"}
                 </Button>
               </div>
             </div>
@@ -1112,6 +1243,15 @@ export function PaymentModal({
                       <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
                         <span>Promo: {promo.name} ({promo.percent.toFixed(1)}%)</span>
                         <span>−${promo.amount.toFixed(2)}</span>
+                      </div>
+                      <div className="my-1 border-b border-dashed" />
+                    </>
+                  ) : null}
+                  {cardSurchargeAmount > 0 ? (
+                    <>
+                      <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
+                        <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
+                        <span>+${cardSurchargeAmount.toFixed(2)}</span>
                       </div>
                       <div className="my-1 border-b border-dashed" />
                     </>
@@ -1322,7 +1462,7 @@ export function PaymentModal({
       </AnimatePresence>
 
       <AnimatePresence>
-        {open && previewOpen && transferConfirmOpen && pendingPayload ? (
+        {open && transferConfirmOpen && pendingPayload ? (
           <motion.div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
             role="dialog"
@@ -1362,6 +1502,7 @@ export function PaymentModal({
                   Revisar de nuevo
                 </Button>
                 <Button
+                  ref={transferConfirmButtonRef}
                   type="button"
                   className="bg-violet-600 text-white hover:bg-violet-700"
                   disabled={pending}

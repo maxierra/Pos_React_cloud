@@ -32,6 +32,7 @@ function toPayload(rows: BusinessPaymentMethodRow[]): PaymentMethodPayload[] {
     icon_url: r.icon_url ?? "",
     is_active: r.is_active,
     sort_order: r.sort_order,
+    surcharge_percent: r.surcharge_percent,
   }));
 }
 
@@ -170,7 +171,7 @@ export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) 
 
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_0_0_rgba(0,0,0,0.04)_inset] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed text-sm">
+          <table className="w-full min-w-[1080px] table-fixed text-sm">
             <thead>
               <tr className="border-b border-border/60 bg-gradient-to-r from-muted/80 via-muted/50 to-muted/30 text-left">
                 <th className="w-[72px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -181,6 +182,9 @@ export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) 
                 </th>
                 <th className="w-[210px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Nombre en el POS
+                </th>
+                <th className="w-[120px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recargo tarjeta
                 </th>
                 <th className="w-[250px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Ícono
@@ -234,6 +238,28 @@ export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) 
                       onChange={(e) => updateRow(r.id, { label: e.target.value })}
                       className="h-10 rounded-lg border-border/80 bg-background shadow-sm"
                     />
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    {r.method_code === "card" ? (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value={r.surcharge_percent}
+                          disabled={!canEdit}
+                          onChange={(e) =>
+                            updateRow(r.id, { surcharge_percent: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })
+                          }
+                          className="h-10 w-[5rem] rounded-lg border-border/80 bg-background text-right shadow-sm"
+                          aria-label="Porcentaje de recargo para tarjeta"
+                        />
+                        <span className="text-muted-foreground">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No aplica</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2.5">

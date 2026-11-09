@@ -10,6 +10,7 @@ export type BusinessPaymentMethodRow = {
   icon_url: string | null;
   is_active: boolean;
   sort_order: number;
+  surcharge_percent: number;
 };
 
 /** Opciones de ícono (Lucide) para el selector en configuración. */

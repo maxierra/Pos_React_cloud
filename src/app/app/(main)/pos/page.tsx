@@ -192,7 +192,7 @@ export default async function PosPage({
   await supabase.rpc("ensure_business_payment_methods", { p_business_id: businessId });
   const { data: pmRows } = await supabase
     .from("business_payment_methods")
-    .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order")
+    .select("id,business_id,method_code,label,icon_key,icon_url,is_active,sort_order,surcharge_percent")
     .eq("business_id", businessId)
     .order("sort_order", { ascending: true });
 
