@@ -46,12 +46,14 @@ type Props = {
   action: (formData: FormData) => void | Promise<void>;
   canEditPrice?: boolean;
   canEditStock?: boolean;
+  onDuplicateBarcode?: (barcode: string) => boolean;
 };
 
 export function ProductCreateMobileWizard({
   action,
   canEditPrice = true,
   canEditStock = true,
+  onDuplicateBarcode,
 }: Props) {
   const [step, setStep] = React.useState(1);
   const [scannerOpen, setScannerOpen] = React.useState(false);
@@ -74,6 +76,15 @@ export function ProductCreateMobileWizard({
   const [lowStockThresholdInput, setLowStockThresholdInput] = React.useState("50");
   const [stockDecimalInput, setStockDecimalInput] = React.useState("100");
   const [lowStockThresholdDecimalInput, setLowStockThresholdDecimalInput] = React.useState("50");
+
+  const rejectDuplicateBarcode = React.useCallback(
+    (raw: string) => {
+      if (!onDuplicateBarcode?.(raw)) return false;
+      setBarcodeInput("");
+      return true;
+    },
+    [onDuplicateBarcode]
+  );
 
   const [preloadLoading, setPreloadLoading] = React.useState(false);
   const [preload, setPreload] = React.useState<PreloadRow | null>(null);
@@ -231,6 +242,7 @@ export function ProductCreateMobileWizard({
   }, [cost, price, lastEdited]);
 
   const goNext = React.useCallback(() => {
+    if (step === 1 && rejectDuplicateBarcode(barcodeInput)) return;
     if (step === 2 && !nameInput.trim()) {
       toast.error("Falta el nombre del producto");
       return;
@@ -243,7 +255,7 @@ export function ProductCreateMobileWizard({
       }
     }
     setStep((s) => Math.min(STEPS, s + 1));
-  }, [step, nameInput, costInput, canEditPrice]);
+  }, [step, barcodeInput, rejectDuplicateBarcode, nameInput, costInput, canEditPrice]);
 
   const goBack = React.useCallback(() => setStep((s) => Math.max(1, s - 1)), []);
 
@@ -287,6 +299,7 @@ export function ProductCreateMobileWizard({
   ]);
 
   const handleSubmit = React.useCallback(() => {
+    if (rejectDuplicateBarcode(barcodeInput)) return;
     if (!nameInput.trim()) {
       toast.error("Falta el nombre");
       return;
@@ -299,7 +312,7 @@ export function ProductCreateMobileWizard({
         setSubmitting(false);
       }
     })();
-  }, [action, buildFormData, nameInput]);
+  }, [action, buildFormData, nameInput, barcodeInput, rejectDuplicateBarcode]);
 
   const stepTitle = ["", "Código de barras", "Nombre y tipo", "Precios", "Stock", "Últimos datos"];
 
@@ -362,6 +375,12 @@ export function ProductCreateMobileWizard({
                   id="wiz-barcode"
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && rejectDuplicateBarcode(e.currentTarget.value)) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   inputMode="numeric"
                   autoComplete="off"
                   placeholder="EAN / código"
@@ -661,6 +680,7 @@ export function ProductCreateMobileWizard({
         onDecoded={(raw) => {
           const code = raw.replace(/\s+/g, "").trim();
           if (!code) return true;
+          if (rejectDuplicateBarcode(code)) return false;
           setBarcodeInput(code);
           toast.success("Código leído", { duration: 1500 });
           return true;

@@ -49,6 +49,7 @@ type Props = {
   submitPulse?: boolean;
   modalDesign?: boolean;
   onCancel?: () => void;
+  onDuplicateBarcode?: (barcode: string) => boolean;
 };
 
 type PreloadProduct = {
@@ -122,6 +123,7 @@ export function ProductForm({
   submitPulse = false,
   modalDesign = false,
   onCancel,
+  onDuplicateBarcode,
 }: Props) {
   const isFashion = businessType === "fashion";
   const isGastronomy = businessType === "gastronomy";
@@ -162,6 +164,15 @@ export function ProductForm({
   const [preloadLoading, setPreloadLoading] = React.useState(false);
   const [preload, setPreload] = React.useState<PreloadProduct | null>(null);
   const lastAutoFilledEanRef = React.useRef<string | null>(null);
+
+  const rejectDuplicateBarcode = React.useCallback(
+    (raw: string) => {
+      if (!onDuplicateBarcode?.(raw)) return false;
+      setBarcodeInput("");
+      return true;
+    },
+    [onDuplicateBarcode]
+  );
 
   React.useEffect(() => {
     if (catalogStyle && soldByWeight) {
@@ -433,7 +444,13 @@ export function ProductForm({
         </div>
       ) : null}
 
-      <form action={action} className={cn("mt-5 grid gap-4", modalDesign && "product-modal-form")}>
+      <form
+        action={action}
+        onSubmitCapture={(event) => {
+          if (rejectDuplicateBarcode(barcodeInput)) event.preventDefault();
+        }}
+        className={cn("mt-5 grid gap-4", modalDesign && "product-modal-form")}
+      >
         {defaults?.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
         <input type="hidden" name="business_type" value={businessType} />
 
@@ -465,6 +482,12 @@ export function ProductForm({
                     name="barcode"
                     value={barcodeInput}
                     onChange={(e) => setBarcodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && rejectDuplicateBarcode(e.currentTarget.value)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
                     inputMode="numeric"
                     autoComplete="off"
                     placeholder="Escaneá o ingresá el código"
@@ -839,6 +862,7 @@ export function ProductForm({
         onDecoded={(raw) => {
           const code = raw.replace(/\s+/g, "").trim();
           if (!code) return true;
+          if (rejectDuplicateBarcode(code)) return false;
           setBarcodeInput(code);
           if (defaults?.id && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
             toast.success("Código leído", {

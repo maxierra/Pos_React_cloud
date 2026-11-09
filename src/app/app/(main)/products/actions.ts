@@ -132,6 +132,33 @@ async function createProductImpl(formData: FormData) {
   const baseLowStockThresholdDecimal = soldByWeight ? toNumber(formData.get("low_stock_threshold_decimal")) : 0;
   const imageFile = formData.get("image_file");
   const image = imageFile instanceof File && imageFile.size > 0 ? imageFile : null;
+  const submittedBarcode = toNullableText(formData.get("barcode"));
+  const submittedScaleCode = toNullableScaleCode(formData.get("scale_code"));
+  const supabase = await createClient();
+
+  if (submittedBarcode) {
+    const { data: duplicate, error } = await supabase
+      .from("products")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("barcode", submittedBarcode)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (duplicate) throw new Error("Ese código ya está cargado. Escaneá otro producto.");
+  }
+
+  if (submittedScaleCode) {
+    const { data: duplicate, error } = await supabase
+      .from("products")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("scale_code", submittedScaleCode)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (duplicate) throw new Error("Ese código de balanza ya está cargado. Escaneá otro producto.");
+  }
 
   if (businessType === "fashion") {
     const sizes = splitVariantValues(formData.get("sizes_input"));
@@ -187,7 +214,6 @@ async function createProductImpl(formData: FormData) {
       }))
     );
 
-    const supabase = await createClient();
     if (image) {
       const uploads = await Promise.all(rowIds.map((productId) => uploadProductImage({ businessId, productId, file: image })));
       rows.forEach((row, rowIndex) => {
@@ -206,7 +232,6 @@ async function createProductImpl(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
   const productId = crypto.randomUUID();
   const imageUpload = image ? await uploadProductImage({ businessId, productId, file: image }) : null;
   const { error } = await supabase.from("products").insert({
@@ -215,8 +240,8 @@ async function createProductImpl(formData: FormData) {
     name,
     image_path: imageUpload?.imagePath ?? null,
     image_url: imageUpload?.imageUrl ?? null,
-    barcode: toNullableText(formData.get("barcode")),
-    scale_code: toNullableScaleCode(formData.get("scale_code")),
+    barcode: submittedBarcode,
+    scale_code: submittedScaleCode,
     category: baseCategory,
     variant_group: toNullableText(formData.get("variant_group")),
     size: toNullableText(formData.get("size")),

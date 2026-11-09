@@ -440,6 +440,8 @@ export function ProductsClient({
   const [pending, startTransition] = React.useTransition();
   const [exportingPdf, setExportingPdf] = React.useState(false);
   const [scannerSearchOpen, setScannerSearchOpen] = React.useState(false);
+  const [duplicateProductDialogOpen, setDuplicateProductDialogOpen] = React.useState(false);
+  const [duplicateProductCode, setDuplicateProductCode] = React.useState("");
   const [importOpen, setImportOpen] = React.useState(false);
   const [importFile, setImportFile] = React.useState<File | null>(null);
   const [importing, setImporting] = React.useState(false);
@@ -458,6 +460,22 @@ export function ProductsClient({
   const [barcodeQuery, setBarcodeQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const barcodeSearchRef = React.useRef<HTMLInputElement>(null);
+  const notifyDuplicateBarcode = React.useCallback(
+    (raw: string) => {
+      const code = normCode(raw);
+      if (!code) return false;
+      const foundByScan = findProductByScannedCode(products, code);
+      const scaleCode = /^\d{1,5}$/.test(code) ? normalizeScaleCode(code) : null;
+      const alreadyLoaded =
+        Boolean(foundByScan) ||
+        Boolean(scaleCode && products.some((product) => normalizeScaleCode(product.scale_code ?? "") === scaleCode));
+      if (!alreadyLoaded) return false;
+      setDuplicateProductCode(raw.trim());
+      setDuplicateProductDialogOpen(true);
+      return true;
+    },
+    [products]
+  );
 
   const filtered = React.useMemo(() => {
     const nq = nameQuery.trim().toLowerCase();
@@ -500,6 +518,11 @@ export function ProductsClient({
             }
             router.refresh();
           } catch (err) {
+            if (err instanceof Error && /ya está cargado/i.test(err.message)) {
+              setDuplicateProductCode(String(formData.get("barcode") ?? formData.get("scale_code") ?? "").trim());
+              setDuplicateProductDialogOpen(true);
+              return;
+            }
             toast.error("No se pudo crear", {
               description: err instanceof Error ? err.message : "Error",
             });
@@ -1198,6 +1221,7 @@ export function ProductsClient({
                       action={onCreate}
                       canEditPrice={canEditPrice}
                       canEditStock={canEditStock}
+                      onDuplicateBarcode={notifyDuplicateBarcode}
                     />
                   ) : (
                     <ProductForm
@@ -1211,6 +1235,7 @@ export function ProductsClient({
                       submitPulse={showCreateFormSpotlight && createGuidePhase === "submit"}
                       modalDesign
                       onCancel={() => setOpenCreate(false)}
+                      onDuplicateBarcode={notifyDuplicateBarcode}
                     />
                   )}
                 </div>
@@ -1295,6 +1320,65 @@ export function ProductsClient({
                     canEditStock={canEditStock}
                   />
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {duplicateProductDialogOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="duplicate-product-title"
+            aria-describedby="duplicate-product-description"
+          >
+            <motion.div
+              className="w-full max-w-md overflow-hidden rounded-3xl border border-amber-300/60 bg-white shadow-[0_30px_100px_rgba(2,6,23,.45)] dark:border-amber-500/30 dark:bg-slate-900"
+              initial={{ y: 12, scale: 0.97 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 8, scale: 0.98 }}
+              transition={{ duration: 0.16 }}
+            >
+              <div className="flex items-start gap-4 border-b border-amber-100 bg-amber-50 px-6 py-5 dark:border-amber-500/10 dark:bg-amber-500/10">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20">
+                  <AlertTriangle className="size-6" strokeWidth={2.5} />
+                </span>
+                <div className="min-w-0 pt-0.5">
+                  <h2 id="duplicate-product-title" className="text-lg font-black tracking-tight text-slate-950 dark:text-white">
+                    Este producto ya está cargado
+                  </h2>
+                  <p id="duplicate-product-description" className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                    El código escaneado ya pertenece a un producto del catálogo. Escaneá otro para continuar.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-5 px-6 py-5">
+                {duplicateProductCode ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Código leído</div>
+                    <div className="mt-1 break-all font-mono text-sm font-bold text-slate-800 dark:text-slate-100">{duplicateProductCode}</div>
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  autoFocus
+                  className="h-12 w-full gap-2 rounded-xl bg-blue-600 text-base font-extrabold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+                  onClick={() => {
+                    setDuplicateProductDialogOpen(false);
+                    window.setTimeout(() => {
+                      document.getElementById(isMobileAssist ? "wiz-barcode" : "barcode")?.focus();
+                    }, 0);
+                  }}
+                >
+                  <ScanLine className="size-5" />
+                  Cargar otro
+                </Button>
               </div>
             </motion.div>
           </motion.div>
