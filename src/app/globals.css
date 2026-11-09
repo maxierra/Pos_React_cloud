@@ -1393,3 +1393,113 @@ button.landing-cta-primary > * {
   .product-create-vivid .product-form-stock,
   .product-create-vivid .product-form-expiration { padding: 11px; }
 }
+
+/* Variante clara: superficies blancas y textos oscuros, con acentos violeta y turquesa. */
+:root:not(.dark) .product-create-vivid {
+  border-color: #a855f7 !important;
+  background: #f7f8ff !important;
+  color: #18213d !important;
+  box-shadow: 0 24px 70px #26366b33, 0 0 0 1px #d8b4fe inset !important;
+}
+:root:not(.dark) .product-create-vivid .product-create-header {
+  background: linear-gradient(112deg, #234bd8 0%, #5742d8 52%, #8b35d1 100%) !important;
+  color: #fff !important;
+}
+:root:not(.dark) .product-create-vivid .product-create-header :is(div, span, p, button) { color: #fff !important; }
+:root:not(.dark) .product-create-vivid .product-create-header button { background: #ffffff24 !important; }
+:root:not(.dark) .product-create-vivid > div:nth-child(2) {
+  background: radial-gradient(ellipse at 96% 0, #b7a6ff22, transparent 32%), linear-gradient(160deg, #fbfcff, #f1f4ff) !important;
+}
+:root:not(.dark) .product-create-vivid .product-form-tabs {
+  border-color: #cbd3f2 !important;
+  background: linear-gradient(110deg, #fff, #f3f5ff) !important;
+  box-shadow: 0 6px 18px #344b8c18 !important;
+}
+:root:not(.dark) .product-create-vivid .product-form-tabs > div {
+  border-color: #d8def2 !important;
+  background: transparent !important;
+  color: #293454 !important;
+}
+:root:not(.dark) .product-create-vivid .product-form-tabs > div.is-active {
+  background: linear-gradient(112deg, #a914e8, #6250e8 52%, #05bfb3) !important;
+  color: #fff !important;
+}
+:root:not(.dark) .product-create-vivid :is(.product-form-identity, .product-form-classification, .product-form-prices, .product-form-stock, .product-form-expiration) {
+  border-color: #d6dcf0 !important;
+  background: linear-gradient(135deg, #fff, #f5f7ff) !important;
+  color: #18213d !important;
+  box-shadow: 0 5px 16px #354b8010 !important;
+}
+:root:not(.dark) .product-create-vivid .product-section-title { color: #8b27dc !important; }
+:root:not(.dark) .product-create-vivid .product-modal-form label { color: #202b49 !important; }
+:root:not(.dark) .product-create-vivid .product-price-highlight {
+  border-color: #f3ad16 !important;
+  background: linear-gradient(145deg, #fff7dc, #fffaf0) !important;
+  box-shadow: 0 0 0 1px #f3ad162e inset, 0 5px 16px #bb7b101a !important;
+}
+:root:not(.dark) .product-create-vivid .product-price-highlight label { color: #9a5b00 !important; }
+:root:not(.dark) .product-create-vivid .product-price-highlight input {
+  border-color: #e5a316 !important;
+  background: #fff !important;
+  color: #17213d !important;
+  box-shadow: 0 0 0 2px #ffbd382b !important;
+}
+:root:not(.dark) .product-create-vivid .product-modal-form :is(input:not([type="checkbox"]), select) {
+  border-color: #c7d0e8 !important;
+  background: #fff !important;
+  color: #18213d !important;
+  color-scheme: light;
+  box-shadow: inset 0 1px 2px #344b8c0d !important;
+}
+:root:not(.dark) .product-create-vivid .product-modal-form :is(input, select)::placeholder { color: #75809a !important; }
+:root:not(.dark) .product-create-vivid .product-form-image {
+  border-color: #d7d3f3 !important;
+  background: linear-gradient(150deg, #fff, #f2f0ff) !important;
+  color: #202b49 !important;
+}
+:root:not(.dark) .product-create-vivid .product-form-image :is(label, p, span) { color: #34405f !important; }
+:root:not(.dark) .product-create-vivid .product-image-dropzone {
+  border-color: #9345e8 !important;
+  background: linear-gradient(150deg, #fff, #f4f0ff) !important;
+  color: #7133c7 !important;
+}
+:root:not(.dark) .product-create-vivid .product-image-dropzone span { color: #45516e !important; }
+:root:not(.dark) .product-create-vivid .product-suggestion-card {
+  border-color: #4cce79 !important;
+  background: linear-gradient(105deg, #edfff3, #e4fbec 55%, #e7fbf7) !important;
+  box-shadow: 0 0 0 1px #27ae6030 inset, 0 5px 16px #239b4d14 !important;
+}
+:root:not(.dark) .product-create-vivid .product-found-card {
+  border-color: #30c85a !important;
+  background: linear-gradient(105deg, #eaffed, #d9fbe1 55%, #e6fff5) !important;
+  box-shadow: 0 0 0 1px #21a94c2b inset, 0 6px 20px #1c9c4a20 !important;
+}
+:root:not(.dark) .product-create-vivid .product-found-heading,
+:root:not(.dark) .product-create-vivid .product-found-heading > div > div,
+:root:not(.dark) .product-create-vivid .product-found-heading p,
+:root:not(.dark) .product-create-vivid .product-found-details strong { color: #123b25 !important; }
+:root:not(.dark) .product-create-vivid .product-found-check {
+  border-color: #19a94b !important;
+  background: #fff !important;
+  color: #148b3d !important;
+  text-shadow: none !important;
+  box-shadow: 0 0 0 4px #35c95b20 !important;
+}
+:root:not(.dark) .product-create-vivid .product-found-ready {
+  border-color: #4ab86b !important;
+  background: #f7fff9 !important;
+  color: #176736 !important;
+  box-shadow: none !important;
+}
+:root:not(.dark) .product-create-vivid .product-found-details > div { border-color: #8ddba0 !important; background: #f6fff8 !important; }
+:root:not(.dark) .product-create-vivid .product-found-details span { color: #3f6b4d !important; }
+:root:not(.dark) .product-create-vivid .product-form-actions { border-color: #d8def0 !important; }
+:root:not(.dark) .product-create-vivid .product-form-actions .border-input {
+  border-color: #c7d0e8 !important;
+  background: #fff !important;
+  color: #24304f !important;
+}
+:root:not(.dark) .product-create-vivid .product-save-button {
+  background: linear-gradient(105deg, #04c99a, #18c95a 55%, #14ba85) !important;
+  color: #062d1b !important;
+}
