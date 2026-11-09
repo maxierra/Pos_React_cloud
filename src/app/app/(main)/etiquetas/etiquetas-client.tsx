@@ -466,11 +466,11 @@ export function EtiquetasClient({
               {selectedCount > 0 ? ` · ${selectedCount} seleccionados (${totalSelectedLabels} etiquetas)` : null}
             </p>
 
-            <div className="overflow-hidden rounded-2xl border bg-card">
+            <div className="overflow-hidden rounded-2xl border border-blue-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(37,99,235,.55)] dark:border-blue-300/20 dark:bg-[#101a2e]">
               <div className="overflow-auto">
                 <table className="w-full min-w-[760px] text-sm">
-                  <thead className="bg-[var(--pos-surface-2)] text-muted-foreground">
-                    <tr className="border-b">
+                  <thead className="bg-gradient-to-r from-blue-50 to-sky-50 text-blue-900/65 dark:from-[#17243a] dark:to-[#1a2942] dark:text-blue-200/70">
+                    <tr className="border-b text-[11px] uppercase tracking-[0.12em] [&_th]:font-bold">
                       <th className="w-12 px-4 py-3 text-left font-medium">
                         <span className="sr-only">Seleccionar</span>
                       </th>
@@ -500,8 +500,8 @@ export function EtiquetasClient({
                             key={p.id}
                             id={`label-row-${p.id}`}
                             className={cn(
-                              "border-b last:border-b-0",
-                              checked && "bg-primary/5"
+                              "group border-b border-blue-100 bg-white transition-all even:bg-sky-50/55 hover:bg-blue-50 hover:shadow-[inset_3px_0_0_#3b82f6] last:border-b-0 dark:border-blue-300/15 dark:bg-[#101a2e] dark:even:bg-[#142139] dark:hover:bg-[#1a2b47]",
+                              checked && "bg-blue-100/80 shadow-[inset_3px_0_0_#2563eb] dark:bg-blue-500/15"
                             )}
                           >
                             <td className="px-4 py-3">
@@ -513,9 +513,9 @@ export function EtiquetasClient({
                                 aria-label={`Seleccionar ${p.name}`}
                               />
                             </td>
-                            <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-800 group-hover:text-blue-700 dark:text-slate-100 dark:group-hover:text-blue-300">{p.name}</td>
                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{codeLabel}</td>
-                            <td className="px-4 py-3 tabular-nums">{moneyAr(toPrice(p.price))}</td>
+                            <td className="px-4 py-3 font-extrabold tabular-nums text-slate-900 dark:text-white">{moneyAr(toPrice(p.price))}</td>
                             <td className="px-4 py-3">
                               <Input
                                 ref={(el) => {
