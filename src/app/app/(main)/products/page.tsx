@@ -111,8 +111,8 @@ export default async function ProductsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-10">
-      <div className="space-y-1">
+    <div className="mx-auto w-full max-w-7xl px-0 py-0 md:px-4 md:py-10">
+      <div className="hidden space-y-1 md:block">
         <h1 className="text-2xl font-semibold tracking-tight">Productos</h1>
         <p className="text-sm text-muted-foreground">Alta, edicion y control de stock.</p>
       </div>

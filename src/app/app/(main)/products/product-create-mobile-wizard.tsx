@@ -317,8 +317,8 @@ export function ProductCreateMobileWizard({
   }, [soldByWeight]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-4 flex items-center justify-center gap-1.5">
+    <div className="flex min-h-full flex-1 flex-col text-slate-950 dark:text-slate-50">
+      <div className="mb-3 flex items-center justify-center gap-1.5">
         {Array.from({ length: STEPS }, (_, i) => {
           const n = i + 1;
           const done = n < step;
@@ -328,28 +328,28 @@ export function ProductCreateMobileWizard({
               key={i}
               className={cn(
                 "h-2 rounded-full transition-all",
-                done && "w-2 bg-emerald-500",
-                current && "w-8 bg-emerald-500",
-                !done && !current && "w-2 bg-muted-foreground/30"
+                done && "w-2 bg-cyan-400",
+                current && "w-9 bg-gradient-to-r from-blue-600 to-violet-500 shadow-sm shadow-blue-500/30",
+                !done && !current && "w-2 bg-slate-300 dark:bg-slate-700"
               )}
             />
           );
         })}
       </div>
 
-      <p className="text-center text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="text-center text-[10px] font-extrabold uppercase tracking-[.18em] text-blue-600 dark:text-blue-300">
         Paso {step} de {STEPS}
       </p>
-      <h3 className="mt-1 text-center text-lg font-semibold tracking-tight">{stepTitle[step]}</h3>
-      <p className="mt-1 text-balance text-center text-sm text-muted-foreground">{stepSubtitle[step]}</p>
+      <h3 className="mt-1 text-center text-xl font-extrabold tracking-tight">{stepTitle[step]}</h3>
+      <p className="mx-auto mt-1 max-w-sm text-balance text-center text-xs leading-5 text-slate-500 dark:text-slate-400">{stepSubtitle[step]}</p>
 
-      <div className="mt-6 min-h-0 flex-1 space-y-4">
+      <div className="mt-4 min-h-0 flex-1 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
         {step === 1 ? (
           <div className="space-y-4">
             <Button
               type="button"
               variant="outline"
-              className="h-14 w-full gap-2 rounded-2xl border-[var(--pos-accent)]/40 bg-[var(--pos-surface-2)] text-base font-semibold hover:bg-[var(--pos-accent)]/10"
+              className="h-14 w-full gap-2 rounded-2xl border-0 bg-gradient-to-r from-[#075dcc] via-[#176ee1] to-[#4b45cf] text-base font-extrabold text-white shadow-lg shadow-blue-500/20 hover:brightness-105"
               onClick={() => setScannerOpen(true)}
             >
               <ScanLine className="size-5" />
@@ -365,13 +365,13 @@ export function ProductCreateMobileWizard({
                   inputMode="numeric"
                   autoComplete="off"
                   placeholder="EAN / código"
-                  className="h-12 min-w-0 flex-1 rounded-xl text-base"
+                className="h-12 min-w-0 flex-1 rounded-xl border-slate-200 bg-slate-50 text-base dark:border-slate-700 dark:bg-slate-800"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-12 w-12 shrink-0 rounded-xl"
+                  className="h-12 w-12 shrink-0 rounded-xl border-blue-200 text-blue-600 dark:border-blue-900 dark:text-blue-300"
                   title={
                     barcodeInput.trim()
                       ? "Vacía el campo para generar un EAN interno"
@@ -427,7 +427,7 @@ export function ProductCreateMobileWizard({
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 required
-                className="h-12 rounded-xl text-base"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base dark:border-slate-700 dark:bg-slate-800"
                 placeholder="Nombre del producto"
               />
             </div>
@@ -437,7 +437,7 @@ export function ProductCreateMobileWizard({
                 id="wiz-category"
                 value={categoryInput}
                 onChange={(e) => setCategoryInput(e.target.value)}
-                className="h-12 rounded-xl"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
               />
             </div>
             <div className="space-y-2">
@@ -446,7 +446,7 @@ export function ProductCreateMobileWizard({
                 id="wiz-unit"
                 value={soldByWeight ? "weight" : "unit"}
                 onChange={(e) => setSoldByWeight(e.target.value === "weight")}
-                className="h-12 w-full rounded-xl border border-input bg-transparent px-3 text-base outline-none focus-visible:ring-2"
+                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base outline-none focus-visible:ring-2 dark:border-slate-700 dark:bg-slate-800"
               >
                 <option value="unit">Por unidad</option>
                 <option value="weight">Pesable (por kg)</option>
@@ -461,7 +461,7 @@ export function ProductCreateMobileWizard({
                 onBlur={() => setScaleCodeInput((current) => normalizeScaleCode(current) ?? current.trim())}
                 disabled={!soldByWeight}
                 placeholder={soldByWeight ? "Ej: 00041" : "Solo si es pesable"}
-                className="h-12 rounded-xl"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
               />
             </div>
           </div>
@@ -479,7 +479,7 @@ export function ProductCreateMobileWizard({
                 value={costInput}
                 onChange={(e) => setCostInput(e.target.value)}
                 disabled={!canEditPrice}
-                className="h-14 rounded-xl text-xl font-semibold"
+                className="h-14 rounded-xl border-slate-200 bg-slate-50 text-xl font-extrabold text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-300"
               />
             </div>
             <div className="space-y-2">
@@ -495,7 +495,7 @@ export function ProductCreateMobileWizard({
                   setMarginInput(e.target.value);
                 }}
                 disabled={!canEditPrice}
-                className="h-12 rounded-xl text-base"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50 text-base dark:border-slate-700 dark:bg-slate-800"
               />
             </div>
             <div className="space-y-2">
@@ -511,7 +511,7 @@ export function ProductCreateMobileWizard({
                   setPriceInput(e.target.value);
                 }}
                 disabled={!canEditPrice}
-                className="h-14 rounded-xl text-xl font-semibold"
+                className="h-14 rounded-xl border-blue-200 bg-blue-50 text-xl font-extrabold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300"
               />
             </div>
           </div>
@@ -591,7 +591,7 @@ export function ProductCreateMobileWizard({
                 className="h-12 rounded-xl"
               />
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] p-4">
+            <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
               <input
                 id="wiz-active"
                 type="checkbox"
@@ -603,7 +603,7 @@ export function ProductCreateMobileWizard({
                 Producto activo (visible en el POS)
               </Label>
             </div>
-            <div className="rounded-xl border border-[var(--pos-border)] bg-muted/30 p-4 text-sm">
+            <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm dark:border-violet-900 dark:bg-violet-950/30">
               <div className="flex items-center gap-2 font-medium">
                 <Package className="size-4" />
                 Resumen
@@ -627,9 +627,9 @@ export function ProductCreateMobileWizard({
         ) : null}
       </div>
 
-      <div className="mt-6 flex shrink-0 gap-3 border-t border-[var(--pos-border)] pt-4">
+      <div className="sticky bottom-0 mt-4 flex shrink-0 gap-2 border-t border-slate-200 bg-[#f5f8fc]/95 pt-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
         {step > 1 ? (
-          <Button type="button" variant="outline" className="h-12 flex-1 gap-1 rounded-xl" onClick={goBack}>
+          <Button type="button" variant="outline" className="h-12 flex-1 gap-1 rounded-xl border-slate-300 bg-white font-bold dark:border-slate-700 dark:bg-slate-900" onClick={goBack}>
             <ChevronLeft className="size-4" />
             Atrás
           </Button>
@@ -637,14 +637,14 @@ export function ProductCreateMobileWizard({
           <div className="flex-1" />
         )}
         {step < STEPS ? (
-          <Button type="button" className="h-12 flex-[2] gap-1 rounded-xl font-semibold" onClick={goNext}>
+          <Button type="button" className="h-12 flex-[2] gap-1 rounded-xl bg-gradient-to-r from-[#075dcc] via-[#176ee1] to-[#4b45cf] font-extrabold text-white shadow-lg shadow-blue-500/20" onClick={goNext}>
             Siguiente
             <ChevronRight className="size-4" />
           </Button>
         ) : (
           <Button
             type="button"
-            className="h-12 flex-[2] gap-1 rounded-xl font-semibold"
+            className="h-12 flex-[2] gap-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 font-extrabold text-white shadow-lg shadow-emerald-500/20"
             disabled={submitting}
             onClick={handleSubmit}
           >

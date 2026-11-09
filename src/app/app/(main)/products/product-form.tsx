@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Hash, ScanLine } from "lucide-react";
+import { DollarSign, Hash, ImagePlus, Layers3, ScanLine, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -47,6 +47,8 @@ type Props = {
   canEditPrice?: boolean;
   canEditStock?: boolean;
   submitPulse?: boolean;
+  modalDesign?: boolean;
+  onCancel?: () => void;
 };
 
 type PreloadProduct = {
@@ -118,6 +120,8 @@ export function ProductForm({
   canEditPrice = true,
   canEditStock = true,
   submitPulse = false,
+  modalDesign = false,
+  onCancel,
 }: Props) {
   const isFashion = businessType === "fashion";
   const isGastronomy = businessType === "gastronomy";
@@ -421,7 +425,15 @@ export function ProductForm({
         {catalogHint ? <div className="text-sm text-muted-foreground">{catalogHint}</div> : null}
       </div>
 
-      <form action={action} className="mt-5 grid gap-4">
+      {modalDesign ? (
+        <div className="product-form-tabs" aria-label="Secciones del formulario">
+          <div className="is-active"><Tag className="size-5" /> Datos generales</div>
+          <div><DollarSign className="size-4" /> Precios y stock</div>
+          <div><Tag className="size-4" /> Avanzado</div>
+        </div>
+      ) : null}
+
+      <form action={action} className={cn("mt-5 grid gap-4", modalDesign && "product-modal-form")}>
         {defaults?.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
         <input type="hidden" name="business_type" value={businessType} />
 
@@ -442,7 +454,7 @@ export function ProductForm({
           </div>
         ) : null}
 
-        <div>
+        <div className={cn(modalDesign && "product-form-identity")}>
           <div className="grid gap-4 md:grid-cols-3">
             {!catalogStyle ? (
               <div className="grid gap-2 md:col-span-1">
@@ -455,7 +467,7 @@ export function ProductForm({
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     inputMode="numeric"
                     autoComplete="off"
-                    placeholder="O escribilo a mano"
+                    placeholder="Escaneá o ingresá el código"
                     className="min-w-0 flex-1"
                   />
                   <Button
@@ -477,7 +489,7 @@ export function ProductForm({
 
             <div className={cn("grid gap-2", catalogStyle ? "md:col-span-3" : "md:col-span-2")}>
               <Label htmlFor="name">{isFashion ? "Nombre de la prenda" : isGastronomy ? "Nombre del producto" : "Nombre"}</Label>
-              <Input id="name" name="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} required />
+              <Input id="name" name="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Ej: Arroz Largo Fino 1 Kg" required />
             </div>
           </div>
 
@@ -495,7 +507,7 @@ export function ProductForm({
           ) : null}
         </div>
 
-        <div className={cn("grid gap-4", catalogStyle ? "md:grid-cols-2" : "md:grid-cols-3")}>
+        <div className={cn("grid gap-4", catalogStyle ? "md:grid-cols-2" : "md:grid-cols-3", modalDesign && "product-form-classification")}>
           {!catalogStyle ? (
             <div className="grid gap-2">
               <Label htmlFor="unit_type">Tipo</Label>
@@ -517,7 +529,7 @@ export function ProductForm({
 
           <div className="grid gap-2">
             <Label htmlFor="category">{catalogStyle ? "Categoría principal" : "Categoría"}</Label>
-            <Input id="category" name="category" value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)} />
+            <Input id="category" name="category" value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)} placeholder="Seleccionar categoría" />
           </div>
 
           {!catalogStyle ? (
@@ -536,12 +548,19 @@ export function ProductForm({
           ) : null}
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="image_file">Foto del producto</Label>
-          <Input id="image_file" name="image_file" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} />
-          <p className="text-[11px] text-muted-foreground">Subí una imagen JPG, PNG o WEBP. Recomendado: hasta 2 MB.</p>
+        <div className={cn("grid gap-2", modalDesign && "product-form-image")}>
+          <Label htmlFor="image_file" className="flex items-center gap-2"><ImagePlus className="size-4 text-blue-500" />Foto del producto</Label>
+          <label htmlFor="image_file" className={cn(modalDesign && "product-image-dropzone")}>
+            {!imagePreviewUrl && modalDesign ? <><ImagePlus className="size-10" /><strong>Arrastrá una imagen aquí</strong><span>o hacé clic para seleccionar</span></> : null}
+            <Input id="image_file" name="image_file" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageChange} className={cn(modalDesign && "sr-only")} />
+            {imagePreviewUrl && modalDesign ? <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imagePreviewUrl} alt="Vista previa del producto" className="h-full w-full rounded-xl object-cover" />
+            </> : null}
+          </label>
+          <p className="text-center text-[11px] text-muted-foreground">JPG, PNG o WEBP · Máx. 2 MB</p>
           {imagePreviewUrl ? (
-            <div className="mt-1 flex items-center gap-3 rounded-xl border border-[var(--pos-border)] p-3">
+            <div className={cn("mt-1 flex items-center gap-3 rounded-xl border border-[var(--pos-border)] p-3", modalDesign && "hidden")}>
               <div className="h-20 w-20 overflow-hidden rounded-xl border bg-[var(--pos-surface-2)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imagePreviewUrl} alt="Vista previa del producto" className="h-full w-full object-cover" />
@@ -661,7 +680,8 @@ export function ProductForm({
           )
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={cn("grid gap-4 md:grid-cols-3", modalDesign && "product-form-prices")}>
+          {modalDesign ? <div className="product-section-title"><Tag className="size-5" /> Precios</div> : null}
           <div className="grid gap-2">
             <Label htmlFor="cost">{isFashion ? "Costo de compra" : "Precio compra"}</Label>
             <Input
@@ -712,7 +732,7 @@ export function ProductForm({
         </div>
 
         {!catalogStyle ? (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className={cn("grid gap-4 md:grid-cols-3", modalDesign && "product-form-expiration")}>
             <div className="grid gap-2">
               <Label htmlFor="expires_at">Vencimiento</Label>
               <Input
@@ -730,14 +750,15 @@ export function ProductForm({
             </div>
           </div>
         ) : (
-          <div className="flex items-end gap-2">
+          <div className={cn("flex items-end gap-2", modalDesign && "product-form-expiration")}>
             <input id="active" name="active" type="checkbox" defaultChecked={defaults?.active ?? true} className="size-4" />
             <Label htmlFor="active">Activo</Label>
           </div>
         )}
 
         {soldByWeight ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={cn("grid gap-4 md:grid-cols-2", modalDesign && "product-form-stock")}>
+            {modalDesign ? <div className="product-section-title"><Layers3 className="size-5" /> Stock</div> : null}
             <div className="grid gap-2">
               <Label htmlFor="stock_decimal">Stock (kg)</Label>
               <Input
@@ -766,7 +787,8 @@ export function ProductForm({
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={cn("grid gap-4 md:grid-cols-2", modalDesign && "product-form-stock")}>
+            {modalDesign ? <div className="product-section-title"><Layers3 className="size-5" /> Stock</div> : null}
             <div className="grid gap-2">
               <Label htmlFor="stock">{catalogStyle ? "Stock inicial" : "Stock (unidades)"}</Label>
               <Input
@@ -794,15 +816,17 @@ export function ProductForm({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 pt-2 lg:pt-0">
+        <div className={cn("flex items-center justify-end gap-2 pt-2 lg:pt-0", modalDesign && "product-form-actions")}>
+          {modalDesign && onCancel ? <Button type="button" variant="outline" className="h-12 min-w-40 rounded-xl" onClick={onCancel}>Cancelar</Button> : null}
           <Button
             type="submit"
             className={cn(
               "h-12 w-full rounded-2xl text-base font-semibold lg:h-10 lg:w-auto",
+              modalDesign && "product-save-button lg:h-12 lg:min-w-64 lg:rounded-xl",
               submitPulse && "animate-onboarding-product-pulse border-2 border-emerald-300"
             )}
           >
-            Guardar producto
+            {modalDesign ? <Save className="size-5" /> : null} Guardar producto
           </Button>
         </div>
       </form>

@@ -4,13 +4,13 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Pencil, Plus, ScanBarcode, ScanLine, Trash2, X } from "lucide-react";
+import { AlertTriangle, Boxes, Download, FileSpreadsheet, Package, Pencil, Plus, ScanBarcode, ScanLine, Search, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ONBOARDING_GUIDE_QUERY, ONBOARDING_GUIDE_TOTAL_STEPS } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
 import { OnboardingSpotlight } from "@/app/app/(main)/onboarding/onboarding-spotlight";
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
-import { createProduct, deleteProduct, updateProduct } from "@/app/app/(main)/products/actions";
+import { createProduct, deleteProduct, importProducts, updateProduct, type ProductImportRow } from "@/app/app/(main)/products/actions";
 import { ProductCreateMobileWizard } from "@/app/app/(main)/products/product-create-mobile-wizard";
 import { ProductForm } from "@/app/app/(main)/products/product-form";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -67,7 +67,7 @@ type CreateGuideConfirm = {
   lowStock: boolean;
 };
 
-const PRODUCTS_PER_PAGE = 100;
+const PRODUCTS_PER_PAGE = 10;
 
 function escapeHtml(value: string) {
   return value
@@ -394,6 +394,12 @@ function formatStock(p: ProductRow) {
     : `Stock: ${p.stock} | MÃ­n: ${p.low_stock_threshold}`;
 }
 
+function isLowStock(p: ProductRow) {
+  const stock = p.sold_by_weight ? Number(p.stock_decimal) : Number(p.stock);
+  const threshold = p.sold_by_weight ? Number(p.low_stock_threshold_decimal) : Number(p.low_stock_threshold);
+  return p.active && Number.isFinite(stock) && Number.isFinite(threshold) && stock <= threshold;
+}
+
 function formatVariant(p: ProductRow) {
   const parts = [p.category, p.size ? `Talle ${p.size}` : null, p.color ? `Color ${p.color}` : null].filter(Boolean);
   return parts.join(" Â· ");
@@ -434,6 +440,9 @@ export function ProductsClient({
   const [pending, startTransition] = React.useTransition();
   const [exportingPdf, setExportingPdf] = React.useState(false);
   const [scannerSearchOpen, setScannerSearchOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importFile, setImportFile] = React.useState<File | null>(null);
+  const [importing, setImporting] = React.useState(false);
 
   const newProductHighlightRef = React.useRef<HTMLSpanElement>(null);
   const formGuideTargetRef = React.useRef<Element | null>(null);
@@ -470,14 +479,12 @@ export function ProductsClient({
   const currentPage = hasActiveFilters ? 1 : Math.min(page, totalPages);
 
   const paginatedProducts = React.useMemo(() => {
-    if (hasActiveFilters) return filtered;
     const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
     return filtered.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [filtered, hasActiveFilters, currentPage]);
+  }, [filtered, currentPage]);
 
-  const showingFrom = filtered.length === 0 ? 0 : hasActiveFilters ? 1 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
-  const showingTo =
-    filtered.length === 0 ? 0 : hasActiveFilters ? filtered.length : Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length);
+  const showingFrom = filtered.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
+  const showingTo = filtered.length === 0 ? 0 : Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length);
 
   const onCreate = React.useCallback(
     async (formData: FormData) => {
@@ -607,6 +614,71 @@ export function ProductsClient({
     document.body.appendChild(iframe);
   }, [business, filtered]);
 
+  const downloadImportTemplate = React.useCallback(async () => {
+    const XLSX = await import("xlsx");
+    const examples = [
+      { nombre: "Coca Cola 500 ml", codigo_barras: "7790895001223", categoria: "Bebidas", costo: 900, precio: 1500, stock: 24, stock_minimo: 5, venta_por_peso: "NO", vencimiento: "", activo: "SI", talle: "", color: "" },
+      { nombre: "Manzana roja", codigo_barras: "", categoria: "Frutas", costo: 1200, precio: 1900, stock: 8.5, stock_minimo: 2, venta_por_peso: "SI", vencimiento: "2026-12-31", activo: "SI", talle: "", color: "" },
+      { nombre: "Remera clásica", codigo_barras: "7791234567890", categoria: "Indumentaria", costo: 8000, precio: 14500, stock: 10, stock_minimo: 2, venta_por_peso: "NO", vencimiento: "", activo: "SI", talle: "M", color: "Negro" },
+    ];
+    const instructions = [
+      ["PLANTILLA DE PRODUCTOS - INSTRUCCIONES"],
+      ["Completá la hoja Productos sin cambiar los nombres de las columnas."],
+      ["nombre", "Obligatorio. Nombre que se verá en el sistema."],
+      ["codigo_barras", "Opcional. Debe ser único; no uses notación científica."],
+      ["costo / precio / stock / stock_minimo", "Usá sólo números, sin $ ni separadores de miles."],
+      ["venta_por_peso", "Escribí SI para kilos/decimales o NO para unidades."],
+      ["vencimiento", "Opcional. Formato AAAA-MM-DD, por ejemplo 2026-12-31."],
+      ["activo", "SI para venderlo o NO para dejarlo inactivo."],
+      ["talle / color", "Opcionales, útiles para indumentaria."],
+      ["Importante", "Borrá las filas de ejemplo antes de cargar tus productos si no querés importarlas."],
+    ];
+    const workbook = XLSX.utils.book_new();
+    const productsSheet = XLSX.utils.json_to_sheet(examples);
+    productsSheet["!cols"] = [28, 19, 18, 12, 12, 12, 14, 18, 16, 10, 12, 14].map((wch) => ({ wch }));
+    const instructionsSheet = XLSX.utils.aoa_to_sheet(instructions);
+    instructionsSheet["!cols"] = [{ wch: 34 }, { wch: 78 }];
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, "Instrucciones");
+    XLSX.utils.book_append_sheet(workbook, productsSheet, "Productos");
+    XLSX.writeFile(workbook, "plantilla-productos-tienda360.xlsx");
+  }, []);
+
+  const handleImportProducts = React.useCallback(async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(await importFile.arrayBuffer(), { type: "array", cellDates: false });
+      const sheet = workbook.Sheets["Productos"] ?? workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet) throw new Error("El archivo no contiene ninguna hoja.");
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      const yes = (value: unknown) => ["si", "sí", "yes", "true", "1"].includes(String(value).trim().toLowerCase());
+      const numberValue = (value: unknown) => {
+        if (typeof value === "number") return value;
+        const normalized = String(value ?? "").trim().replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const rows: ProductImportRow[] = rawRows
+        .filter((row) => Object.values(row).some((value) => String(value).trim()))
+        .map((row) => ({
+          name: String(row.nombre ?? "").trim(),
+          barcode: String(row.codigo_barras ?? "").trim() || null,
+          category: String(row.categoria ?? "").trim() || null,
+          cost: numberValue(row.costo), price: numberValue(row.precio), stock: numberValue(row.stock),
+          low_stock_threshold: numberValue(row.stock_minimo), sold_by_weight: yes(row.venta_por_peso),
+          expires_at: String(row.vencimiento ?? "").trim() || null, active: String(row.activo ?? "SI").trim() === "" || yes(row.activo),
+          size: String(row.talle ?? "").trim() || null, color: String(row.color ?? "").trim() || null,
+        }));
+      if (!rows.length) throw new Error("No se encontraron filas en la hoja Productos.");
+      const result = await importProducts(rows);
+      toast.success(`${result.imported} productos importados`);
+      setImportOpen(false); setImportFile(null); router.refresh();
+    } catch (error) {
+      toast.error("No se pudo importar el archivo", { description: error instanceof Error ? error.message : "Revisá la plantilla." });
+    } finally { setImporting(false); }
+  }, [importFile, router]);
+
   const handleBarcodeKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== "Enter") return;
@@ -726,7 +798,7 @@ export function ProductsClient({
   }, [showProductSpotlight]);
 
   return (
-    <div className="relative mt-6">
+    <div className="relative min-h-full bg-[#f5f8fc] px-4 pb-28 pt-5 text-slate-950 md:mt-6 md:min-h-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:text-foreground dark:bg-slate-950 md:dark:bg-transparent">
       <OnboardingSpotlight
         active={showProductSpotlight}
         targetRef={newProductHighlightRef}
@@ -755,13 +827,44 @@ export function ProductsClient({
         description={createFormGuideCopy.description}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {hasActiveFilters
+      <section className="md:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[27px] font-extrabold tracking-tight">Productos</h1>
+            <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">Catálogo, precios y existencias</p>
+          </div>
+          <Button type="button" onClick={() => { setEditProduct(null); setOpenCreate(true); }} className="h-11 rounded-xl bg-gradient-to-r from-[#075dcc] to-[#4b45cf] px-3 text-xs font-extrabold text-white shadow-lg shadow-blue-500/20">
+            <Plus className="size-4" />Nuevo
+          </Button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl bg-gradient-to-br from-[#075dcc] to-[#176ee1] p-3 text-white shadow-md shadow-blue-500/15"><span className="flex size-8 items-center justify-center rounded-lg bg-white/15"><Package className="size-4 text-cyan-200" /></span><p className="mt-2 text-[9px] font-bold text-blue-100">Total</p><p className="text-xl font-extrabold">{products.length}</p></div>
+          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-sm dark:border-emerald-900 dark:bg-slate-900"><span className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950"><Boxes className="size-4 text-emerald-600" /></span><p className="mt-2 text-[9px] font-bold text-slate-500">Activos</p><p className="text-xl font-extrabold text-emerald-600">{products.filter((p) => p.active).length}</p></div>
+          <div className="rounded-2xl border border-amber-200 bg-white p-3 shadow-sm dark:border-amber-900 dark:bg-slate-900"><span className="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950"><AlertTriangle className="size-4 text-amber-600" /></span><p className="mt-2 text-[9px] font-bold text-slate-500">Stock bajo</p><p className="text-xl font-extrabold text-amber-600">{products.filter(isLowStock).length}</p></div>
+        </div>
+        <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="mt-3 h-11 w-full gap-2 rounded-xl bg-white dark:bg-slate-900">
+          <Upload className="size-4" /> Importar productos desde Excel
+        </Button>
+      </section>
+
+      <div className="hidden flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:flex">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span>{hasActiveFilters
             ? `Mostrando ${filtered.length} resultados`
-            : `${products.length} productos Â· pÃ¡gina ${page} de ${totalPages}`}
+            : `${products.length} productos · página ${page} de ${totalPages}`}</span>
+          {totalPages > 1 ? (
+            <div className="flex items-center gap-1.5">
+              <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg px-2.5" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={currentPage === 1}>Anterior</Button>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white shadow-sm">{currentPage}</span>
+              <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg px-2.5" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={currentPage === totalPages}>Siguiente</Button>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="gap-2 rounded-2xl">
+            <Upload className="size-4" /> Importar Excel
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -804,26 +907,29 @@ export function ProductsClient({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 md:gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="product-search-name" className="text-xs text-muted-foreground">
+          <Label htmlFor="product-search-name" className="sr-only md:not-sr-only md:text-xs md:text-muted-foreground">
             Buscar por nombre
           </Label>
-          <Input
-            id="product-search-name"
-            type="search"
-            placeholder="Ej: oreo, lecheâ€¦"
-            value={nameQuery}
-            onChange={(e) => {
-              setNameQuery(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 rounded-xl"
-            autoComplete="off"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-blue-500 dark:text-blue-300" />
+            <Input
+              id="product-search-name"
+              type="search"
+              placeholder="Ej: oreo, leche…"
+              value={nameQuery}
+              onChange={(e) => {
+                setNameQuery(e.target.value);
+                setPage(1);
+              }}
+              className="h-12 rounded-xl border-slate-300 bg-white pl-10 shadow-sm md:h-11 dark:border-blue-300/35 dark:bg-[#17243a] dark:text-white dark:placeholder:text-slate-400 dark:focus-visible:border-blue-400 dark:focus-visible:ring-blue-500/30"
+              autoComplete="off"
+            />
+          </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="product-search-barcode" className="text-xs text-muted-foreground">
+          <Label htmlFor="product-search-barcode" className="sr-only md:not-sr-only md:text-xs md:text-muted-foreground">
             CÃ³digo de barras
           </Label>
           <div className="relative">
@@ -840,7 +946,7 @@ export function ProductsClient({
                 setPage(1);
               }}
               onKeyDown={handleBarcodeKeyDown}
-              className="h-10 rounded-xl pl-9"
+              className="h-12 rounded-xl border-slate-300 bg-white pl-10 shadow-sm md:h-11 dark:border-blue-300/35 dark:bg-[#17243a] dark:text-white dark:placeholder:text-slate-400 dark:focus-visible:border-blue-400 dark:focus-visible:ring-blue-500/30"
               autoComplete="off"
             />
           </div>
@@ -867,7 +973,7 @@ export function ProductsClient({
         </div>
       ) : null}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border bg-card">
+      <div className="mt-4 hidden overflow-hidden rounded-2xl border border-blue-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(37,99,235,.55)] md:block dark:border-blue-300/20 dark:bg-[#101a2e]">
         <div className="overflow-auto">
           <table className="w-full min-w-[860px] text-sm">
             <colgroup>
@@ -877,9 +983,9 @@ export function ProductsClient({
               <col className="w-[10%]" />
               <col className="w-[14%]" />
             </colgroup>
-            <thead className="bg-[var(--pos-surface-2)] text-muted-foreground">
-              <tr className="border-b">
-                <th className="px-4 py-3 text-left font-medium">Producto</th>
+            <thead className="bg-gradient-to-r from-blue-50 to-sky-50 text-blue-900/65 dark:from-[#17243a] dark:to-[#1a2942] dark:text-blue-200/70">
+              <tr className="border-b text-[11px] uppercase tracking-[0.12em] [&_th]:font-bold">
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.12em]">Producto</th>
                 <th className="px-4 py-3 text-left font-medium">Stock</th>
                 <th className="px-4 py-3 text-left font-medium">Precio</th>
                 <th className="px-4 py-3 text-left font-medium">Estado</th>
@@ -897,7 +1003,7 @@ export function ProductsClient({
                 </tr>
               ) : (
                 paginatedProducts.map((p) => (
-                  <tr key={p.id} className="border-b last:border-b-0">
+                  <tr key={p.id} className="group border-b border-blue-100 bg-white transition-all even:bg-sky-50/55 hover:bg-blue-50 hover:shadow-[inset_3px_0_0_#3b82f6] last:border-b-0 dark:border-blue-300/15 dark:bg-[#101a2e] dark:even:bg-[#142139] dark:hover:bg-[#1a2b47]">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-[var(--pos-surface-2)]">
@@ -909,7 +1015,7 @@ export function ProductsClient({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{p.name}</div>
+                          <div className="truncate font-semibold text-slate-800 group-hover:text-blue-700 dark:text-slate-100 dark:group-hover:text-blue-300">{p.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {[formatVariant(p) || null, p.barcode ? `EAN: ${p.barcode}` : null, p.expires_at ? `Vence: ${p.expires_at}` : null]
                               .filter(Boolean)
@@ -919,7 +1025,7 @@ export function ProductsClient({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm leading-5 text-muted-foreground">{formatStock(p)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-numeric">${p.price}</td>
+                    <td className="px-4 py-3 whitespace-nowrap font-numeric font-extrabold text-slate-900 dark:text-white">${p.price}</td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -967,10 +1073,10 @@ export function ProductsClient({
           <div className="flex flex-col gap-3 border-t bg-[var(--pos-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-xs text-muted-foreground">
               {hasActiveFilters
-                ? `La bÃºsqueda muestra todos los resultados encontrados (${filtered.length}).`
+                ? `Mostrando ${showingFrom}-${showingTo} de ${filtered.length} resultados.`
                 : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length} productos.`}
             </div>
-            {!hasActiveFilters ? (
+            {totalPages > 1 ? (
               <div className="flex items-center justify-end gap-2">
                 <Button
                   type="button"
@@ -999,10 +1105,52 @@ export function ProductsClient({
         ) : null}
       </div>
 
+      <div className="mt-4 grid gap-3 md:hidden">
+        <div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-600 dark:text-slate-300">{hasActiveFilters ? `${filtered.length} resultados` : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length}`}</p><Button type="button" variant="ghost" size="sm" onClick={exportProductsPdf} disabled={exportingPdf || filtered.length === 0} className="h-8 gap-1 rounded-lg text-[10px] text-blue-600"><Download className="size-3.5" />PDF</Button></div>
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900">{products.length === 0 ? "No hay productos cargados." : "Ningún producto coincide con la búsqueda."}</div>
+        ) : paginatedProducts.map((p) => (
+          <article key={`mobile-${p.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex gap-3 p-3">
+              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                {p.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image_url} alt={p.name} className="size-full object-cover" />
+                ) : <Package className="size-6 text-slate-300 dark:text-slate-600" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-extrabold">{p.name}</h2><p className="mt-0.5 truncate text-[10px] text-slate-500">{[formatVariant(p) || p.category, p.barcode ? `EAN ${p.barcode}` : null].filter(Boolean).join(" · ") || "Sin código"}</p></div><span className={cn("shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold", p.active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800")}>{p.active ? "Activo" : "Inactivo"}</span></div>
+                <div className="mt-3 flex items-end justify-between gap-2"><div><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Precio</p><p className="text-lg font-extrabold text-blue-600 tabular-nums">${p.price}</p></div><div className="text-right"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Stock</p><p className={cn("text-sm font-extrabold", isLowStock(p) ? "text-amber-600" : "text-slate-700 dark:text-slate-200")}>{formatStock(p)}</p></div></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-[1fr_auto] border-t border-slate-100 dark:border-slate-800"><button type="button" onClick={() => openEdit(p)} className="flex h-11 items-center justify-center gap-2 text-xs font-extrabold text-blue-600 transition hover:bg-blue-50 dark:hover:bg-blue-950/30"><Pencil className="size-3.5" />Editar producto</button><button type="button" onClick={() => onDelete(p.id)} className="flex h-11 w-12 items-center justify-center border-l border-slate-100 text-rose-500 dark:border-slate-800" aria-label={`Eliminar ${p.name}`}><Trash2 className="size-4" /></button></div>
+          </article>
+        ))}
+
+        {filtered.length > 0 && totalPages > 1 ? (
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 pt-1"><Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={currentPage === 1}>Anterior</Button><span className="text-[10px] font-bold text-slate-500">{page}/{totalPages}</span><Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={currentPage === totalPages}>Siguiente</Button></div>
+        ) : null}
+      </div>
+
+      <AnimatePresence>
+        {importOpen ? (
+          <motion.div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget && !importing) setImportOpen(false); }} role="dialog" aria-modal="true" aria-labelledby="import-products-title">
+            <motion.div className="w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-xl" initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }}>
+              <div className="flex items-start justify-between border-b px-5 py-4"><div><h2 id="import-products-title" className="font-semibold">Importar productos desde Excel</h2><p className="mt-1 text-xs text-muted-foreground">Descargá la plantilla, completala y subí todos tus productos juntos.</p></div><Button type="button" variant="ghost" size="icon" disabled={importing} onClick={() => setImportOpen(false)}><X className="size-4" /></Button></div>
+              <div className="space-y-4 p-5">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30"><div className="flex gap-3"><FileSpreadsheet className="mt-0.5 size-5 shrink-0 text-blue-600" /><div><p className="text-sm font-semibold">1. Descargá la plantilla con ejemplos</p><p className="mt-1 text-xs text-muted-foreground">Incluye instrucciones y tres productos de muestra. Podés borrarlos y agregar todas las filas que necesites.</p><Button type="button" variant="outline" size="sm" className="mt-3 gap-2 bg-white dark:bg-slate-950" onClick={downloadImportTemplate}><Download className="size-3.5" />Descargar plantilla Excel</Button></div></div></div>
+                <div><Label htmlFor="products-import-file">2. Subí la plantilla completada</Label><Input id="products-import-file" type="file" accept=".xlsx,.xls,.csv" className="mt-2 h-11" disabled={importing} onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} /><p className="mt-2 text-[11px] text-muted-foreground">Máximo 5.000 productos. El nombre es obligatorio y los códigos de barras no deben repetirse.</p></div>
+                <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={importing} onClick={() => setImportOpen(false)}>Cancelar</Button><Button type="button" disabled={!importFile || importing} onClick={handleImportProducts} className="gap-2"><Upload className="size-4" />{importing ? "Importando..." : "Importar productos"}</Button></div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       <AnimatePresence>
         {openCreate ? (
           <motion.div
-            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-4 max-lg:p-0"
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm max-lg:p-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1015,7 +1163,7 @@ export function ProductsClient({
           >
             <motion.div
               className={cn(
-                "flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--pos-border)] bg-card shadow-xl",
+                "product-create-modal flex max-h-[min(94vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-blue-400/30 bg-card shadow-2xl",
                 "max-lg:fixed max-lg:inset-0 max-lg:h-[100dvh] max-lg:max-h-none max-lg:max-w-none max-lg:rounded-none max-lg:border-0"
               )}
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -1023,24 +1171,27 @@ export function ProductsClient({
               exit={{ y: 16, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18 }}
             >
-              <div className="flex shrink-0 items-center justify-between border-b px-5 py-4 max-lg:pt-[max(1rem,env(safe-area-inset-top))]">
-                <div>
-                  <div id="modal-create-title" className="text-base font-semibold tracking-tight max-lg:text-lg">
+              <div className="product-create-header relative flex shrink-0 items-center justify-between overflow-hidden border-b border-blue-400/30 px-6 py-5 text-white max-lg:pt-[max(1rem,env(safe-area-inset-top))] lg:px-8">
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="grid size-14 place-items-center rounded-2xl border border-white/20 bg-blue-500/30 shadow-lg"><Package className="size-7" /></div>
+                  <div>
+                  <div id="modal-create-title" className="text-base font-extrabold tracking-tight max-lg:text-xl lg:font-semibold">
                     Nuevo producto
                   </div>
-                  <div className="text-xs text-muted-foreground max-lg:hidden">
-                    CargÃ¡ datos, precio y stock.
+                  <div className="text-sm text-blue-100 max-lg:hidden">
+                    Cargá los datos del producto, precio y stock
                   </div>
-                  <div className="text-[11px] text-muted-foreground lg:hidden">
-                    Asistente paso a paso: cÃ³digo, datos, precios y stock.
+                  <div className="text-[11px] text-blue-100 lg:hidden">
+                    Asistente paso a paso · simple y rápido
                   </div>
                 </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => setOpenCreate(false)}>
+                </div>
+                <Button type="button" variant="ghost" size="icon" className="relative z-10 text-white hover:bg-white/15 hover:text-white" onClick={() => setOpenCreate(false)}>
                   <X className="size-4" />
                 </Button>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#f5f8fc] p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:bg-[#07111f] lg:p-6">
                 <div className={cn(pending ? "pointer-events-none opacity-80" : "")}>
                   {isMobileAssist ? (
                     <ProductCreateMobileWizard
@@ -1058,6 +1209,8 @@ export function ProductsClient({
                       canEditPrice={canEditPrice}
                       canEditStock={canEditStock}
                       submitPulse={showCreateFormSpotlight && createGuidePhase === "submit"}
+                      modalDesign
+                      onCancel={() => setOpenCreate(false)}
                     />
                   )}
                 </div>
@@ -1070,7 +1223,7 @@ export function ProductsClient({
       <AnimatePresence>
         {editProduct ? (
           <motion.div
-            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-4 max-lg:p-0"
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm max-lg:p-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

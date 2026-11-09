@@ -240,6 +240,107 @@ async function createProductImpl(formData: FormData) {
   revalidatePath("/app/onboarding");
 }
 
+export type ProductImportRow = {
+  name: string;
+  barcode?: string | null;
+  scale_code?: string | null;
+  category?: string | null;
+  cost?: number;
+  price?: number;
+  sold_by_weight?: boolean;
+  stock?: number;
+  low_stock_threshold?: number;
+  expires_at?: string | null;
+  active?: boolean;
+  size?: string | null;
+  color?: string | null;
+};
+
+async function importProductsImpl(rows: ProductImportRow[]) {
+  const cookieStore = await cookies();
+  const businessId = getActiveBusinessId(cookieStore);
+  if (!businessId) throw new Error("missing_active_business_id");
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error("No hay productos para importar.");
+  if (rows.length > 5000) throw new Error("Podés importar hasta 5.000 productos por archivo.");
+
+  const normalizedRows = rows.map((row, index) => {
+    const name = String(row?.name ?? "").trim();
+    if (!name) throw new Error(`La fila ${index + 2} no tiene nombre.`);
+
+    const numberValue = (value: unknown, field: string) => {
+      const parsed = Number(value ?? 0);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        throw new Error(`La fila ${index + 2} tiene un valor inválido en ${field}.`);
+      }
+      return parsed;
+    };
+    const soldByWeight = row.sold_by_weight === true;
+    const nullableText = (value: unknown) => String(value ?? "").trim() || null;
+
+    return {
+      id: crypto.randomUUID(),
+      business_id: businessId,
+      name,
+      barcode: nullableText(row.barcode),
+      scale_code: normalizeScaleCode(String(row.scale_code ?? "")),
+      category: nullableText(row.category),
+      variant_group: null,
+      size: nullableText(row.size),
+      color: nullableText(row.color),
+      cost: numberValue(row.cost, "costo"),
+      price: numberValue(row.price, "precio"),
+      expires_at: nullableText(row.expires_at),
+      sold_by_weight: soldByWeight,
+      stock: soldByWeight ? 0 : Math.trunc(numberValue(row.stock, "stock")),
+      stock_decimal: soldByWeight ? numberValue(row.stock, "stock") : 0,
+      low_stock_threshold: soldByWeight ? 0 : Math.trunc(numberValue(row.low_stock_threshold, "stock mínimo")),
+      low_stock_threshold_decimal: soldByWeight ? numberValue(row.low_stock_threshold, "stock mínimo") : 0,
+      active: row.active !== false,
+    };
+  });
+
+  const barcodes = normalizedRows.map((row) => row.barcode).filter((value): value is string => Boolean(value));
+  const duplicateBarcode = barcodes.find((barcode, index) => barcodes.indexOf(barcode) !== index);
+  if (duplicateBarcode) throw new Error(`El código de barras ${duplicateBarcode} está repetido en el archivo.`);
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("unauthorized");
+  const { data: membership, error: membershipError } = await supabase
+    .from("memberships")
+    .select("role,permissions")
+    .eq("user_id", user.id)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (membershipError) throw new Error(membershipError.message);
+  const typedMembership = membership as MembershipRow | null;
+  if (!typedMembership) throw new Error("forbidden");
+  if (typedMembership.role !== "owner") {
+    const permissions = typedMembership.permissions ?? {};
+    if (permissions.products_edit_price !== true) throw new Error("forbidden_edit_price");
+    if (permissions.products_edit_stock !== true) throw new Error("forbidden_edit_stock");
+  }
+
+  if (barcodes.length > 0) {
+    const { data: existingProducts, error: lookupError } = await supabase
+      .from("products")
+      .select("barcode")
+      .eq("business_id", businessId)
+      .in("barcode", barcodes);
+    if (lookupError) throw new Error(lookupError.message);
+    const existingBarcode = existingProducts?.find((product) => product.barcode)?.barcode;
+    if (existingBarcode) throw new Error(`El código de barras ${existingBarcode} ya existe en este comercio.`);
+  }
+
+  const { error } = await supabase.from("products").insert(normalizedRows);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/app/products");
+  revalidatePath("/app/onboarding");
+  return { imported: normalizedRows.length };
+}
+
 async function deleteProductImpl(formData: FormData) {
   const cookieStore = await cookies();
   const businessId = getActiveBusinessId(cookieStore);
@@ -437,5 +538,6 @@ async function updateProductImpl(formData: FormData) {
 }
 
 export const createProduct = createMonitoredAction(createProductImpl, "products/createProduct");
+export const importProducts = createMonitoredAction(importProductsImpl, "products/importProducts");
 export const deleteProduct = createMonitoredAction(deleteProductImpl, "products/deleteProduct");
 export const updateProduct = createMonitoredAction(updateProductImpl, "products/updateProduct");
