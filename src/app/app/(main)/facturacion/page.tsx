@@ -53,7 +53,7 @@ export default async function FacturacionPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto w-full max-w-[1800px] px-3 py-6 sm:px-5 sm:py-10 xl:px-8">
       <div className="mb-8 border-b border-border/60 pb-6">
         <h1 className="text-3xl font-bold tracking-tight">Facturación</h1>
         <p className="mt-2 text-sm text-muted-foreground">
