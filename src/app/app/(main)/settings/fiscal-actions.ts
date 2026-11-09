@@ -48,11 +48,15 @@ export async function getFiscalSettings(): Promise<{
 
   const pos = (posRows ?? []) as FiscalPointOfSale[];
   const certs = (certRows ?? []) as FiscalCertificate[];
+  const posForEnvironment = (environment: FiscalEnvironment) =>
+    pos.find((p) => p.environment === environment && p.is_default) ??
+    pos.find((p) => p.environment === environment) ??
+    null;
 
   return {
     config: (config as BusinessFiscalConfig | null) ?? null,
-    posHomolog: pos.find((p) => p.environment === "homolog") ?? null,
-    posProd: pos.find((p) => p.environment === "prod") ?? null,
+    posHomolog: posForEnvironment("homolog"),
+    posProd: posForEnvironment("prod"),
     certHomolog: certs.find((c) => c.environment === "homolog") ?? null,
     certProd: certs.find((c) => c.environment === "prod") ?? null,
   };
