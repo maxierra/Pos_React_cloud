@@ -118,6 +118,36 @@ export async function getFiscalVouchers(params?: {
   return (data ?? []) as FiscalVoucher[];
 }
 
+export async function getFiscalVouchersForReport(params: { from: string; to: string }): Promise<FiscalVoucher[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.from) || !/^\d{4}-\d{2}-\d{2}$/.test(params.to)) {
+    throw new Error("Periodo de reporte invalido");
+  }
+
+  const businessId = await getBusinessId();
+  const supabase = await createClient();
+  const pageSize = 1000;
+  const rows: FiscalVoucher[] = [];
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("fiscal_vouchers")
+      .select("*, fiscal_voucher_items(*)")
+      .eq("business_id", businessId)
+      .gte("issue_date", params.from)
+      .lte("issue_date", params.to)
+      .order("issue_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as FiscalVoucher[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 export async function getFiscalVoucherBySaleId(saleId: string) {
   const businessId = await getBusinessId();
   const supabase = await createClient();

@@ -25,9 +25,10 @@ import { cn } from "@/lib/utils";
 import type { FiscalVoucher } from "@/features/billing/types";
 import { voucherTypeLabel } from "@/features/billing/types";
 import { emitCreditNoteForVoucher, emitDebitNoteForVoucher, closeConsolidatedPeriod } from "@/app/app/(main)/settings/fiscal-actions";
-import type { PendingConsolidationRow } from "@/app/app/(main)/facturacion/actions";
+import { getFiscalVouchersForReport, type PendingConsolidationRow } from "@/app/app/(main)/facturacion/actions";
 import { generateTicketHtml, type PosBusinessInfo } from "@/lib/ticket-utils";
 import { printFiscalVoucherReceipt, printFiscalVoucherTicket } from "@/lib/fiscal-ticket-utils";
+import { exportStyledWorkbook } from "@/lib/excel-utils";
 
 type Props = {
   vouchers: FiscalVoucher[];
@@ -98,6 +99,17 @@ function formatWeekLabel(date: string) {
     day: "2-digit",
     month: "short",
   })}`;
+}
+
+function localMonthValue() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthDateRange(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year!, monthNumber!, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
 }
 
 function statusTone(status: FiscalVoucher["status"]) {
@@ -240,6 +252,8 @@ export function FacturacionClient({
   const [pending, startTransition] = React.useTransition();
   const [rangeFilter, setRangeFilter] = React.useState<RangeFilter>("today");
   const [groupMode, setGroupMode] = React.useState<GroupMode>("day");
+  const [reportMonth, setReportMonth] = React.useState(localMonthValue);
+  const [exportingMonthlyReport, setExportingMonthlyReport] = React.useState(false);
   const [debitModal, setDebitModal] = React.useState<{
     voucher: FiscalVoucher;
     amount: string;
@@ -476,6 +490,103 @@ export function FacturacionClient({
     win.document.close();
   };
 
+  const exportMonthlyWorkbook = async () => {
+    if (!/^\d{4}-\d{2}$/.test(reportMonth)) {
+      toast.error("Selecciona un periodo valido");
+      return;
+    }
+    setExportingMonthlyReport(true);
+    try {
+      const { from, to } = monthDateRange(reportMonth);
+      const monthlyRows = await getFiscalVouchersForReport({ from, to });
+      if (monthlyRows.length === 0) {
+        toast.error("No hay comprobantes en ese periodo");
+        return;
+      }
+
+      const dates = Array.from(new Set(monthlyRows.map((voucher) => voucher.issue_date))).sort();
+      const countByStatus = (list: FiscalVoucher[], status: FiscalVoucher["status"]) =>
+        list.filter((voucher) => voucher.status === status).length;
+      const amountByStatus = (list: FiscalVoucher[], status: FiscalVoucher["status"]) =>
+        list.filter((voucher) => voucher.status === status).reduce((sum, voucher) => sum + Number(voucher.total || 0), 0);
+
+      const dailyRows = dates.map((date) => {
+        const dayRows = monthlyRows.filter((voucher) => voucher.issue_date === date);
+        return {
+          Fecha: date,
+          "Comprobantes emitidos": dayRows.length,
+          "Aprobados": countByStatus(dayRows, "approved"),
+          "Total aprobado": amountByStatus(dayRows, "approved"),
+          "Rechazados": countByStatus(dayRows, "rejected"),
+          "Total rechazado": amountByStatus(dayRows, "rejected"),
+          "Pendientes": countByStatus(dayRows, "pending"),
+          "Total pendiente": amountByStatus(dayRows, "pending"),
+          "Anulados por NC": countByStatus(dayRows, "voided_nc"),
+        };
+      });
+
+      const sum = (key: keyof (typeof dailyRows)[number]) => dailyRows.reduce((total, row) => total + Number(row[key] || 0), 0);
+      dailyRows.push({
+        Fecha: "TOTAL DEL PERIODO",
+        "Comprobantes emitidos": sum("Comprobantes emitidos"),
+        Aprobados: sum("Aprobados"),
+        "Total aprobado": sum("Total aprobado"),
+        Rechazados: sum("Rechazados"),
+        "Total rechazado": sum("Total rechazado"),
+        Pendientes: sum("Pendientes"),
+        "Total pendiente": sum("Total pendiente"),
+        "Anulados por NC": sum("Anulados por NC"),
+      });
+
+      const operationRows = monthlyRows.map((voucher) => {
+        const details = voucher as FiscalVoucher & { buyer_doc_type?: number | null; concept?: number | null };
+        return {
+          Fecha: voucher.issue_date,
+          Ambiente: voucher.environment === "homolog" ? "Homologacion" : "Produccion",
+          Tipo: voucherTypeLabel(voucher.voucher_type),
+          "Punto de venta": voucher.pos_number,
+          Numero: `${String(voucher.pos_number).padStart(4, "0")}-${String(voucher.voucher_number).padStart(8, "0")}`,
+          Cliente: voucher.buyer_name ?? "Consumidor Final",
+          "Tipo documento": details.buyer_doc_type ?? "",
+          Documento: voucher.buyer_doc_number || "",
+          Total: Number(voucher.total || 0),
+          Estado: STATUS_LABELS[voucher.status] ?? voucher.status,
+          CAE: voucher.cae ?? "",
+          "Vencimiento CAE": voucher.cae_expires_at ?? "",
+          Concepto: details.concept ?? "",
+          "Motivo de rechazo": voucher.rejection_reason ?? "",
+        };
+      });
+
+      const itemRows = monthlyRows.flatMap((voucher) =>
+        (voucher.fiscal_voucher_items ?? []).map((item) => ({
+          Fecha: voucher.issue_date,
+          Tipo: voucherTypeLabel(voucher.voucher_type),
+          Numero: `${String(voucher.pos_number).padStart(4, "0")}-${String(voucher.voucher_number).padStart(8, "0")}`,
+          Cliente: voucher.buyer_name ?? "Consumidor Final",
+          Articulo: item.name,
+          Cantidad: Number(item.quantity || 0),
+          "Precio unitario": Number(item.unit_price || 0),
+          Subtotal: Number(item.subtotal || 0),
+        }))
+      );
+
+      exportStyledWorkbook(
+        [
+          { name: "Resumen diario", data: dailyRows },
+          { name: "Operaciones", data: operationRows },
+          { name: "Detalle articulos", data: itemRows },
+        ],
+        `reporte-facturacion-${reportMonth}`
+      );
+      toast.success(`Reporte descargado: ${monthlyRows.length} comprobantes`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo descargar el reporte");
+    } finally {
+      setExportingMonthlyReport(false);
+    }
+  };
+
   const closePeriod = (period: string) => {
     startTransition(async () => {
       try {
@@ -598,7 +709,22 @@ export function FacturacionClient({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 rounded-full border bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+              <CalendarDays className="size-4" />
+              <span>Periodo</span>
+              <Input
+                type="month"
+                aria-label="Mes del reporte de facturacion"
+                value={reportMonth}
+                onChange={(event) => setReportMonth(event.target.value)}
+                className="h-7 w-36 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+              />
+            </label>
+            <Button type="button" variant="outline" className="rounded-full" disabled={exportingMonthlyReport} onClick={() => void exportMonthlyWorkbook()}>
+              <Download className="size-4" />
+              {exportingMonthlyReport ? "Preparando Excel..." : "Excel mensual"}
+            </Button>
             <Button type="button" variant="outline" className="rounded-full" onClick={exportReportPdf}>
               <Download className="size-4" />
               Exportar PDF
