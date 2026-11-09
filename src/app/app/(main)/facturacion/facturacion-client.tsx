@@ -26,7 +26,7 @@ import type { FiscalVoucher } from "@/features/billing/types";
 import { voucherTypeLabel } from "@/features/billing/types";
 import { emitCreditNoteForVoucher, emitDebitNoteForVoucher, closeConsolidatedPeriod } from "@/app/app/(main)/settings/fiscal-actions";
 import type { PendingConsolidationRow } from "@/app/app/(main)/facturacion/actions";
-import type { PosBusinessInfo } from "@/lib/ticket-utils";
+import { generateTicketHtml, type PosBusinessInfo } from "@/lib/ticket-utils";
 import { printFiscalVoucherReceipt, printFiscalVoucherTicket } from "@/lib/fiscal-ticket-utils";
 
 type Props = {
@@ -245,6 +245,31 @@ export function FacturacionClient({
     amount: string;
     description: string;
   } | null>(null);
+  const [ticketPreview, setTicketPreview] = React.useState<FiscalVoucher | null>(null);
+  const ticketPreviewHtml = React.useMemo(() => {
+    if (!ticketPreview) return "";
+    return generateTicketHtml({
+      kind: "sale",
+      business,
+      saleId: ticketPreview.sale_id ?? ticketPreview.id,
+      created_at: ticketPreview.created_at,
+      customerName: ticketPreview.buyer_name ?? "Consumidor Final",
+      items: (ticketPreview.fiscal_voucher_items ?? []).map((item) => ({
+        name: item.name,
+        quantity: Number(item.quantity ?? 0),
+        unit_price: Number(item.unit_price ?? 0),
+      })),
+      total: Number(ticketPreview.total ?? 0),
+      fiscal: {
+        voucherTypeLabel: voucherTypeLabel(ticketPreview.voucher_type),
+        posNumber: ticketPreview.pos_number,
+        voucherNumber: ticketPreview.voucher_number,
+        cae: ticketPreview.cae ?? "",
+        caeExpiresAt: ticketPreview.cae_expires_at ?? "",
+        qrPayload: ticketPreview.qr_payload ?? "",
+      },
+    });
+  }, [business, ticketPreview]);
 
   const today = new Date().toISOString().slice(0, 10);
   const startWeek = React.useMemo(() => {
@@ -418,6 +443,11 @@ export function FacturacionClient({
   const reprintTicket = (voucher: FiscalVoucher) => {
     if (!voucher.cae) return;
     printFiscalVoucherReceipt(voucher, business);
+  };
+
+  const viewTicket = (voucher: FiscalVoucher) => {
+    if (!voucher.cae) return;
+    setTicketPreview(voucher);
   };
 
   const exportReportPdf = () => {
@@ -729,7 +759,7 @@ export function FacturacionClient({
                         <VoucherMobileCards
                           vouchers={summary.vouchers}
                           pending={pending}
-                          onReprintTicket={reprintTicket}
+                          onReprintTicket={viewTicket}
                           onReprintInvoice={reprintFactura}
                           onEmitNc={emitNc}
                           onEmitNd={openDebitNote}
@@ -754,7 +784,7 @@ export function FacturacionClient({
                           <VoucherRowsTable
                             vouchers={summary.vouchers}
                             pending={pending}
-                            onReprintTicket={reprintTicket}
+                            onReprintTicket={viewTicket}
                             onReprintInvoice={reprintFactura}
                             onEmitNc={emitNc}
                             onEmitNd={openDebitNote}
@@ -795,7 +825,7 @@ export function FacturacionClient({
                 <VoucherMobileCards
                   vouchers={group.vouchers}
                   pending={pending}
-                  onReprintTicket={reprintTicket}
+                  onReprintTicket={viewTicket}
                   onReprintInvoice={reprintFactura}
                   onEmitNc={emitNc}
                   onEmitNd={openDebitNote}
@@ -821,7 +851,7 @@ export function FacturacionClient({
                     <VoucherRowsTable
                       vouchers={group.vouchers}
                       pending={pending}
-                      onReprintTicket={reprintTicket}
+                      onReprintTicket={viewTicket}
                       onReprintInvoice={reprintFactura}
                       onEmitNc={emitNc}
                       onEmitNd={openDebitNote}
@@ -833,6 +863,45 @@ export function FacturacionClient({
           ))
         )}
       </section>
+      {ticketPreview ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ticket-preview-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setTicketPreview(null);
+          }}
+        >
+          <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
+              <div>
+                <h2 id="ticket-preview-title" className="font-bold text-slate-900">Ticket de venta</h2>
+                <p className="text-xs text-slate-500">
+                  Comprobante fiscal {String(ticketPreview.pos_number).padStart(4, "0")}-{String(ticketPreview.voucher_number).padStart(8, "0")}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" aria-label="Cerrar vista previa" onClick={() => setTicketPreview(null)}>
+                <XCircle className="size-5" />
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3 sm:p-5">
+              <iframe
+                title="Vista previa del ticket fiscal"
+                srcDoc={ticketPreviewHtml}
+                className="mx-auto h-[560px] w-full max-w-[380px] rounded-lg border-0 bg-white shadow"
+                sandbox=""
+              />
+            </div>
+            <div className="flex justify-end gap-2 border-t p-3 sm:px-5">
+              <Button type="button" variant="outline" onClick={() => setTicketPreview(null)}>Cerrar</Button>
+              <Button type="button" onClick={() => reprintTicket(ticketPreview)}>
+                <Printer className="size-4" /> Imprimir ticket
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -981,7 +1050,7 @@ function VoucherRowsTable({
                     onClick={() => onReprintTicket(voucher)}
                   >
                     <Receipt className="size-3.5" />
-                    Ticket
+                    Ver ticket
                   </Button>
                   <Button
                     type="button"
@@ -1075,7 +1144,7 @@ function VoucherMobileCards({
 
             {approved ? (
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => onReprintTicket(voucher)}><Receipt className="size-4" />Ticket</Button>
+                <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => onReprintTicket(voucher)}><Receipt className="size-4" />Ver ticket</Button>
                 <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => onReprintInvoice(voucher)}><Printer className="size-4" />Factura</Button>
                 {supportsNotes ? <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={pending} onClick={() => onEmitNd(voucher)}><Plus className="size-4" />Nota débito</Button> : null}
                 {supportsNotes ? <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={pending} onClick={() => onEmitNc(voucher.id)}><RotateCcw className="size-4" />Nota crédito</Button> : null}
