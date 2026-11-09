@@ -539,8 +539,19 @@ export function PosClient({
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      const isTextEntryTarget =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("textarea, select, [contenteditable='true']") !== null ||
+          (target instanceof HTMLInputElement &&
+            !["button", "submit", "reset", "checkbox", "radio", "file"].includes(target.type)));
       const paymentNumberMatch = /^(?:Numpad|Digit)([1-9])$/.exec(e.code);
       if (!paymentOpen && paymentNumberMatch) {
+        if (isTextEntryTarget) {
+          numpadPaymentArmedRef.current = false;
+          return;
+        }
         const shortcutIndex = Number(paymentNumberMatch[1]) - 1;
         const shortcutMethod =
           shortcutIndex < activePaymentMethods.length
@@ -557,6 +568,10 @@ export function PosClient({
         return;
       }
       if (!paymentOpen && e.key === "Enter" && numpadPaymentArmedRef.current) {
+        if (isTextEntryTarget) {
+          numpadPaymentArmedRef.current = false;
+          return;
+        }
         e.preventDefault();
         e.stopImmediatePropagation();
         numpadPaymentArmedRef.current = false;
