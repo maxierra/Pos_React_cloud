@@ -483,9 +483,9 @@ export function ProductForm({
                     value={barcodeInput}
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && rejectDuplicateBarcode(e.currentTarget.value)) {
+                      if (e.key === "Enter") {
                         e.preventDefault();
-                        e.stopPropagation();
+                        if (rejectDuplicateBarcode(e.currentTarget.value)) e.stopPropagation();
                       }
                     }}
                     inputMode="numeric"
@@ -517,15 +517,20 @@ export function ProductForm({
           </div>
 
           {preload && !defaults?.id && !catalogStyle ? (
-            <div className={cn("mt-3 rounded-xl border border-emerald-500/35 bg-emerald-500/[0.07] p-3 text-left", "dark:bg-emerald-950/25")}>
-              <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">Datos sugeridos</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {preloadCategoryPath ? <span className="block">{preloadCategoryPath}</span> : null}
-                {preloadSuggestedPrice != null ? <span className="mt-0.5 block">Precio referencia venta: ${preloadSuggestedPrice}</span> : null}
-                <span className="mt-1 block text-emerald-700/90 dark:text-emerald-300/90">
-                  Revisá precio de compra y stock abajo antes de guardar.
-                </span>
-              </p>
+            <div className="product-suggestion-card product-found-card mt-3 rounded-xl border p-3 text-left" role="status" aria-live="polite">
+              <div className="product-found-heading flex items-center gap-3">
+                <span className="product-found-check" aria-hidden="true">✓</span>
+                <div className="min-w-0">
+                  <div className="text-lg font-extrabold">¡Producto encontrado!</div>
+                  <p className="mt-0.5 truncate text-sm">{nameInput || preload.name}</p>
+                </div>
+                <span className="product-found-ready ml-auto shrink-0 rounded-full px-3 py-2 text-xs font-bold">Listo para cargar</span>
+              </div>
+              <div className="product-found-details mt-3 grid gap-2 sm:grid-cols-3">
+                <div><span>Categoría:</span><strong>{preloadCategoryPath || "Sin sugerencia"}</strong></div>
+                <div><span>Precio sugerido:</span><strong>{preloadSuggestedPrice != null ? `$${preloadSuggestedPrice.toLocaleString("es-AR")}` : "A definir"}</strong></div>
+                <div><span>Próximo paso:</span><strong>Revisá stock y precio</strong></div>
+              </div>
             </div>
           ) : null}
         </div>
@@ -736,7 +741,7 @@ export function ProductForm({
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={cn("grid gap-2", modalDesign && "product-price-highlight")}>
             <Label htmlFor="price">Precio venta{soldByWeight ? " (por kg)" : ""}</Label>
             <Input
               id="price"

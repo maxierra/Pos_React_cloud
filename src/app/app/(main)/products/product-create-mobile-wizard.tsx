@@ -376,9 +376,9 @@ export function ProductCreateMobileWizard({
                   value={barcodeInput}
                   onChange={(e) => setBarcodeInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && rejectDuplicateBarcode(e.currentTarget.value)) {
+                    if (e.key === "Enter") {
                       e.preventDefault();
-                      e.stopPropagation();
+                      if (rejectDuplicateBarcode(e.currentTarget.value)) e.stopPropagation();
                     }
                   }}
                   inputMode="numeric"

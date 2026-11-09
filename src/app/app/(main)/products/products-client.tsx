@@ -441,7 +441,7 @@ export function ProductsClient({
   const [exportingPdf, setExportingPdf] = React.useState(false);
   const [scannerSearchOpen, setScannerSearchOpen] = React.useState(false);
   const [duplicateProductDialogOpen, setDuplicateProductDialogOpen] = React.useState(false);
-  const [duplicateProductCode, setDuplicateProductCode] = React.useState("");
+  const [recentlyCreatedProducts, setRecentlyCreatedProducts] = React.useState<ProductRow[]>([]);
   const [importOpen, setImportOpen] = React.useState(false);
   const [importFile, setImportFile] = React.useState<File | null>(null);
   const [importing, setImporting] = React.useState(false);
@@ -460,21 +460,22 @@ export function ProductsClient({
   const [barcodeQuery, setBarcodeQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const barcodeSearchRef = React.useRef<HTMLInputElement>(null);
+  const knownProducts = React.useMemo(() => [...recentlyCreatedProducts, ...products], [products, recentlyCreatedProducts]);
   const notifyDuplicateBarcode = React.useCallback(
     (raw: string) => {
       const code = normCode(raw);
       if (!code) return false;
-      const foundByScan = findProductByScannedCode(products, code);
+      const foundByScan = findProductByScannedCode(knownProducts, code);
       const scaleCode = /^\d{1,5}$/.test(code) ? normalizeScaleCode(code) : null;
       const alreadyLoaded =
         Boolean(foundByScan) ||
-        Boolean(scaleCode && products.some((product) => normalizeScaleCode(product.scale_code ?? "") === scaleCode));
+        Boolean(scaleCode && knownProducts.some((product) => normalizeScaleCode(product.scale_code ?? "") === scaleCode));
       if (!alreadyLoaded) return false;
-      setDuplicateProductCode(raw.trim());
+      setOpenCreate(false);
       setDuplicateProductDialogOpen(true);
       return true;
     },
-    [products]
+    [knownProducts]
   );
 
   const filtered = React.useMemo(() => {
@@ -510,6 +511,32 @@ export function ProductsClient({
         (async () => {
           try {
             await createProduct(formData);
+            const barcode = String(formData.get("barcode") ?? "").trim() || null;
+            const scaleCode = normalizeScaleCode(String(formData.get("scale_code") ?? ""));
+            if (barcode || scaleCode) {
+              const recentProduct: ProductRow = {
+                id: crypto.randomUUID(),
+                name: String(formData.get("name") ?? "").trim(),
+                image_path: null,
+                image_url: null,
+                barcode,
+                scale_code: scaleCode,
+                category: String(formData.get("category") ?? "").trim() || null,
+                variant_group: null,
+                size: String(formData.get("size") ?? "").trim() || null,
+                color: String(formData.get("color") ?? "").trim() || null,
+                price: String(formData.get("price") ?? "0"),
+                cost: String(formData.get("cost") ?? "0"),
+                sold_by_weight: String(formData.get("sold_by_weight") ?? "off") === "on",
+                stock: Number(formData.get("stock") ?? 0),
+                stock_decimal: String(formData.get("stock_decimal") ?? "0"),
+                low_stock_threshold: Number(formData.get("low_stock_threshold") ?? 0),
+                low_stock_threshold_decimal: String(formData.get("low_stock_threshold_decimal") ?? "0"),
+                expires_at: String(formData.get("expires_at") ?? "").trim() || null,
+                active: String(formData.get("active") ?? "") !== "off",
+              };
+              setRecentlyCreatedProducts((current) => [recentProduct, ...current]);
+            }
             toast.success("Producto creado");
             setOpenCreate(false);
             if (guideProductStep) {
@@ -519,7 +546,7 @@ export function ProductsClient({
             router.refresh();
           } catch (err) {
             if (err instanceof Error && /ya está cargado/i.test(err.message)) {
-              setDuplicateProductCode(String(formData.get("barcode") ?? formData.get("scale_code") ?? "").trim());
+              setOpenCreate(false);
               setDuplicateProductDialogOpen(true);
               return;
             }
@@ -719,6 +746,15 @@ export function ProductsClient({
     },
     [barcodeQuery, products, openEdit]
   );
+
+  React.useEffect(() => {
+    if (!openCreate) return;
+    const timer = window.setTimeout(() => {
+      const input = document.getElementById(isMobileAssist ? "wiz-barcode" : "barcode") as HTMLInputElement | null;
+      input?.focus({ preventScroll: true });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [openCreate, isMobileAssist]);
 
   const showProductSpotlight = guideProductStep && !openCreate;
 
@@ -1186,7 +1222,7 @@ export function ProductsClient({
           >
             <motion.div
               className={cn(
-                "product-create-modal flex max-h-[min(94vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-blue-400/30 bg-card shadow-2xl",
+                "product-create-modal product-create-vivid flex max-h-[min(94vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-blue-400/30 bg-card shadow-2xl",
                 "max-lg:fixed max-lg:inset-0 max-lg:h-[100dvh] max-lg:max-h-none max-lg:max-w-none max-lg:rounded-none max-lg:border-0"
               )}
               initial={{ y: 16, opacity: 0, scale: 0.98 }}
@@ -1354,26 +1390,18 @@ export function ProductsClient({
                     Este producto ya está cargado
                   </h2>
                   <p id="duplicate-product-description" className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
-                    El código escaneado ya pertenece a un producto del catálogo. Escaneá otro para continuar.
+                    Este producto ya está ingresado. Tocá «Cargar otro» para abrir un formulario nuevo.
                   </p>
                 </div>
               </div>
               <div className="space-y-5 px-6 py-5">
-                {duplicateProductCode ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Código leído</div>
-                    <div className="mt-1 break-all font-mono text-sm font-bold text-slate-800 dark:text-slate-100">{duplicateProductCode}</div>
-                  </div>
-                ) : null}
                 <Button
                   type="button"
                   autoFocus
                   className="h-12 w-full gap-2 rounded-xl bg-blue-600 text-base font-extrabold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
                   onClick={() => {
                     setDuplicateProductDialogOpen(false);
-                    window.setTimeout(() => {
-                      document.getElementById(isMobileAssist ? "wiz-barcode" : "barcode")?.focus();
-                    }, 0);
+                    setOpenCreate(true);
                   }}
                 >
                   <ScanLine className="size-5" />
