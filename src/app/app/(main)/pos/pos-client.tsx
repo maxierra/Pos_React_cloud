@@ -578,7 +578,7 @@ export function PosClient({
         openPayment();
         return;
       }
-      if (e.key === "F2") {
+      if (e.key === "F6") {
         e.preventDefault();
         searchRef.current?.focus();
       }

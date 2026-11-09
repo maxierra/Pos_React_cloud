@@ -37,7 +37,7 @@ export function SearchBar({ inputRef, value, onChange, onKeyDown, className, pla
 
       <div className="pointer-events-none absolute inset-y-0 right-3 hidden items-center gap-2 lg:flex">
         <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300">
-          F2
+          F6
         </span>
         <div className="flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300">
           <Barcode className="size-4" />
