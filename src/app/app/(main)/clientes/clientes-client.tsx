@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { History, Pencil, Plus, Trash2 } from "lucide-react";
+import { CreditCard, History, Mail, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
 
 import { ClienteHistorialModal } from "@/app/app/(main)/clientes/cliente-historial-modal";
 import { deleteCustomer, saveCustomer } from "@/app/app/(main)/clientes/actions";
@@ -44,6 +44,7 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ClienteRow | null>(null);
   const [historialFor, setHistorialFor] = React.useState<ClienteRow | null>(null);
+  const [query, setQuery] = React.useState("");
   const [pending, startTransition] = React.useTransition();
 
   React.useEffect(() => {
@@ -104,7 +105,7 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
         })();
       });
     },
-    [address, creditLimit, editing?.id, email, name, phone, resetForm, router]
+    [address, creditLimit, editing, email, name, phone, resetForm, router]
   );
 
   const onDelete = React.useCallback(
@@ -130,20 +131,35 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
     [router]
   );
 
+  const filteredRows = React.useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("es");
+    if (!normalized) return rows;
+    return rows.filter((row) =>
+      [row.name, row.phone, row.email, row.address]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase("es").includes(normalized))
+    );
+  }, [query, rows]);
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-border/60 pb-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:py-8">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-border/60 pb-5 md:mb-8 md:pb-8">
         <div className="max-w-xl space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Clientes</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Clientes</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Abrí el historial de cada cliente para ver compras, cobrar la deuda (total o parcial) y registrar el medio de
             pago.
           </p>
         </div>
-        <Button type="button" onClick={openNew} className="h-10 gap-2 shadow-sm">
+        <Button type="button" onClick={openNew} className="h-11 w-full gap-2 rounded-xl shadow-sm sm:w-auto">
           <Plus className="size-4" />
           Nuevo cliente
         </Button>
+      </div>
+
+      <div className="relative mb-4">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, teléfono o email" className="h-12 rounded-2xl bg-card pl-10" />
       </div>
 
       <Card className="overflow-hidden border-border/60 shadow-sm">
@@ -153,8 +169,43 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
             Límite, deuda, disponible para gastar y acceso al historial.
           </CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          <div className="min-w-[720px]">
+        <CardContent className="p-3 md:overflow-x-auto md:p-0">
+          <div className="grid gap-3 md:hidden">
+            {filteredRows.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                {query ? "No encontramos clientes con esa búsqueda." : "No hay clientes. Creá el primero para usar cuenta corriente en el POS."}
+              </div>
+            ) : filteredRows.map((r) => (
+              <article key={`mobile-${r.id}`} className="rounded-2xl border border-border/70 bg-[var(--pos-surface)] p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/app/clientes/${r.id}`} className="text-base font-bold text-foreground">{r.name}</Link>
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {r.phone ? <a href={`tel:${r.phone}`} className="flex items-center gap-2"><Phone className="size-3.5" />{r.phone}</a> : null}
+                      {r.email ? <a href={`mailto:${r.email}`} className="flex items-center gap-2 break-all"><Mail className="size-3.5" />{r.email}</a> : null}
+                      {!r.phone && !r.email ? <span>Sin datos de contacto</span> : null}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button type="button" variant="ghost" size="icon" className="size-9" onClick={() => openEdit(r)} aria-label={`Editar a ${r.name}`}><Pencil className="size-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-destructive" onClick={() => onDelete(r)} aria-label={`Eliminar a ${r.name}`} disabled={pending}><Trash2 className="size-4" /></Button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-slate-100 p-2.5 dark:bg-slate-800"><div className="text-[10px] font-semibold uppercase text-muted-foreground">Límite</div><div className="mt-1 text-xs font-bold">{moneyAr(r.credit_limit)}</div></div>
+                  <div className="rounded-xl bg-amber-50 p-2.5 dark:bg-amber-950/30"><div className="text-[10px] font-semibold uppercase text-amber-700 dark:text-amber-400">Deuda</div><div className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-300">{moneyAr(r.balance)}</div></div>
+                  <div className="rounded-xl bg-emerald-50 p-2.5 dark:bg-emerald-950/30"><div className="text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-400">Disponible</div><div className="mt-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">{moneyAr(r.available_to_spend)}</div></div>
+                </div>
+
+                <Button type="button" variant="secondary" className="mt-3 h-11 w-full justify-between rounded-xl" onClick={() => setHistorialFor(r)}>
+                  <span className="flex items-center gap-2"><History className="size-4" /> Historial y cobros</span><CreditCard className="size-4 text-muted-foreground" />
+                </Button>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden min-w-[720px] md:block">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 border-b bg-muted/60 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
                 <tr>
@@ -168,14 +219,14 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {rows.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-14 text-center text-muted-foreground">
                       No hay clientes. Creá el primero para usar cuenta corriente en el POS.
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r) => (
+                  filteredRows.map((r) => (
                     <tr
                       key={r.id}
                       className="transition-colors hover:bg-muted/40 even:bg-muted/[0.35]"
@@ -258,7 +309,7 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           onMouseDown={(e) => {
@@ -268,7 +319,7 @@ export function ClientesClient({ rows: initialRows }: { rows: ClienteRow[] }) {
             }
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] border bg-card p-5 shadow-xl sm:rounded-2xl sm:p-6">
             <h2 className="text-lg font-semibold">{editing ? "Editar cliente" : "Nuevo cliente"}</h2>
             <form className="mt-4 grid gap-3" onSubmit={onSubmit}>
               <div className="grid gap-1.5">
