@@ -209,13 +209,33 @@ export function formatSaleTicketPlainText(data: TicketData): string {
     lines.push(`PtoVta: ${data.fiscal.posNumber}  Comp: ${data.fiscal.voucherNumber}`);
     lines.push(`CAE: ${data.fiscal.cae}`);
     lines.push(`Vto CAE: ${data.fiscal.caeExpiresAt}`);
-    if (data.fiscal.qrPayload) lines.push(`Verificar: ${data.fiscal.qrPayload}`);
+    if (data.fiscal.qrPayload) {
+      lines.push("QR fiscal ARCA: se imprime a continuacion");
+      lines.push(encodeEscPosQr(data.fiscal.qrPayload));
+    }
   }
   if (business?.ticket_footer) lines.push(business.ticket_footer);
   lines.push(kind === "closure" ? "Fin de turno" : "Gracias por su compra");
   lines.push("***");
 
   return lines.join("\n");
+}
+
+/** Genera comandos QR ESC/POS, compatibles con impresoras termicas RawBT. */
+function encodeEscPosQr(payload: string): string {
+  const data = new TextEncoder().encode(payload);
+  const length = data.length + 3;
+  const pL = length & 0xff;
+  const pH = (length >> 8) & 0xff;
+  const bytes = [
+    0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00, // modelo 2
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x06, // tamaño de módulo
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31, // corrección M
+    0x1d, 0x28, 0x6b, pL, pH, 0x31, 0x50, 0x30,
+    ...data,
+    0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30,
+  ];
+  return String.fromCharCode(...bytes);
 }
 
 export function generateTicketHtml(data: TicketData) {

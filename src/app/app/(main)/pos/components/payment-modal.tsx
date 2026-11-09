@@ -712,6 +712,15 @@ export function PaymentModal({
                       <span>Pago</span>
                       <span>{resolveLabel(effectivePaymentMethod)}</span>
                     </div>
+                  {fiscalConfig?.isActive ? (
+                    <div className="mt-2 border-t border-dashed border-black/50 pt-2 text-center">
+                      <div className="font-bold">
+                        {fiscalConfig.documentOutputMode === "factura" ? "Factura electrónica" : "Comprobante fiscal electrónico"}
+                      </div>
+                      <div>CAE y QR fiscal ARCA</div>
+                      <div className="text-[9px]">Se emiten al confirmar el cobro</div>
+                    </div>
+                  ) : null}
                     {!mixed && method === "cash" ? (
                       <>
                         <div className="mt-1 flex justify-between gap-3">
@@ -1148,16 +1157,7 @@ export function PaymentModal({
                       setTransferConfirmOpen(true);
                       return;
                     }
-                    if (mercadopagoAmountInPayload(nextPayload, finalTotal) > 0 && mercadoPagoQrReady) {
-                      setPreviewOpen(true);
-                      return;
-                    }
-                    onConfirm({
-                      ...nextPayload,
-                      print_ticket: printTicket,
-                      customer_id: payloadUsesCuentaCorriente(nextPayload) ? customerId || null : null,
-                      fiscal_customer: fiscalCustomerPayload,
-                    });
+                    setPreviewOpen(true);
                   }}
                 >
                   {pending ? "Procesando..." : "CONFIRMAR COBRO (ENTER)"}
