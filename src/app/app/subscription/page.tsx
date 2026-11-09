@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -65,22 +66,25 @@ export default async function SubscriptionPage() {
         <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[color-mix(in_oklab,var(--sub-orchid)_12%,transparent)] blur-3xl" />
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-4 py-10">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--pos-accent)]">Facturacion</p>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Mi{" "}
-            <span className="bg-gradient-to-r from-[var(--pos-accent)] via-teal-500 to-[var(--sub-sky)] bg-clip-text text-transparent">
-              suscripcion
-            </span>
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Gestiona tu prueba gratis y activa el plan que mejor se adapte a tu negocio. Puedes ofrecer pago
-            mensual, semestral o anual con descuentos por pago anticipado.
-          </p>
+      <div className="mx-auto w-full max-w-[1320px] px-4 pb-14 pt-4">
+        <header
+          className="relative min-h-[190px] overflow-hidden rounded-[28px] border border-cyan-300/25 px-7 py-9 text-white shadow-[0_24px_70px_-35px_rgba(37,99,235,.9)] md:px-10 md:py-11"
+          style={{ background: "radial-gradient(circle at 78% 0%,rgba(34,211,238,.26),transparent 30%),radial-gradient(circle at 18% 110%,rgba(124,58,237,.48),transparent 42%),linear-gradient(120deg,#11134d 0%,#123f9c 55%,#062b54 100%)" }}
+        >
+          <div aria-hidden className="absolute -bottom-20 left-[32%] h-32 w-[42%] rotate-[-5deg] rounded-[50%] border-t-2 border-cyan-300/60 shadow-[0_-8px_35px_rgba(34,211,238,.35)]" />
+          <div className="relative z-10 max-w-3xl">
+            <h1 className="text-4xl font-black tracking-tight md:text-5xl">
+              Mi <span className="text-cyan-300">Suscripción</span>
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-blue-100 md:text-base">
+              Gestioná tu plan y mantené tu negocio siempre activo con todas las funciones de Tienda360.
+            </p>
+          </div>
+
+          <Image src="/images/subscription/subscription-hero-laptop.png" alt="Comercio Tienda360 en una notebook" width={620} height={310} priority className="pointer-events-none absolute -bottom-16 right-2 hidden h-auto w-[520px] object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,.32)] lg:block" />
         </header>
 
-        <div className="mt-8">
+        <div className="mt-5">
           <Suspense
             fallback={
               <div className="flex h-32 items-center justify-center rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] text-sm text-muted-foreground">

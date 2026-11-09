@@ -4,15 +4,21 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BadgeCheck,
+  Check,
+  ChevronDown,
+  Cloud,
   Clock,
   Copy,
   Crown,
-  Gem,
+  Headphones,
+  HelpCircle,
+  LockKeyhole,
   Loader2,
   MessageCircle,
   Phone,
   ShieldCheck,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,31 +78,31 @@ const PLAN_UI: Record<
   }
 > = {
   monthly: {
-    name: "Mensual",
-    periodLabel: "Pago mes a mes",
+    name: "Plan Mensual",
+    periodLabel: "Pago mes a mes, sin compromiso",
     badge: "Flexible",
     accent: "text-sky-950 dark:text-sky-50",
     ring: "border-sky-300/70 dark:border-sky-700/70",
     surface:
       "from-white via-sky-50/80 to-cyan-50/70 dark:from-slate-950 dark:via-sky-950/40 dark:to-cyan-950/30",
-    button: "bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400",
+    button: "bg-sky-600 text-white hover:bg-sky-700 dark:bg-sky-500 dark:text-white dark:hover:bg-sky-400",
     chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/70 dark:text-sky-100",
     Icon: Clock,
   },
   semester: {
-    name: "6 meses",
+    name: "Plan Semestral",
     periodLabel: "Ahorra y paga menos por mes",
-    badge: "Mas elegido",
-    accent: "text-emerald-950 dark:text-emerald-50",
-    ring: "border-emerald-300/80 dark:border-emerald-700/70",
+    badge: "Más elegido",
+    accent: "text-white",
+    ring: "border-cyan-300/80 dark:border-cyan-300/70",
     surface:
-      "from-emerald-50 via-white to-teal-50 dark:from-emerald-950/45 dark:via-slate-950 dark:to-teal-950/35",
-    button: "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400",
-    chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-100",
+      "from-[#087fe8] via-[#075dcc] to-[#123b78] dark:from-[#087fe8] dark:via-[#075dcc] dark:to-[#123b78]",
+    button: "bg-white text-blue-700 hover:bg-blue-50 dark:bg-white dark:text-blue-700 dark:hover:bg-blue-50",
+    chip: "bg-white/90 text-emerald-700",
     Icon: BadgeCheck,
   },
   annual: {
-    name: "1 año",
+    name: "Plan Anual",
     periodLabel: "El mejor valor del año",
     badge: "Mejor valor",
     accent: "text-amber-950 dark:text-amber-50",
@@ -227,10 +233,10 @@ export function SubscriptionClient({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-7">
       <section
         className={cn(
-          "rounded-3xl border border-[var(--pos-border)] bg-[var(--pos-surface)] p-6 shadow-sm",
+          "rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_18px_50px_-32px_rgba(30,64,175,.55)] backdrop-blur-xl dark:border-blue-300/20 dark:bg-[#101a2e]/90",
           "bg-gradient-to-br from-[var(--pos-surface)] via-[color-mix(in_oklab,var(--pos-accent)_4%,var(--pos-surface))] to-[color-mix(in_oklab,var(--sub-sky)_8%,var(--pos-surface))]"
         )}
       >
@@ -239,8 +245,8 @@ export function SubscriptionClient({
             <Clock className="size-5" />
           </span>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Estado de tu cuenta</h2>
-            <p className="text-xs text-muted-foreground">Prueba gratuita y acceso al sistema</p>
+            <h2 className="text-lg font-extrabold tracking-tight">Estado de tu cuenta</h2>
+            <p className="text-xs text-muted-foreground">Tu plan, acceso y vencimiento en un solo lugar</p>
           </div>
           {subscription && hasAccess && isTrial ? (
             <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
@@ -256,7 +262,7 @@ export function SubscriptionClient({
           ) : null}
         </div>
 
-        <div className="mt-6 space-y-5 text-sm">
+        <div className="mt-3 space-y-3 text-sm">
           {loadError ? (
             <div className="rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-4 py-3 text-xs text-amber-900 dark:text-amber-100">
               <strong className="font-semibold">No se pudo cargar la suscripcion.</strong> {loadError}
@@ -270,7 +276,7 @@ export function SubscriptionClient({
           ) : hasAccess ? (
             <>
               {isTrial && trialEnds ? (
-                <div className="space-y-5">
+                <div className="space-y-2 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
                   <p className="leading-relaxed text-foreground">
                     Disfruta la <strong className="text-[var(--pos-accent)]">prueba gratis</strong> hasta{" "}
                     <strong>
@@ -282,12 +288,7 @@ export function SubscriptionClient({
                     </strong>
                     .
                   </p>
-                  <div>
-                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">
-                      Tiempo restante
-                    </p>
-                    <TrialCountdown endsAt={subscription.current_period_end!} variant="large" />
-                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-blue-500/35 bg-blue-500/5 px-4 py-2 text-xs font-bold text-blue-700 dark:text-blue-200"><Clock className="size-4" /> Plan de prueba</span>
                 </div>
               ) : null}
               {isActive && periodEnds ? (
@@ -330,13 +331,13 @@ export function SubscriptionClient({
 
       <section className="space-y-4">
         <div className="text-center sm:text-left">
-          <h3 className="text-sm font-semibold tracking-tight text-foreground">Activa tu plan</h3>
+          <h3 className="text-2xl font-black tracking-tight text-foreground">Elegí tu plan</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Elige la opcion que mejor se adapte a tu ritmo. Todos los planes incluyen las mismas funciones.
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-5 pt-2 lg:grid-cols-3">
             {planCards.map((plan) => {
               const isLoading = loadingPlan === plan.planKey;
               const Icon = plan.ui.Icon;
@@ -345,29 +346,26 @@ export function SubscriptionClient({
                 <article
                   key={plan.planKey}
                   className={cn(
-                    "relative overflow-hidden rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] transition-transform duration-200",
+                    "relative flex min-h-[445px] flex-col overflow-hidden rounded-[28px] border bg-gradient-to-br p-6 shadow-[0_22px_65px_-32px_rgba(15,23,42,0.42)] transition-transform duration-200",
                     plan.ui.ring,
                     plan.ui.surface,
                     plan.planKey === "semester" ? "lg:-translate-y-3 lg:scale-[1.02]" : ""
                   )}
                 >
+                  {plan.planKey !== "monthly" ? (
+                    <div className={cn("absolute right-0 top-0 flex h-20 w-28 flex-col items-center justify-center rounded-bl-[60px] text-center", plan.planKey === "semester" ? "bg-emerald-400 text-white" : "bg-emerald-100 text-emerald-800")}>
+                      <span className="text-[10px] font-bold uppercase">Ahorrás</span>
+                      <strong className="text-2xl leading-none">{plan.discountPercent}%</strong>
+                    </div>
+                  ) : null}
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-70" />
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]",
-                          plan.ui.chip
-                        )}
-                      >
-                        {plan.ui.badge}
-                      </span>
-                      <h4 className={cn("mt-2 text-2xl font-black tracking-tight", plan.ui.accent)}>{plan.ui.name}</h4>
-                      <p className="mt-1 text-sm text-muted-foreground">{plan.ui.periodLabel}</p>
+                      {plan.planKey === "semester" ? <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", plan.ui.chip)}>{plan.ui.badge}</span> : null}
+                      <span className={cn("mt-4 flex size-10 items-center justify-center rounded-xl", plan.planKey === "semester" ? "bg-cyan-300/15 text-cyan-200" : plan.planKey === "annual" ? "bg-amber-100 text-amber-500" : "bg-blue-100 text-blue-600")}><Icon className="size-5" /></span>
+                      <h4 className={cn("mt-3 text-2xl font-black tracking-tight", plan.ui.accent)}>{plan.ui.name}</h4>
+                      <p className={cn("mt-1 text-sm", plan.planKey === "semester" ? "text-blue-100" : "text-muted-foreground")}>{plan.ui.periodLabel}</p>
                     </div>
-                    <span className="inline-flex size-11 items-center justify-center rounded-2xl border border-white/50 bg-white/65 text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
-                      <Icon className="size-5" />
-                    </span>
                   </div>
 
                   <div className="mt-6">
@@ -375,34 +373,19 @@ export function SubscriptionClient({
                       <span className={cn("text-4xl font-black tabular-nums tracking-tight", plan.ui.accent)}>
                         {moneyAr(plan.amount)}
                       </span>
-                      <span className="pb-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        total
+                      <span className={cn("pb-1 text-sm font-semibold", plan.planKey === "semester" ? "text-blue-100" : "text-muted-foreground")}>
+                        / {plan.planKey === "monthly" ? "mes" : plan.planKey === "semester" ? "6 meses" : "año"}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {plan.planKey === "monthly" ? (
-                        <>Renovacion mensual</>
-                      ) : (
-                        <>
-                          Equivale a <strong className="text-foreground">{moneyAr(plan.monthlyEquivalent)}</strong> por mes
-                        </>
-                      )}
-                    </p>
+                    {plan.planKey === "monthly" ? <p className="mt-2 text-sm text-muted-foreground">Renovación mensual</p> : null}
                   </div>
 
-                  {plan.planKey !== "monthly" ? (
-                    <div className="mt-5 rounded-2xl border border-white/50 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ahorras</p>
-                      <p className="mt-1 text-lg font-bold text-foreground">
-                        {moneyAr(plan.savings)} <span className="text-sm font-medium text-muted-foreground">({plan.discountPercent}% off)</span>
-                      </p>
-                    </div>
-                  ) : null}
+                  {plan.planKey !== "monthly" ? <div className={cn("mt-4 rounded-xl px-3 py-2 text-sm font-bold", plan.planKey === "semester" ? "bg-cyan-300/20 text-white" : "bg-emerald-100 text-emerald-900")}>Equivale a {moneyAr(plan.monthlyEquivalent)} por mes</div> : null}
 
                   <ul className="mt-5 space-y-2 border-t border-white/50 pt-5 text-sm dark:border-white/10">
                     {PLAN_FEATURES.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-foreground/85">
-                        <Gem className="size-3.5 text-[var(--pos-accent)]" />
+                      <li key={f} className={cn("flex items-center gap-2", plan.planKey === "semester" ? "text-white" : "text-foreground/85")}>
+                        <Check className={cn("size-4", plan.planKey === "semester" ? "text-[#39ff14]" : "text-emerald-600")} strokeWidth={3} />
                         <span>{f}</span>
                       </li>
                     ))}
@@ -419,9 +402,9 @@ export function SubscriptionClient({
                       void onPayPlan(plan.planKey);
                     }}
                     className={cn(
-                      "mt-6 h-11 w-full rounded-2xl text-sm font-semibold shadow-lg transition",
+                      "mt-auto h-11 w-full rounded-2xl text-sm font-semibold shadow-lg transition",
                       plan.ui.button,
-                      plan.planKey === "annual" ? "shadow-amber-950/10" : "text-white"
+                      plan.planKey === "annual" && "shadow-amber-950/10"
                     )}
                   >
                     {isLoading ? (
@@ -439,6 +422,23 @@ export function SubscriptionClient({
               );
             })}
         </div>
+      </section>
+
+      <section className="grid overflow-hidden rounded-3xl border border-blue-200/70 bg-white/80 shadow-[0_18px_50px_-34px_rgba(30,64,175,.45)] backdrop-blur-xl sm:grid-cols-2 lg:grid-cols-4 dark:border-blue-300/20 dark:bg-[#101a2e]/90">
+        {[
+          [Zap, "Activación inmediata", "Comenzá a usarlo en minutos"],
+          [Cloud, "Actualizaciones incluidas", "Siempre con las últimas mejoras"],
+          [Headphones, "Soporte técnico", "Te acompañamos cuando lo necesitás"],
+          [LockKeyhole, "Tus datos seguros", "Protección y respaldo en la nube"],
+        ].map(([Icon, title, description], index) => {
+          const BenefitIcon = Icon as typeof Zap;
+          return (
+            <div key={String(title)} className={cn("flex items-center gap-3 px-5 py-5", index > 0 && "border-t border-blue-100 sm:border-l sm:border-t-0 dark:border-blue-300/15", index === 2 && "sm:border-l-0 lg:border-l")}>
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/35 bg-cyan-100 text-blue-600 shadow-sm dark:bg-cyan-300/10 dark:text-cyan-300"><BenefitIcon className="size-5" /></span>
+              <div><p className="text-sm font-extrabold text-foreground">{String(title)}</p><p className="mt-0.5 text-xs text-muted-foreground">{String(description)}</p></div>
+            </div>
+          );
+        })}
       </section>
 
       {showAssistedBlock ? (
@@ -570,6 +570,25 @@ export function SubscriptionClient({
           </div>
         </section>
       ) : null}
+
+      <section className="overflow-hidden rounded-3xl border border-blue-200/70 bg-white/80 shadow-sm backdrop-blur-xl dark:border-blue-300/20 dark:bg-[#101a2e]/90">
+        <div className="flex items-center gap-3 border-b border-blue-100 px-6 py-5 dark:border-blue-300/15">
+          <span className="flex size-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300"><HelpCircle className="size-5" /></span>
+          <div><h3 className="text-lg font-black">Preguntas frecuentes</h3><p className="text-xs text-muted-foreground">Todo lo importante antes de elegir tu plan.</p></div>
+        </div>
+        <div className="divide-y divide-blue-100 px-6 dark:divide-blue-300/15">
+          {[
+            ["¿Todos los planes incluyen las mismas funciones?", "Sí. Punto de venta, caja, productos, stock, ventas, informes y actualizaciones están incluidos en todos los planes."],
+            ["¿Cuándo se activa mi suscripción?", "La activación es automática cuando Mercado Pago acredita el pago. Si pagás por transferencia, soporte confirma la activación."],
+            ["¿Pierdo mis datos si vence la prueba?", "No. Tus productos, ventas y configuraciones permanecen guardados para que continúes al activar un plan."],
+          ].map(([question, answer]) => (
+            <details key={question} className="group py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-foreground"><span>{question}</span><ChevronDown className="size-4 shrink-0 text-blue-500 transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted-foreground">{answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
