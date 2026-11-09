@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AlertTriangle, Banknote, CreditCard, Landmark, Receipt, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Banknote, CalendarDays, ChevronRight, CreditCard, Landmark, Receipt, ShoppingCart, Store, TrendingUp, Wallet } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { saleCuentaCorrienteAmount } from "@/lib/customer-account";
@@ -226,6 +226,10 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
   }
   const trendPoints = Array.from(salesByDay.entries()).map(([date, total]) => ({ date, total }));
   const trendMax = Math.max(1, ...trendPoints.map((x) => x.total));
+  const previousRevenue = trendPoints.at(-2)?.total ?? 0;
+  const revenueVariation = previousRevenue > 0
+    ? Math.round(((todayRevenue - previousRevenue) / previousRevenue) * 100)
+    : todayRevenue > 0 ? 100 : 0;
 
   const todayPaidSaleIds = new Set(todaySales.map((s) => s.id));
   const topProductsMap = new Map<string, { name: string; qty: number; total: number }>();
@@ -303,8 +307,68 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
     "from-emerald-600 to-lime-400",
   ] as const;
 
+  const userName = (userEmail?.split("@")[0] ?? "Usuario")
+    .split(/[._-]/)[0]
+    .replace(/^./, (letter) => letter.toUpperCase());
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-10">
+    <>
+      <section className="min-h-full bg-[#f5f8fc] px-4 pb-28 pt-6 text-slate-950 md:hidden dark:bg-slate-950 dark:text-slate-50">
+        <div className="mx-auto max-w-md">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-[27px] font-extrabold tracking-tight">Hola, {userName} <span aria-hidden>👋</span></h1>
+              <p className="mt-0.5 text-xs font-medium capitalize text-slate-500 dark:text-slate-400">{formatArgentinaShortDate(selectedYmd)}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+              <CalendarDays className="size-4 text-blue-600" />
+              <span>{selectedYmd === argentinaYmd(new Date().toISOString()) ? "Hoy" : formatArgentinaShortDate(selectedYmd)}</span>
+            </div>
+          </div>
+
+          <article className="relative mt-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0799ee] via-[#087fe8] to-[#0867d6] p-5 text-white shadow-[0_12px_28px_rgba(8,126,231,.28)]">
+            <div className="absolute -bottom-3 right-1 flex items-end gap-1 opacity-20" aria-hidden>
+              {[28, 44, 62, 82, 104].map((height) => <span key={height} className="w-3 rounded-t bg-white" style={{ height }} />)}
+            </div>
+            <div className="relative flex items-start gap-3">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/10 shadow-inner"><TrendingUp className="size-7" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">Ventas del día</p>
+                  <span className="inline-flex items-center rounded-full bg-emerald-400 px-2 py-1 text-xs font-extrabold text-white"><ArrowUpRight className="mr-0.5 size-3.5" />{revenueVariation >= 0 ? "+" : ""}{revenueVariation}%</span>
+                </div>
+                <p className="mt-1 text-[29px] font-extrabold leading-none tracking-tight tabular-nums">{moneyAr(todayRevenue)}</p>
+                <p className="mt-3 max-w-[245px] text-xs leading-4 text-blue-100">Total facturado en tickets del día (incluye ventas en cuenta corriente).</p>
+              </div>
+            </div>
+          </article>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <MobileMetric icon={<Wallet className="size-5 text-violet-600" />} iconClass="bg-violet-100 dark:bg-violet-950/60" label={<>Cobrado hoy<br />(cuenta corriente)</>} value={moneyAr(cobrosDeudaHoy)} />
+            <MobileMetric icon={<Receipt className="size-5 text-blue-600" />} iconClass="bg-blue-100 dark:bg-blue-950/60" label="Tickets" value={String(todayTickets)} />
+            <MobileMetric icon={<ShoppingCart className="size-5 text-emerald-600" />} iconClass="bg-emerald-100 dark:bg-emerald-950/60" label="Ticket promedio" value={moneyAr(averageTicket)} />
+            <MobileMetric icon={<AlertTriangle className="size-5 text-red-600" />} iconClass="bg-red-100 dark:bg-red-950/60" label="Anulaciones hoy" value={String(todayVoids.length)} danger />
+          </div>
+
+          <article className="mt-3 flex items-center gap-3 rounded-2xl border border-amber-200/70 bg-gradient-to-r from-amber-50 to-white p-4 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-amber-900/50 dark:from-amber-950/40 dark:to-slate-900">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950"><Store className="size-6 text-orange-500" /></span>
+            <div><p className="text-sm font-bold">Caja actual</p><p className="text-xl font-extrabold text-orange-600 tabular-nums">{moneyAr(cashExpected)}</p><p className="text-[11px] text-slate-500 dark:text-slate-400">{openRegister ? "Turno abierto" : "Sin caja abierta"}</p></div>
+          </article>
+
+          <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-extrabold"><span className="flex size-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950"><TrendingUp className="size-4 text-blue-600" /></span>Ventas últimos 7 días</h2><ChevronRight className="size-5 text-slate-500" /></div>
+            <div className="mt-5 grid h-36 grid-cols-7 items-end gap-2">
+              {trendPoints.map((point, index) => {
+                const height = Math.max(5, Math.round((point.total / trendMax) * 92));
+                const isLast = index === trendPoints.length - 1;
+                return <div key={point.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1"><span className="text-[8px] font-bold text-slate-700 dark:text-slate-300">{point.total ? moneyAr(point.total).replace(/,00$/, "") : "$0"}</span><span className={isLast ? "w-full max-w-9 rounded-t-md bg-emerald-400" : "w-full max-w-9 rounded-t-md bg-gradient-to-t from-blue-600 to-cyan-400"} style={{ height }} /><span className="whitespace-nowrap text-[8px] text-slate-500">{formatArgentinaShortDate(point.date)}</span></div>;
+              })}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div className="dashboard-polish mx-auto hidden w-full max-w-7xl px-4 py-10 md:block">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
@@ -315,8 +379,8 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         <DateSelector />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+      <div className="dashboard-metrics-panel mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="dashboard-metric dashboard-metric-emerald rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
           <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300">
             <TrendingUp className="size-4" /> Ventas del día
           </div>
@@ -325,7 +389,7 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
         </div>
         <div
           className={
-            "rounded-xl border p-5 " +
+            "dashboard-metric dashboard-metric-violet rounded-xl border p-5 " +
             (cobrosDeudaHoy > 0.01
               ? "border-violet-500/25 bg-violet-500/[0.07]"
               : "border-border bg-muted/20")
@@ -348,26 +412,26 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
               : "Hoy no registraste cobros de deuda de clientes."}
           </p>
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="dashboard-metric dashboard-metric-blue rounded-xl border bg-card p-5">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <Receipt className="size-4" /> Tickets
           </div>
           <div className="mt-2 text-3xl font-semibold">{todayTickets}</div>
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="dashboard-metric dashboard-metric-cyan rounded-xl border bg-card p-5">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <ShoppingCart className="size-4" /> Ticket promedio
           </div>
           <div className="mt-2 text-3xl font-semibold">{moneyAr(averageTicket)}</div>
         </div>
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-5">
+        <div className="dashboard-metric dashboard-metric-rose rounded-xl border border-rose-500/20 bg-rose-500/5 p-5">
           <div className="inline-flex items-center gap-2 text-sm text-rose-700 dark:text-rose-300">
             <AlertTriangle className="size-4" /> Anulaciones hoy
           </div>
           <div className="mt-2 text-3xl font-semibold text-rose-700 dark:text-rose-300">{todayVoids.length}</div>
           <div className="mt-1 text-xs text-rose-700/80 dark:text-rose-300/80">{moneyAr(todayVoidsAmount)}</div>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <div className="dashboard-metric dashboard-metric-amber rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
           <div className="inline-flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
             <Banknote className="size-4" /> Caja actual
           </div>
@@ -504,6 +568,16 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
+  );
+}
+
+function MobileMetric({ icon, iconClass, label, value, danger = false }: { icon: React.ReactNode; iconClass: string; label: React.ReactNode; value: string; danger?: boolean }) {
+  return (
+    <article className={"flex min-h-24 items-center gap-3 rounded-2xl border bg-white p-3 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:bg-slate-900 " + (danger ? "border-red-200 bg-gradient-to-br from-white to-red-50 dark:border-red-900/60 dark:to-red-950/30" : "border-slate-200 dark:border-slate-800")}>
+      <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>{icon}</span>
+      <div className="min-w-0"><p className={"text-[11px] font-bold leading-4 " + (danger ? "text-red-600" : "text-slate-700 dark:text-slate-200")}>{label}</p><p className={"mt-1 truncate text-lg font-extrabold leading-none tabular-nums " + (danger ? "text-red-600" : "text-slate-950 dark:text-white")}>{value}</p></div>
+    </article>
   );
 }
