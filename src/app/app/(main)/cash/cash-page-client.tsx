@@ -393,6 +393,94 @@ export function CashPageClient({
         description='Tocá «Abrir caja», dejá el saldo inicial en 0 si querés, y confirmá. Después pasamos al punto de venta.'
       />
 
+      <section className="min-h-full bg-[#f5f8fc] px-4 pb-28 pt-5 text-slate-950 md:hidden dark:bg-slate-950 dark:text-slate-50">
+        <div className="mx-auto max-w-md">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-[27px] font-extrabold tracking-tight">Caja diaria</h1>
+              <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">Control de ingresos y movimientos</p>
+            </div>
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold", openRegister ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300")}>
+              <span className={cn("size-2 rounded-full", openRegister ? "bg-emerald-500" : "bg-rose-500")} />
+              {openRegister ? "Caja abierta" : "Caja cerrada"}
+            </span>
+          </div>
+
+          <article className="relative mt-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#075dcc] via-[#176ee1] to-[#4b45cf] p-5 text-white shadow-[0_12px_28px_rgba(29,78,216,.28)]">
+            <div className="absolute -right-8 -top-8 size-36 rounded-full bg-white/10" />
+            <div className="absolute -bottom-14 right-8 size-32 rounded-full bg-cyan-300/15" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-xl bg-white/15"><Wallet className="size-6 text-cyan-200" /></span>
+                <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">Efectivo</span>
+              </div>
+              <p className="mt-4 text-xs font-semibold text-blue-100">Efectivo esperado en caja</p>
+              <p className="mt-1 text-[32px] font-extrabold leading-none tracking-tight tabular-nums">{moneyAr(expectedCash)}</p>
+              <p className="mt-3 text-xs text-blue-100">{registerDescription}</p>
+            </div>
+          </article>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {[
+              { label: "Ventas cobradas", value: soldTotal, icon: <Banknote className="size-5 text-emerald-600" />, tone: "bg-emerald-100 dark:bg-emerald-950" },
+              { label: "Cobros de deuda", value: cobrosTotal, icon: <NotebookPen className="size-5 text-violet-600" />, tone: "bg-violet-100 dark:bg-violet-950" },
+              { label: "Entradas manuales", value: totalIn, icon: <ArrowDownCircle className="size-5 text-sky-600" />, tone: "bg-sky-100 dark:bg-sky-950" },
+              { label: "Salidas manuales", value: totalOut, icon: <ArrowUpCircle className="size-5 text-rose-600" />, tone: "bg-rose-100 dark:bg-rose-950" },
+            ].map((item) => (
+              <article key={item.label} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+                <span className={cn("flex size-9 items-center justify-center rounded-xl", item.tone)}>{item.icon}</span>
+                <p className="mt-3 text-[10px] font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
+                <p className="mt-0.5 truncate text-lg font-extrabold tabular-nums">{moneyAr(item.value)}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Button type="button" variant="outline" onClick={() => setHistoryModal(true)} className="h-12 rounded-xl border-blue-200 bg-white text-[11px] font-bold text-blue-700 shadow-sm dark:border-blue-900 dark:bg-slate-900 dark:text-blue-300"><Clock3 className="size-4" />Turnos</Button>
+            {!openRegister ? (
+              <Button type="button" onClick={() => setOpenCashModal(true)} className="col-span-2 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-xs font-extrabold text-white shadow-lg shadow-emerald-500/20"><Wallet className="size-4" />Abrir caja</Button>
+            ) : (
+              <>
+                <Button type="button" onClick={() => setMovementModal(true)} className="h-12 rounded-xl bg-sky-600 text-[11px] font-bold text-white"><Plus className="size-4" />Movimiento</Button>
+                <Button type="button" onClick={() => setCloseModal(true)} className="h-12 rounded-xl bg-rose-600 text-[11px] font-bold text-white">Cerrar</Button>
+              </>
+            )}
+          </div>
+
+          <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-sm font-extrabold">Distribución por medio</h2>
+            <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">Ventas, movimientos y cobros de deuda</p>
+            <div className="mt-4 grid gap-2">
+              {([
+                ["cash", "Efectivo", "bg-emerald-500", "text-emerald-600"],
+                ["card", "Tarjeta", "bg-amber-400", "text-amber-600"],
+                ["transfer", "Transferencia", "bg-violet-500", "text-violet-600"],
+                ["mercadopago", "Mercado Pago", "bg-sky-500", "text-sky-600"],
+              ] as const).map(([key, label, dot, textTone]) => (
+                <div key={key} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/70">
+                  <span className="flex items-center gap-2 text-xs font-bold"><span className={cn("size-2.5 rounded-full", dot)} />{label}</span>
+                  <span className={cn("text-sm font-extrabold tabular-nums", textTone)}>{moneyAr(netInChannel(key))}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800"><div><h2 className="text-sm font-extrabold">Actividad reciente</h2><p className="text-[10px] text-slate-500">Últimos movimientos de caja</p></div>{openRegister ? <button type="button" onClick={() => setMovementModal(true)} className="flex size-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950"><Plus className="size-4" /></button> : null}</div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {ledgerRows.length === 0 ? <p className="px-4 py-8 text-center text-xs text-slate-500">Sin movimientos para mostrar.</p> : ledgerRows.slice(0, 6).map((row) => (
+                <div key={`mobile-${row.kind}-${row.id}`} className="flex items-center gap-3 px-4 py-3">
+                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", row.kind === "cc_sale" ? "bg-slate-100 text-slate-500 dark:bg-slate-800" : row.movement_type === "in" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950" : "bg-rose-100 text-rose-600 dark:bg-rose-950")}>{row.kind === "cc_sale" ? <Clock3 className="size-4" /> : row.movement_type === "in" ? <ArrowDownCircle className="size-4" /> : <ArrowUpCircle className="size-4" />}</span>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{row.reason}</p><p className="mt-0.5 text-[9px] text-slate-500">{methodLabel(row.method)} · {formatArgentinaDateTime(row.created_at)}</p></div>
+                  <p className={cn("text-xs font-extrabold tabular-nums", row.kind === "cc_sale" ? "text-slate-500" : row.movement_type === "in" ? "text-emerald-600" : "text-rose-600")}>{row.kind === "cc_sale" || row.movement_type === "in" ? "+" : "-"}{moneyAr(row.amount)}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div className="hidden md:block">
       <div className="flex items-center justify-end gap-3 mb-6">
 
         <div className="flex items-center gap-2">
@@ -435,10 +523,11 @@ export function CashPageClient({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Card className="relative overflow-hidden border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(16,185,129,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.15)]">
+      <div className="cash-metrics-panel mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <Card className="cash-metric cash-metric-emerald">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-emerald-500/10 blur-2xl" />
           <CardHeader className="pb-2">
+            <span className="cash-metric-icon"><Banknote className="size-6" /></span>
             <CardDescription className="text-emerald-700/80 dark:text-emerald-400 font-medium tracking-wide uppercase text-[10px]">
               Ventas cobradas
             </CardDescription>
@@ -446,9 +535,10 @@ export function CashPageClient({
             <p className="pt-1 text-[10px] leading-tight text-muted-foreground">POS: efectivo, tarjeta, etc. (sin ventas solo en CC)</p>
           </CardHeader>
         </Card>
-        <Card className="relative overflow-hidden border-violet-500/30 bg-gradient-to-br from-violet-500/15 via-violet-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(139,92,246,0.12)] transition-all hover:shadow-[0_0_25px_-5px_rgba(139,92,246,0.18)]">
+        <Card className="cash-metric cash-metric-violet">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-violet-500/10 blur-2xl" />
           <CardHeader className="pb-2">
+            <span className="cash-metric-icon"><NotebookPen className="size-6" /></span>
             <CardDescription className="text-violet-700/80 dark:text-violet-400 font-medium tracking-wide uppercase text-[10px]">
               Cobros de deuda (CC)
             </CardDescription>
@@ -456,23 +546,26 @@ export function CashPageClient({
             <p className="pt-1 text-[10px] leading-tight text-muted-foreground">Dinero que entró al cobrar deudas; suma al medio elegido</p>
           </CardHeader>
         </Card>
-        <Card className="relative overflow-hidden border-sky-500/30 bg-gradient-to-br from-sky-500/15 via-sky-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(14,165,233,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(14,165,233,0.15)]">
+        <Card className="cash-metric cash-metric-sky">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-sky-500/10 blur-2xl" />
           <CardHeader className="pb-2">
+            <span className="cash-metric-icon"><ArrowDownCircle className="size-6" /></span>
             <CardDescription className="text-sky-700/80 dark:text-sky-400 font-medium tracking-wide uppercase text-[10px]">Entradas manuales</CardDescription>
             <CardTitle className="text-sky-700 dark:text-sky-300 text-2xl font-bold tracking-tight">{moneyAr(totalIn)}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="relative overflow-hidden border-rose-500/30 bg-gradient-to-br from-rose-500/15 via-rose-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(244,63,94,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(244,63,94,0.15)]">
+        <Card className="cash-metric cash-metric-rose">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-rose-500/10 blur-2xl" />
           <CardHeader className="pb-2">
+            <span className="cash-metric-icon"><ArrowUpCircle className="size-6" /></span>
             <CardDescription className="text-rose-700/80 dark:text-rose-400 font-medium tracking-wide uppercase text-[10px]">Salidas manuales</CardDescription>
             <CardTitle className="text-rose-700 dark:text-rose-300 text-2xl font-bold tracking-tight">{moneyAr(totalOut)}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="relative overflow-hidden border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent shadow-[0_0_20px_-5px_rgba(245,158,11,0.1)] transition-all hover:shadow-[0_0_25px_-5px_rgba(245,158,11,0.15)]">
+        <Card className="cash-metric cash-metric-amber">
           <div className="absolute top-0 right-0 h-16 w-16 -translate-y-1/2 translate-x-1/2 rounded-full bg-amber-500/10 blur-2xl" />
           <CardHeader className="pb-2">
+            <span className="cash-metric-icon"><Wallet className="size-6" /></span>
             <CardDescription className="text-amber-700/80 dark:text-amber-400 font-medium tracking-wide uppercase text-[10px]">Efectivo esperado en caja</CardDescription>
             <CardTitle className="text-amber-700 dark:text-amber-300 text-2xl font-bold tracking-tight">{moneyAr(expectedCash)}</CardTitle>
           </CardHeader>
@@ -762,6 +855,8 @@ export function CashPageClient({
             </tbody>
           </table>
         </div>
+      </div>
+
       </div>
 
       <AnimatePresence>

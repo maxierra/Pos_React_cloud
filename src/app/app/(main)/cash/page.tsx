@@ -588,8 +588,8 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
   });
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-7xl px-0 py-0 md:px-4 md:py-8">
+      <div className="mb-8 hidden flex-wrap items-center justify-between gap-4 md:flex">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Caja diaria</h1>
           <p className="text-sm text-muted-foreground">Control de flujo, arqueo y liquidación de turnos.</p>
