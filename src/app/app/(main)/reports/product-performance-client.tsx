@@ -191,7 +191,7 @@ function ProductRankingTable({
           </div>
         ) : (
           <>
-            <div className="overflow-auto rounded-xl border">
+            <div className="hidden overflow-auto rounded-xl border md:block">
               <table className="w-full min-w-[760px] text-sm">
                 <thead className="bg-muted/40 text-muted-foreground">
                   <tr className="border-b">
@@ -216,6 +216,15 @@ function ProductRankingTable({
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            <div className="grid gap-2 md:hidden">
+              {visibleRows.map((row, index) => (
+                <div key={`mobile-${row.key}`} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className={"flex size-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-extrabold " + (tone === "up" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950" : "bg-rose-100 text-rose-700 dark:bg-rose-950")}>{index + 1}</span><span className="truncate text-xs font-extrabold">{row.name}</span></div><span className="shrink-0 text-xs font-extrabold text-blue-600">{moneyAr(row.revenue)}</span></div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[9px] text-slate-500"><span>Cantidad<br /><b className="text-slate-800 dark:text-slate-200">{qtyAr(row.quantity)}</b></span><span>Tickets<br /><b className="text-slate-800 dark:text-slate-200">{row.salesCount}</b></span><span>Participación<br /><b className="text-slate-800 dark:text-slate-200">{pct(row.share)}</b></span></div>
+                </div>
+              ))}
             </div>
 
             <div className="flex items-center justify-between gap-3">
@@ -262,21 +271,21 @@ export function ProductPerformanceClient({ data }: { data: ProductPerformancePay
   const noSalesPreview = data.noSalesProducts.slice(0, 12);
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-5 space-y-4 md:mt-8 md:space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Productos más y menos vendidos</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-lg font-extrabold tracking-tight md:text-xl md:font-semibold">Productos más y menos vendidos</h2>
+          <p className="text-xs text-muted-foreground md:text-sm">
             {data.periodTitle}. Ranking ampliable, gráficos y exportación lista para Excel.
           </p>
-          <p className="text-xs font-medium text-sky-700 dark:text-sky-400">
+          <p className="hidden text-xs font-medium text-sky-700 dark:text-sky-400 md:block">
             Para ampliar la lista usá los botones Mostrar: 10, 20, 50 o Todos.
           </p>
         </div>
         <ProductPerformanceExportButton data={data} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <Card className="border-emerald-500/20 bg-emerald-500/[0.04]">
           <CardHeader className="pb-2">
             <CardDescription>Producto líder</CardDescription>
@@ -321,7 +330,7 @@ export function ProductPerformanceClient({ data }: { data: ProductPerformancePay
             <CardTitle>Top 10 más vendidos</CardTitle>
             <CardDescription>Vista rápida para detectar los productos estrella.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px]">
+          <CardContent className="h-[240px] md:h-[320px]">
             {chartData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 No hay ventas en este período.
@@ -337,7 +346,7 @@ export function ProductPerformanceClient({ data }: { data: ProductPerformancePay
             <CardTitle>10 con menor rotación</CardTitle>
             <CardDescription>Productos que sí se vendieron, pero muy poco.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px]">
+          <CardContent className="h-[240px] md:h-[320px]">
             {lowChartData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 Todavía no hay suficientes datos para esta vista.

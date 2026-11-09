@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { 
+  Package,
   TrendingUp, 
   ShoppingBag, 
   Scale, 
@@ -16,6 +17,7 @@ import {
   type ProductWithoutSalesRow,
 } from "@/app/app/(main)/reports/product-performance-client";
 import { ReportsExportButton } from "@/app/app/(main)/reports/reports-export-client";
+import { ExpenseModalButton } from "@/app/app/(main)/reports/scroll-to-expenses-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -368,12 +370,19 @@ function SpeedometerGauge({
   value,
   label,
   recommended,
+  inverse = false,
 }: {
   value: number;
   label: string;
   recommended: string;
+  inverse?: boolean;
 }) {
-  const v = Math.max(0, Math.min(100, value));
+  const realValue = Number.isFinite(value) ? value : 0;
+  const v = Math.max(0, Math.min(100, realValue));
+  // Keep the needle just inside the arc at the extremes so it never gets
+  // hidden underneath the rounded end caps. The label still shows the real
+  // value, including losses (< 0%) or margins above 100%.
+  const needleValue = Math.max(2, Math.min(98, v));
 
   const W = 260;
   const H = 155;
@@ -395,10 +404,9 @@ function SpeedometerGauge({
     return `M ${p1.x} ${p1.y} A ${R} ${R} 0 ${large} 1 ${p2.x} ${p2.y}`;
   }
 
-  const needleTip = pointOnArc(v, R - 12);
-  const needleBase = pointOnArc(v, 18);
+  const needleTip = pointOnArc(needleValue, R - 16);
 
-  const pctText = `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`;
+  const pctText = `${realValue.toFixed(1)}%`;
 
   return (
     <div className="flex flex-col items-center">
@@ -418,23 +426,25 @@ function SpeedometerGauge({
         </g>
 
         <line
-          x1={needleBase.x} y1={needleBase.y}
+          x1={cx} y1={cy}
           x2={needleTip.x} y2={needleTip.y}
-          className="stroke-slate-900 dark:stroke-white transition-all duration-700 ease-out"
-          strokeWidth={4}
+          stroke={inverse ? "#cffafe" : "#0f172a"}
+          className="transition-all duration-700 ease-out"
+          strokeWidth={5}
           strokeLinecap="round"
+          style={{ filter: "drop-shadow(0 0 5px rgba(34,211,238,.95))" }}
         />
-        <circle cx={cx} cy={cy} r={10} className="fill-slate-900 dark:fill-white" />
-        <circle cx={cx} cy={cy} r={5.5} className="fill-white dark:fill-slate-900" />
+        <circle cx={cx} cy={cy} r={12} className={inverse ? "fill-cyan-100" : "fill-slate-950 dark:fill-cyan-100"} style={{ filter: "drop-shadow(0 0 6px rgba(34,211,238,.8))" }} />
+        <circle cx={cx} cy={cy} r={5.5} className={inverse ? "fill-slate-900" : "fill-white dark:fill-slate-900"} />
 
-        <text x={cx} y={cy - 22} textAnchor="middle" className="fill-foreground text-2xl font-bold">
+        <text x={cx} y={cy - 22} textAnchor="middle" className={cn("text-2xl font-bold", inverse ? "fill-white" : "fill-foreground")}>
           {pctText}
         </text>
-        <text x={cx} y={cy - 40} textAnchor="middle" className="fill-muted-foreground text-[11px] font-medium">
+        <text x={cx} y={cy - 40} textAnchor="middle" className={cn("text-[11px] font-medium", inverse ? "fill-blue-200" : "fill-muted-foreground")}>
           {label}
         </text>
       </svg>
-      <div className="mt-1 text-sm text-muted-foreground">{recommended}</div>
+      <div className={cn("mt-1 text-sm", inverse ? "text-blue-100/80" : "text-muted-foreground")}>{recommended}</div>
     </div>
   );
 }
@@ -509,6 +519,8 @@ export default async function ReportsPage({
       .select("id,name,amount,frequency,category,active")
       .eq("business_id", businessId)
       .eq("active", true)
+      .gte("created_at", periodStartIso)
+      .lt("created_at", periodEndIso)
       .order("created_at", { ascending: false }),
     loadSalesChunked(
       supabase,
@@ -578,7 +590,7 @@ export default async function ReportsPage({
   const netProfit = grossProfit - fixedExpensesTotal;
   const netMarginPct = revenue > 0 ? netProfit / revenue : 0;
 
-  const netGaugeRaw = Math.max(0, Math.min(100, netMarginPct * 100));
+  const netGaugeRaw = netMarginPct * 100;
   const netGauge = Math.round(netGaugeRaw * 10) / 10;
 
   const exportPayload = {
@@ -609,30 +621,109 @@ export default async function ReportsPage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-10">
+    <div className="mx-auto w-full max-w-7xl bg-[#f5f8fc] px-4 pb-28 pt-5 md:bg-transparent md:py-10 dark:bg-slate-950 md:dark:bg-transparent">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Reportes</h1>
-          <p className="text-sm text-muted-foreground">Resultado del negocio: ventas, costos, gastos y ganancia neta.</p>
+          <h1 className="text-[27px] font-extrabold tracking-tight md:text-2xl md:font-semibold">Reportes</h1>
+          <p className="text-xs text-muted-foreground md:text-sm">Ventas, costos, gastos y ganancia neta.</p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground capitalize">{periodLabel(selectedMonth)}</div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:mt-3 md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none dark:border-slate-800 dark:bg-slate-900 md:dark:bg-transparent">
+        <div className="text-xs font-bold capitalize text-blue-600 md:font-normal md:text-muted-foreground">{periodLabel(selectedMonth)}</div>
+        <div className="flex w-full flex-wrap items-center gap-3 md:w-auto">
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
             <ReportsExportButton data={exportPayload} />
-            <span className="max-w-[220px] text-xs text-muted-foreground">
+            <span className="hidden max-w-[220px] text-xs text-muted-foreground md:inline">
               Excel con estilo: resumen del mes, ventas cobradas y gastos fijos (según el mes elegido).
             </span>
           </div>
-          <form method="get" className="flex items-center gap-2">
+          <form method="get" className="flex w-full items-center gap-2 md:w-auto">
             <Label htmlFor="month" className="text-xs text-muted-foreground">Mes</Label>
-            <Input id="month" name="month" type="month" defaultValue={selectedMonth} className="h-9 w-44" />
-            <button className="h-9 rounded-lg border px-3 text-sm">Ver</button>
+            <Input id="month" name="month" type="month" defaultValue={selectedMonth} className="h-10 min-w-0 flex-1 rounded-xl md:h-9 md:w-44 md:flex-none" />
+            <button className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white md:h-9 md:border md:bg-transparent md:px-3 md:font-normal md:text-foreground">Ver</button>
           </form>
         </div>
       </div>
+
+      <section className="reports-primary-gauge relative mt-5 overflow-hidden rounded-3xl border border-cyan-300/30 text-white shadow-[0_24px_65px_-32px_rgba(30,64,175,.9)] md:items-stretch">
+        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-20 size-64 rounded-full border-[38px] border-cyan-300/10" />
+        <div className="relative flex min-h-[245px] items-center justify-center border-cyan-300/15 p-5 md:border-r">
+          <SpeedometerGauge value={netGauge} label="Margen neto" recommended="Objetivo recomendado: 15%+" inverse />
+        </div>
+
+        <div className="relative flex flex-col justify-center p-7 lg:p-9">
+          <div className="flex items-center gap-3">
+            <span className="flex size-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/15 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,.16)]">
+              <TrendingUp className="size-6" />
+            </span>
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-cyan-200">Resultado del período</p>
+              <h2 className="mt-1 text-xl font-black tracking-tight text-blue-100">{netProfit >= 0 ? "Tu ganancia neta fue" : "Tu pérdida neta fue"}</h2>
+              <p className={cn("mt-1 text-4xl font-black tabular-nums lg:text-5xl", netProfit >= 0 ? "text-[#39ff14]" : "text-rose-300")}>{moneyAr(netProfit)}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Ventas brutas</p>
+              <p className="mt-2 text-xl font-black tabular-nums text-cyan-200 lg:text-2xl">{moneyAr(revenue)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Costo de mercadería</p>
+              <p className="mt-2 text-xl font-black tabular-nums text-amber-300 lg:text-2xl">{moneyAr(cogs)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-200">Gastos fijos</p>
+              <p className="mt-2 text-xl font-black tabular-nums text-rose-300 lg:text-2xl">{moneyAr(fixedExpensesTotal)}</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs leading-relaxed text-blue-100/75">
+            {moneyAr(revenue)} en ventas − {moneyAr(cogs)} de mercadería − {moneyAr(fixedExpensesTotal)} de gastos = <strong className="text-white">{moneyAr(netProfit)} netos</strong>.
+          </p>
+          <ExpenseModalButton
+            label={`Cargar gastos de ${periodLabel(selectedMonth)}`}
+            month={selectedMonth}
+            monthLabel={periodLabel(selectedMonth)}
+          />
+        </div>
+      </section>
+
+      <section className="mt-4 space-y-4 md:hidden">
+        <article className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-[0_12px_28px_rgba(8,126,231,.16)] dark:border-blue-900/70 dark:bg-slate-900">
+          <div className="bg-gradient-to-br from-[#0799ee] via-[#087fe8] to-[#0867d6] px-5 py-4 text-white"><div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-white/15 shadow-inner"><TrendingUp className="size-6" /></span><div><p className="text-sm font-extrabold">Margen de ganancia neto</p><p className="mt-0.5 text-[10px] font-medium text-blue-100">KPI principal del período seleccionado</p></div></div></div>
+          <div className="p-4">
+            <div className="flex justify-center overflow-hidden"><SpeedometerGauge value={netGauge} label="% neto" recommended="Objetivo recomendado: 15%+" /></div>
+            <div className={cn("mt-1 rounded-2xl border px-4 py-3 text-center", netProfit >= 0 ? "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:border-emerald-900 dark:from-emerald-950/40 dark:to-teal-950/30" : "border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 dark:border-rose-900 dark:from-rose-950/40 dark:to-red-950/30")}>
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{netProfit >= 0 ? "Ganancia total" : "Pérdida total"}</p>
+              <p className={cn("mt-1 break-words text-2xl font-black leading-none tabular-nums", netProfit >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300")}>{moneyAr(netProfit)}</p>
+            </div>
+          </div>
+        </article>
+
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            ["Ventas", moneyAr(revenue), "bg-sky-100 text-sky-600 dark:bg-sky-950", <TrendingUp key="sales" className="size-5" />],
+            ["Mercadería", moneyAr(cogs), "bg-violet-100 text-violet-600 dark:bg-violet-950", <ShoppingBag key="cogs" className="size-5" />],
+            ["Ganancia bruta", moneyAr(grossProfit), "bg-amber-100 text-amber-600 dark:bg-amber-950", <Scale key="profit" className="size-5" />],
+            ["Gastos fijos", moneyAr(fixedExpensesTotal), "bg-rose-100 text-rose-600 dark:bg-rose-950", <Receipt key="expenses" className="size-5" />],
+          ].map(([label, value, tone, icon]) => <article key={String(label)} className="flex min-h-28 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_5px_18px_rgba(15,23,42,.07)] dark:border-slate-800 dark:bg-slate-900"><span className={cn("flex size-11 items-center justify-center rounded-xl shadow-inner", String(tone))}>{icon}</span><div><p className="mt-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-0.5 truncate text-base font-black tabular-nums text-slate-950 dark:text-white">{value}</p></div></article>)}
+        </div>
+
+        <article className="rounded-2xl border border-amber-200/70 bg-gradient-to-r from-amber-50 to-white p-4 shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-amber-900/50 dark:from-amber-950/40 dark:to-slate-900">
+          <div className="flex items-center gap-3"><span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950"><Scale className="size-6" /></span><div className="min-w-0"><h2 className="text-sm font-extrabold">Resultado bruto</h2><p className="mt-0.5 text-xl font-black text-amber-600 tabular-nums">{moneyAr(grossProfit)}</p><p className="text-[10px] text-slate-500 dark:text-slate-400">Margen bruto {pct(grossMarginPct)} antes de gastos fijos</p></div></div>
+        </article>
+
+        <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800"><div><h2 className="text-sm font-extrabold">Productos destacados</h2><p className="text-[10px] text-slate-500">Los que más facturaron</p></div><span className="flex size-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-inner dark:bg-blue-950"><Package className="size-4" /></span></div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {productPerformance.topProducts.length === 0 ? <p className="px-4 py-8 text-center text-xs text-slate-500">Todavía no hay ventas en este período.</p> : productPerformance.topProducts.slice(0, 5).map((product, index) => <div key={product.key} className="flex items-center gap-3 px-4 py-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-extrabold text-blue-600 dark:bg-blue-950">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-extrabold">{product.name}</p><p className="mt-0.5 text-[9px] text-slate-500">{product.quantity.toLocaleString("es-AR")} unidades · {product.salesCount} tickets</p></div><p className="text-xs font-extrabold text-emerald-600">{moneyAr(product.revenue)}</p></div>)}
+          </div>
+        </article>
+
+        <div className="flex justify-center"><ReportsExportButton data={exportPayload} /></div>
+      </section>
 
       {costLoadError ? (
         <div className="mt-4 rounded-2xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -679,7 +770,7 @@ export default async function ReportsPage({
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-2xl border bg-card p-4">
+      <div className="mt-4 hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block md:bg-card md:shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="text-sm font-medium">Consulta de productos vendidos</div>
@@ -687,7 +778,7 @@ export default async function ReportsPage({
               Elegí período y fecha base. El ranking arranca en top 10, pero lo podés expandir.
             </div>
           </div>
-          <form method="get" className="flex flex-wrap items-end gap-3">
+          <form method="get" className="grid w-full grid-cols-2 items-end gap-2 md:flex md:w-auto md:flex-wrap md:gap-3">
             <input type="hidden" name="month" value={selectedMonth} />
             <div className="grid gap-1">
               <Label htmlFor="productsPeriod" className="text-xs text-muted-foreground">Período</Label>
@@ -695,7 +786,7 @@ export default async function ReportsPage({
                 id="productsPeriod"
                 name="productsPeriod"
                 defaultValue={productsPeriod}
-                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                className="h-10 w-full rounded-xl border border-input bg-transparent px-3 text-sm md:h-9 md:rounded-md"
               >
                 <option value="day">Día</option>
                 <option value="week">Semana</option>
@@ -709,7 +800,7 @@ export default async function ReportsPage({
                 name="productsDate"
                 type="date"
                 defaultValue={productsAnchorDate}
-                className="h-9 w-44"
+                className="h-10 w-full rounded-xl md:h-9 md:w-44"
               />
             </div>
             <div className="grid gap-1">
@@ -718,18 +809,18 @@ export default async function ReportsPage({
                 id="productsMetric"
                 name="productsMetric"
                 defaultValue={productsMetric}
-                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                className="h-10 w-full rounded-xl border border-input bg-transparent px-3 text-sm md:h-9 md:rounded-md"
               >
                 <option value="quantity">Cantidad</option>
                 <option value="revenue">Facturación</option>
               </select>
             </div>
-            <button className="h-9 rounded-lg border px-3 text-sm">Consultar</button>
+            <button className="h-10 rounded-xl bg-gradient-to-r from-[#075dcc] to-[#4b45cf] px-3 text-sm font-bold text-white md:h-9 md:border md:bg-none md:font-normal md:text-foreground">Consultar</button>
           </form>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-6 hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-6">
         <Card className="xl:col-span-2 relative overflow-hidden border-l-4 border-l-sky-500 border-sky-500/10 bg-sky-500/[0.03] dark:bg-sky-500/[0.07]">
           <TrendingUp className="absolute -right-2 -top-2 size-24 text-sky-500/10 dark:text-sky-500/20" />
           <CardHeader className="pb-2">
@@ -819,10 +910,10 @@ export default async function ReportsPage({
         </Card>
       </div>
 
-      <ProductPerformanceClient data={productPerformance} />
+      <div className="hidden md:block"><ProductPerformanceClient data={productPerformance} /></div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+      <div className="mt-4 hidden gap-4 md:mt-6 md:grid xl:grid-cols-3">
+        <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-sm xl:col-span-2 dark:border-slate-800 md:shadow-none">
           <CardHeader>
             <CardTitle>Margen de ganancia neto</CardTitle>
             <CardDescription>KPI principal del período seleccionado</CardDescription>
@@ -854,13 +945,14 @@ export default async function ReportsPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="fixed-expenses" className="scroll-mt-24 rounded-2xl border-slate-200 shadow-sm dark:border-slate-800 md:shadow-none">
           <CardHeader>
-            <CardTitle>Gastos fijos</CardTitle>
-            <CardDescription>Cargá tus costos del negocio</CardDescription>
+            <CardTitle>Gastos fijos de {periodLabel(selectedMonth)}</CardTitle>
+            <CardDescription>Cargá los costos correspondientes únicamente a este mes</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <form action={createFixedExpense} className="grid gap-3">
+              <input type="hidden" name="month" value={selectedMonth} />
               <div className="grid gap-1.5">
                 <Label htmlFor="name">Concepto</Label>
                 <Input id="name" name="name" placeholder="Alquiler, internet, sueldos..." required />
@@ -886,7 +978,7 @@ export default async function ReportsPage({
 
             <div className="grid gap-2">
               {fixedExpenses.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No hay gastos fijos cargados.</div>
+                <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No hay gastos cargados para {periodLabel(selectedMonth)}.</div>
               ) : (
                 fixedExpenses.map((e) => (
                   <div key={e.id} className="rounded-lg border p-2">

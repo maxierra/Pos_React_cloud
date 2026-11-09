@@ -21,10 +21,12 @@ async function createFixedExpenseImpl(formData: FormData) {
   const amount = parseMoney(formData.get("amount"));
   const frequency = String(formData.get("frequency") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
+  const month = String(formData.get("month") ?? "").trim();
 
   if (!name) throw new Error("missing_name");
   if (amount <= 0) throw new Error("invalid_amount");
   if (!["daily", "weekly", "monthly"].includes(frequency)) throw new Error("invalid_frequency");
+  if (!/^\d{4}-\d{2}$/.test(month)) throw new Error("invalid_month");
 
   const supabase = await createClient();
   const { error } = await supabase.from("fixed_expenses").insert({
@@ -34,6 +36,9 @@ async function createFixedExpenseImpl(formData: FormData) {
     frequency,
     category: category || null,
     active: true,
+    // Los gastos son propios del mes elegido en Reportes. Usamos created_at
+    // como fecha de período para mantener compatibilidad con la tabla actual.
+    created_at: `${month}-01T12:00:00-03:00`,
   });
 
   if (error) throw new Error(error.message);
