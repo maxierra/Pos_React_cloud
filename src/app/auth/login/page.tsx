@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, Boxes, EyeOff, Lock, Mail, MonitorSmartphone, ShieldCheck, ShoppingCart, Store, Wallet, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Boxes, EyeOff, Lock, Mail, MessageCircle, MonitorSmartphone, ShieldCheck, ShoppingCart, Store, Wallet, Zap } from "lucide-react";
 
 import { signIn } from "@/app/auth/actions";
 import {
@@ -117,6 +117,13 @@ export default async function LoginPage({ searchParams }: Props) {
             <Link href="/auth/register" className="flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-50 text-sm font-bold text-blue-600 transition active:scale-[.99]">
               <Store className="size-4" /> Crear una cuenta
             </Link>
+            <div className="mt-5 border-t border-slate-200 pt-4 text-center">
+              <p className="text-xs font-bold text-slate-600">¿Necesitás ayuda?</p>
+              <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-semibold text-blue-700">
+                <a className="inline-flex items-center gap-1.5" href="mailto:soporte@tienda360.site"><Mail className="size-4" />soporte@tienda360.site</a>
+                <a className="inline-flex items-center gap-1.5" href="https://wa.me/5491123145742" target="_blank" rel="noopener noreferrer"><MessageCircle className="size-4" />WhatsApp</a>
+              </div>
+            </div>
           </div>
 
             <div className="mt-7 grid grid-cols-3 divide-x divide-slate-300/80 text-center text-[10px] leading-tight text-slate-700">
@@ -207,6 +214,13 @@ export default async function LoginPage({ searchParams }: Props) {
                     Crear cuenta
                   </Link>
                 </p>
+                <div className="border-t border-cyan-300/15 pt-3 text-xs text-blue-100/75">
+                  <p className="font-semibold text-white">¿Necesitás ayuda?</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                    <a className="inline-flex items-center gap-1.5 hover:text-cyan-200" href="mailto:soporte@tienda360.site"><Mail className="size-4" />soporte@tienda360.site</a>
+                    <a className="inline-flex items-center gap-1.5 hover:text-cyan-200" href="https://wa.me/5491123145742" target="_blank" rel="noopener noreferrer"><MessageCircle className="size-4" />WhatsApp</a>
+                  </div>
+                </div>
               </AuthFormFooter>
             </AuthFormSurface>
           </div>

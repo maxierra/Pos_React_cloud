@@ -14,6 +14,7 @@ import {
   HelpCircle,
   LockKeyhole,
   Loader2,
+  Mail,
   MessageCircle,
   Phone,
   ShieldCheck,
@@ -587,6 +588,23 @@ export function SubscriptionClient({
               <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted-foreground">{answer}</p>
             </details>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-cyan-300/25 bg-white/80 p-5 shadow-[0_18px_50px_-34px_rgba(30,64,175,.45)] backdrop-blur-xl sm:p-6 dark:bg-[#101a2e]/90">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-black">¿Necesitás ayuda con tu suscripción?</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Contactá al equipo de Tienda360 por el canal que prefieras.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 px-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 dark:border-blue-300/25 dark:text-blue-200 dark:hover:bg-blue-400/10" href="mailto:soporte@tienda360.site">
+              <Mail className="size-4" />soporte@tienda360.site
+            </a>
+            <a className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#25D366] px-3 text-sm font-bold text-white transition hover:bg-[#20bd5a]" href="https://wa.me/5491123145742" target="_blank" rel="noopener noreferrer">
+              <MessageCircle className="size-4" />WhatsApp
+            </a>
+          </div>
         </div>
       </section>
     </div>

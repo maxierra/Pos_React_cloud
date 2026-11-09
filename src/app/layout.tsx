@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/app/providers";
-import { SupportFloatingButton } from "@/components/support-floating-button";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tienda360.site"),
@@ -36,7 +35,6 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
-        <SupportFloatingButton />
       </body>
     </html>
   );
