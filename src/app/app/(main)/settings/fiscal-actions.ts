@@ -103,7 +103,7 @@ export async function saveFiscalConfig(input: {
   const prodVoucherTypes = input.voucher_types_prod?.length ? input.voucher_types_prod : [11, 13];
 
   if (input.pos_number_homolog) {
-    await supabase.from("fiscal_points_of_sale").upsert(
+    const { error: homologPosErr } = await supabase.from("fiscal_points_of_sale").upsert(
       {
         business_id: businessId,
         environment: "homolog",
@@ -114,9 +114,10 @@ export async function saveFiscalConfig(input: {
       },
       { onConflict: "business_id,environment,pos_number" }
     );
+    if (homologPosErr) throw new Error(`Error guardando el punto de venta de prueba: ${homologPosErr.message}`);
   }
   if (input.pos_number_prod) {
-    await supabase.from("fiscal_points_of_sale").upsert(
+    const { error: prodPosErr } = await supabase.from("fiscal_points_of_sale").upsert(
       {
         business_id: businessId,
         environment: "prod",
@@ -127,6 +128,7 @@ export async function saveFiscalConfig(input: {
       },
       { onConflict: "business_id,environment,pos_number" }
     );
+    if (prodPosErr) throw new Error(`Error guardando el punto de venta de producción: ${prodPosErr.message}`);
   }
 
   revalidatePath("/app/settings");
