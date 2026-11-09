@@ -121,6 +121,8 @@ type Props = {
   };
   plan?: {
     label: string;
+    name?: string;
+    periodEndsAt?: string | null;
     /** ISO end of trial; muestra contador en sidebar */
     trialEndsAt?: string | null;
   };
@@ -151,6 +153,13 @@ function userInitials(email: string | null) {
     .map((p) => p[0]?.toUpperCase())
     .filter(Boolean);
   return letters.join("") || name.slice(0, 2).toUpperCase();
+}
+
+function formatSubscriptionDate(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
 function NavLinks({
@@ -661,6 +670,25 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
               >
                 <Maximize2 className="size-4" />
               </Button>
+              {!headerCollapsed ? (
+                <Link
+                  href="/app/subscription"
+                  className="hidden max-w-[176px] items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1.5 text-left text-white shadow-sm transition hover:bg-white/20 2xl:flex"
+                  title={`${plan?.name ?? "Plan"} · ${plan?.periodEndsAt ? `Vigente hasta ${formatSubscriptionDate(plan.periodEndsAt) ?? "—"}` : plan?.name === "Vitalicio" ? "Sin vencimiento" : "Vigencia sin fecha registrada"}`}
+                >
+                  <CreditCard className="size-4 shrink-0 text-cyan-200" />
+                  <span className="min-w-0 leading-tight">
+                    <span className="block truncate text-[11px] font-bold">Plan {plan?.name ?? "—"}</span>
+                    <span className="block truncate text-[9px] text-blue-100/80">
+                      {plan?.periodEndsAt
+                        ? `Hasta ${formatSubscriptionDate(plan.periodEndsAt) ?? "—"}`
+                        : plan?.name === "Vitalicio"
+                          ? "Sin vencimiento"
+                          : plan?.label ?? "Vigencia sin fecha"}
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
               {!headerCollapsed ? <div className="hidden items-center gap-2 border-l border-white/20 pl-2 xl:flex"><Clock3 className="size-4 text-cyan-200" /><div className="text-right"><div className="text-[9px] font-medium text-blue-100/70">{liveNow ? new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric" }).format(liveNow) : "—"}</div><div className="text-sm font-extrabold tabular-nums">{liveNow ? new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }).format(liveNow) : "--:--"}</div></div><Bell className="size-4 text-white/80" /></div> : null}
               <span className="inline-flex rounded-xl bg-gradient-to-br from-sky-400 to-violet-600 p-px shadow-[0_8px_22px_-8px_rgba(59,130,246,.9)] [&_button]:size-9 [&_button]:rounded-[11px] [&_button]:bg-white/90 [&_button]:text-blue-700 [&_button]:hover:bg-white dark:[&_button]:bg-slate-950/85 dark:[&_button]:text-cyan-300 dark:[&_button]:hover:bg-slate-900">
                 <ThemeToggle shortcut="F7" />

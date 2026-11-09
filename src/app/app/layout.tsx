@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { AppShell } from "@/app/app/app-shell";
 import { createClient } from "@/lib/supabase/server";
 import { fetchSubscriptionWithAutoTrial } from "@/lib/supabase/ensure-subscription-trial";
-import { subscriptionPlanLabel, type SubscriptionRow } from "@/lib/subscription";
+import { subscriptionPlanLabel, subscriptionPlanName, type SubscriptionRow } from "@/lib/subscription";
 
 type Props = Readonly<{ children: React.ReactNode }>;
 
@@ -20,7 +20,9 @@ export default async function AppLayout({ children }: Props) {
   let userAvatar: string | null = null;
   let cashOpen = false;
   let planLabel = "—";
+  let planName = "Sin plan";
   let trialEndsAt: string | null = null;
+  let periodEndsAt: string | null = null;
   let access: { role: string | null; permissions: Record<string, any> | null } = {
     role: null,
     permissions: null,
@@ -76,9 +78,9 @@ export default async function AppLayout({ children }: Props) {
         console.warn("[app/layout] subscription:", subFetchErr);
       }
       planLabel = subscriptionPlanLabel(row);
-      if (row?.status === "trialing" && row.current_period_end) {
-        trialEndsAt = row.current_period_end;
-      }
+      planName = subscriptionPlanName(row);
+      periodEndsAt = row?.current_period_end ?? null;
+      if (row?.status === "trialing") trialEndsAt = periodEndsAt;
     }
   }
 
@@ -87,7 +89,7 @@ export default async function AppLayout({ children }: Props) {
       business={{ id: businessId ?? null, name: businessName }}
       user={{ email: userEmail, avatar: userAvatar }}
       cash={{ open: cashOpen }}
-      plan={{ label: planLabel, trialEndsAt }}
+      plan={{ label: planLabel, name: planName, periodEndsAt, trialEndsAt }}
       access={access}
     >
       {children}

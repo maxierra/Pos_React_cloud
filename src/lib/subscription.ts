@@ -40,3 +40,15 @@ export function subscriptionPlanLabel(sub: SubscriptionRow | null): string {
   if (sub.status === "past_due") return "Pago pendiente";
   return "Inactivo";
 }
+
+export function subscriptionPlanName(sub: SubscriptionRow | null): string {
+  if (!sub) return "Sin plan";
+  const names: Record<string, string> = {
+    standard: "Estándar",
+    lifetime: "Vitalicio",
+    monthly: "Mensual",
+    semester: "Semestral",
+    annual: "Anual",
+  };
+  return names[sub.plan_id] ?? sub.plan_id;
+}
