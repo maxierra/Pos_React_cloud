@@ -485,8 +485,8 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setPermOpen(false);
           }}
         >
-          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="settings-modal-surface flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+            <div className="settings-modal-header flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Permisos del empleado</div>
                 <div className="text-xs text-muted-foreground">Elegí qué pantallas puede ver (grilla en 4 columnas en pantallas anchas).</div>
@@ -577,8 +577,8 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setEditOpen(false);
           }}
         >
-          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="settings-modal-surface flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border bg-card shadow-xl">
+            <div className="settings-modal-header flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Editar usuario</div>
                 <div className="text-xs text-muted-foreground">{editing.email ?? editing.user_id.slice(0, 8) + "…"}</div>
@@ -722,8 +722,8 @@ export function UsersManager() {
             if (e.target === e.currentTarget) setRemoveOpen(false);
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl border bg-card shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+          <div className="settings-modal-surface w-full max-w-lg overflow-hidden rounded-2xl border bg-card shadow-xl">
+            <div className="settings-modal-header flex items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <div className="text-sm font-semibold tracking-tight">Eliminar usuario</div>
                 <div className="text-xs text-muted-foreground">{removing.email ?? removing.user_id.slice(0, 8) + "…"}</div>

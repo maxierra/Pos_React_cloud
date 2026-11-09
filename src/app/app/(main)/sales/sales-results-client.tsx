@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronRight, PackageSearch, ReceiptText, WalletCards } from "lucide-react";
 
 import { SalesRowActions } from "@/app/app/(main)/sales/sales-row-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,7 +141,45 @@ export function SalesResultsClient({
 
               {isOpen ? (
                 <CardContent className="pt-0">
-                  <div className="overflow-auto rounded-xl border">
+                  <div className="grid gap-3 md:hidden">
+                    {day.rows.map((row) => (
+                      <article key={`mobile-${row.key}`} className="rounded-2xl border border-border/70 bg-[var(--pos-surface)] p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                              <ReceiptText className="size-4 text-blue-500" />
+                              Venta #{row.id.slice(0, 8)}
+                            </div>
+                            <div className="mt-2 text-2xl font-black tracking-tight">{row.total}</div>
+                          </div>
+                          <span className={row.statusClassName}>{row.statusLabel}</span>
+                        </div>
+
+                        <div className="mt-4 grid gap-2.5 rounded-2xl bg-[var(--pos-surface-2)] p-3 text-xs">
+                          <div className="flex items-start gap-2.5">
+                            <CalendarClock className="mt-0.5 size-4 shrink-0 text-sky-500" />
+                            <div><span className="text-muted-foreground">Fecha</span><div className="mt-0.5 font-medium">{row.created_at}</div></div>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <WalletCards className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                            <div className="min-w-0">
+                              <span className={row.paymentClassName}>{row.paymentLabel}</span>
+                              {row.splitSummary ? <div className="mt-1 text-muted-foreground">{row.splitSummary}</div> : null}
+                              {row.paymentLabel === "Cuenta corriente" ? <div className="mt-1 text-muted-foreground">Cliente: <span className="font-medium text-foreground">{row.customerName ?? "Sin identificar"}</span></div> : null}
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <PackageSearch className="mt-0.5 size-4 shrink-0 text-violet-500" />
+                            <div><span className="text-muted-foreground">Producto</span><div className="mt-0.5 font-medium">{row.matchedLabel}</div></div>
+                          </div>
+                        </div>
+
+                        {row.showActions ? <div className="mt-3 border-t border-border/60 pt-3"><SalesRowActions saleId={row.saleId} canVoid={row.canVoid} /></div> : null}
+                      </article>
+                    ))}
+                  </div>
+
+                  <div className="hidden overflow-auto rounded-xl border md:block">
                     <table className="w-full min-w-[1120px] text-sm">
                       <thead className="bg-[var(--pos-surface-2)] text-muted-foreground">
                         <tr className="border-b">

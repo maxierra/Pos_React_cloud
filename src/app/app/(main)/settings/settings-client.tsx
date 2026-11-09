@@ -115,14 +115,14 @@ function ModalShell({
     >
       <div
         className={cn(
-          "flex w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card",
+          "settings-modal-surface flex w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card",
           "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.55)]",
           "ring-1 ring-black/[0.06] dark:ring-white/10",
           maxWidthClass,
           "max-h-[min(95vh,960px)]"
         )}
       >
-        <div className="relative shrink-0 overflow-hidden border-b border-border/50">
+        <div className="settings-modal-header relative shrink-0 overflow-hidden border-b border-border/50">
           <div className={cn("absolute inset-0 bg-gradient-to-br", a.gradient)} />
           <div
             className={cn("pointer-events-none absolute -right-16 -top-20 size-56 rounded-full blur-3xl", a.blob)}
@@ -146,7 +146,7 @@ function ModalShell({
             </Button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-muted/20 to-transparent p-5 sm:p-6">
+        <div className="settings-modal-body min-h-0 flex-1 overflow-auto bg-gradient-to-b from-muted/20 to-transparent p-5 sm:p-6">
           {children}
         </div>
       </div>

@@ -724,7 +724,18 @@ export function FacturacionClient({
                   </button>
 
                   {expanded && (
-                    <div className="overflow-x-auto">
+                    <div>
+                      <div className="p-3 md:hidden">
+                        <VoucherMobileCards
+                          vouchers={summary.vouchers}
+                          pending={pending}
+                          onReprintTicket={reprintTicket}
+                          onReprintInvoice={reprintFactura}
+                          onEmitNc={emitNc}
+                          onEmitNd={openDebitNote}
+                        />
+                      </div>
+                      <div className="hidden overflow-x-auto md:block">
                       <table className="w-full min-w-[980px] text-left text-sm">
                         <thead className="bg-slate-50/90 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                           <tr>
@@ -750,6 +761,7 @@ export function FacturacionClient({
                           />
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -779,7 +791,17 @@ export function FacturacionClient({
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="p-3 md:hidden">
+                <VoucherMobileCards
+                  vouchers={group.vouchers}
+                  pending={pending}
+                  onReprintTicket={reprintTicket}
+                  onReprintInvoice={reprintFactura}
+                  onEmitNc={emitNc}
+                  onEmitNd={openDebitNote}
+                />
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[980px] text-left text-sm">
                   <thead className="bg-slate-50/90 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                     <tr>
@@ -1004,6 +1026,65 @@ function VoucherRowsTable({
         </tr>
       ))}
     </>
+  );
+}
+
+function VoucherMobileCards({
+  vouchers,
+  pending,
+  onReprintTicket,
+  onReprintInvoice,
+  onEmitNc,
+  onEmitNd,
+}: {
+  vouchers: FiscalVoucher[];
+  pending: boolean;
+  onReprintTicket: (voucher: FiscalVoucher) => void;
+  onReprintInvoice: (voucher: FiscalVoucher) => void;
+  onEmitNc: (id: string) => void;
+  onEmitNd: (voucher: FiscalVoucher) => void;
+}) {
+  return (
+    <div className="grid gap-3">
+      {vouchers.map((voucher) => {
+        const approved = voucher.status === "approved" && Boolean(voucher.cae);
+        const supportsNotes = voucher.voucher_type === 11 || voucher.voucher_type === 6;
+        const number = `${String(voucher.pos_number).padStart(4, "0")}-${String(voucher.voucher_number).padStart(8, "0")}`;
+        return (
+          <article key={`mobile-${voucher.id}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">{voucherTypeLabel(voucher.voucher_type)}</span>
+                  <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1", statusTone(voucher.status))}>{STATUS_LABELS[voucher.status] ?? voucher.status}</span>
+                </div>
+                <div className="mt-2 font-mono text-xs font-semibold text-slate-600">{number}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-black tracking-tight text-slate-900">{money(Number(voucher.total))}</div>
+                <div className="mt-1 text-[11px] text-slate-500">{formatDateLabel(voucher.issue_date)}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-xs">
+              <div><div className="text-[10px] font-semibold uppercase text-slate-400">Cliente</div><div className="mt-1 truncate font-semibold text-slate-700">{voucher.buyer_name ?? "Consumidor Final"}</div></div>
+              <div><div className="text-[10px] font-semibold uppercase text-slate-400">Ambiente</div><div className={cn("mt-1 font-semibold", voucher.environment === "prod" ? "text-sky-700" : "text-violet-700")}>{voucher.environment === "prod" ? "Producción" : "Prueba"}</div></div>
+              <div><div className="text-[10px] font-semibold uppercase text-slate-400">CAE</div><div className="mt-1 truncate font-mono text-slate-700">{voucher.cae ?? "Pendiente"}</div></div>
+              <div><div className="text-[10px] font-semibold uppercase text-slate-400">Vencimiento</div><div className="mt-1 font-semibold text-slate-700">{voucher.cae_expires_at ?? "—"}</div></div>
+            </div>
+
+            {approved ? (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => onReprintTicket(voucher)}><Receipt className="size-4" />Ticket</Button>
+                <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={() => onReprintInvoice(voucher)}><Printer className="size-4" />Factura</Button>
+                {supportsNotes ? <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={pending} onClick={() => onEmitNd(voucher)}><Plus className="size-4" />Nota débito</Button> : null}
+                {supportsNotes ? <Button type="button" variant="outline" className="h-11 rounded-xl" disabled={pending} onClick={() => onEmitNc(voucher.id)}><RotateCcw className="size-4" />Nota crédito</Button> : null}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 

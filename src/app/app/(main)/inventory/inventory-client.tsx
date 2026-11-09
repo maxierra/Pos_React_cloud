@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, PackageSearch, TriangleAlert } from "lucide-react";
+import { AlertTriangle, Boxes, CalendarClock, CircleDollarSign, Download, PackageSearch, ShieldX, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -191,10 +191,11 @@ export function InventoryClient({ products }: Props) {
 
   return (
     <div className="mt-6 grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Card className="border-sky-500/25 bg-sky-500/5 sm:col-span-2 lg:col-span-1 xl:col-span-1">
+      <div className="inventory-metrics-panel grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <Card className="inventory-metric inventory-metric-sky sm:col-span-2 lg:col-span-1 xl:col-span-1">
           <CardHeader className="pb-2">
-            <CardDescription className="text-sky-700/80 dark:text-sky-300">Mercadería disponible al costo</CardDescription>
+            <span className="inventory-metric-icon"><CircleDollarSign className="size-6" /></span>
+            <CardDescription className="font-bold text-sky-800 dark:text-sky-200">Mercadería disponible al costo</CardDescription>
             <CardTitle className="text-2xl text-sky-800 dark:text-sky-200">
               {moneyAr(totals.inventoryCostValue)}
             </CardTitle>
@@ -206,27 +207,31 @@ export function InventoryClient({ products }: Props) {
             </p>
           </CardHeader>
         </Card>
-        <Card className="border-emerald-500/25 bg-emerald-500/5">
+        <Card className="inventory-metric inventory-metric-emerald">
           <CardHeader className="pb-2">
-            <CardDescription className="text-emerald-700/80 dark:text-emerald-300">Productos activos</CardDescription>
+            <span className="inventory-metric-icon"><Boxes className="size-6" /></span>
+            <CardDescription className="font-bold text-emerald-800 dark:text-emerald-200">Productos activos</CardDescription>
             <CardTitle className="text-2xl text-emerald-800 dark:text-emerald-200">{totals.products}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-amber-500/25 bg-amber-500/5">
+        <Card className="inventory-metric inventory-metric-amber">
           <CardHeader className="pb-2">
-            <CardDescription className="text-amber-700/80 dark:text-amber-300">Poco stock</CardDescription>
+            <span className="inventory-metric-icon"><AlertTriangle className="size-6" /></span>
+            <CardDescription className="font-bold text-amber-800 dark:text-amber-200">Poco stock</CardDescription>
             <CardTitle className="text-2xl text-amber-800 dark:text-amber-200">{totals.low}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-violet-500/25 bg-violet-500/5">
+        <Card className="inventory-metric inventory-metric-violet">
           <CardHeader className="pb-2">
-            <CardDescription className="text-violet-700/80 dark:text-violet-300">Por vencer (≤ {expiringDays} días)</CardDescription>
+            <span className="inventory-metric-icon"><CalendarClock className="size-6" /></span>
+            <CardDescription className="font-bold text-violet-800 dark:text-violet-200">Por vencer (≤ {expiringDays} días)</CardDescription>
             <CardTitle className="text-2xl text-violet-800 dark:text-violet-200">{totals.expSoon}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-rose-500/25 bg-rose-500/5">
+        <Card className="inventory-metric inventory-metric-rose">
           <CardHeader className="pb-2">
-            <CardDescription className="text-rose-700/80 dark:text-rose-300">Vencidos</CardDescription>
+            <span className="inventory-metric-icon"><ShieldX className="size-6" /></span>
+            <CardDescription className="font-bold text-rose-800 dark:text-rose-200">Vencidos</CardDescription>
             <CardTitle className="text-2xl text-rose-800 dark:text-rose-200">{totals.expired}</CardTitle>
           </CardHeader>
         </Card>
@@ -267,11 +272,11 @@ export function InventoryClient({ products }: Props) {
                 id="inv-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="h-10 rounded-xl border border-input bg-transparent px-3 text-sm"
+                className="h-10 w-full cursor-pointer rounded-xl border border-input bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 dark:border-blue-300/25 dark:bg-[#101a2e] dark:text-blue-50 dark:[color-scheme:dark] dark:focus:border-cyan-400"
               >
-                <option value="">Todas</option>
+                <option value="" className="bg-white text-slate-900 dark:bg-[#101a2e] dark:text-blue-50">Todas</option>
                 {categories.map((c) => (
-                  <option key={c} value={c.toLowerCase()}>
+                  <option key={c} value={c.toLowerCase()} className="bg-white text-slate-900 dark:bg-[#101a2e] dark:text-blue-50">
                     {c}
                   </option>
                 ))}
@@ -312,12 +317,12 @@ export function InventoryClient({ products }: Props) {
             Mostrando {filtered.length} de {products.length} productos
           </div>
 
-          <div className="overflow-hidden rounded-2xl border bg-card">
+          <div className="overflow-hidden rounded-2xl border border-blue-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(37,99,235,.55)] dark:border-blue-300/20 dark:bg-[#101a2e]">
             <div className="overflow-auto">
               <table className="w-full min-w-[960px] text-sm">
-                <thead className="bg-[var(--pos-surface-2)] text-muted-foreground">
-                  <tr className="border-b">
-                    <th className="px-4 py-3 text-left font-medium">Producto</th>
+                <thead className="bg-gradient-to-r from-blue-50 to-sky-50 text-blue-900/65 dark:from-[#17243a] dark:to-[#1a2942] dark:text-blue-200/70">
+                  <tr className="border-b text-[11px] uppercase tracking-[0.12em] [&_th]:font-bold">
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.12em]">Producto</th>
                     <th className="px-4 py-3 text-left font-medium">Categoría</th>
                     <th className="px-4 py-3 text-left font-medium">Stock</th>
                     <th className="px-4 py-3 text-left font-medium">Mínimo</th>
@@ -340,9 +345,9 @@ export function InventoryClient({ products }: Props) {
                       const expired = d != null && d < 0;
 
                       return (
-                        <tr key={p.id} className="border-b last:border-b-0">
+                        <tr key={p.id} className="group border-b border-blue-100 bg-white transition-all even:bg-sky-50/55 hover:bg-blue-50 hover:shadow-[inset_3px_0_0_#3b82f6] last:border-b-0 dark:border-blue-300/15 dark:bg-[#101a2e] dark:even:bg-[#142139] dark:hover:bg-[#1a2b47]">
                           <td className="px-4 py-3">
-                            <div className="font-medium text-foreground">{p.name}</div>
+                            <div className="font-semibold text-slate-800 group-hover:text-blue-700 dark:text-slate-100 dark:group-hover:text-blue-300">{p.name}</div>
                             <div className="text-xs text-muted-foreground">
                               {p.sku ? `SKU: ${p.sku}` : null}
                               {p.barcode ? (p.sku ? " · " : "") + `Barcode: ${p.barcode}` : null}
