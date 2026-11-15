@@ -109,6 +109,13 @@ export default async function PosPage({
   }
 
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const { data: posMembership } = authData.user
+    ? await supabase.from("memberships").select("role,permissions").eq("user_id", authData.user.id)
+        .eq("business_id", businessId).is("deleted_at", null).maybeSingle()
+    : { data: null };
+  const posPermissions = (posMembership?.permissions ?? {}) as Record<string, unknown>;
+  const canEditStock = posMembership?.role === "owner" || posPermissions.products_edit_stock === true;
   const { data: businessData, error: businessError } = await supabase
     .from("businesses")
     .select("name,business_type,scale_barcode_mode,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,onboarding_completed_at")
@@ -276,6 +283,7 @@ export default async function PosPage({
         .neq("status", "delivery_closed")
         .order("updated_at", { ascending: false })).data ?? []) as ServiceOrderRow[]}
       guidePosStep={guidePosStep}
+      canEditStock={canEditStock}
     />
   );
 }

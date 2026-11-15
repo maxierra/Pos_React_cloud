@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import QRCode from "react-qr-code";
 
 import { CreditCard, Landmark, X } from "lucide-react";
 
@@ -32,6 +31,7 @@ type PaymentMethodOrMixed = PaymentMethod | "mixed";
 
 // ARCA pide identificar al consumidor final en operaciones desde este importe.
 const FISCAL_CONSUMER_IDENTIFICATION_THRESHOLD = 10_000_000;
+const PRINT_TICKET_PREFERENCE_KEY = "pos-print-ticket-enabled";
 
 type TicketPreviewItem = {
   line_id: string;
@@ -83,6 +83,7 @@ type Props = {
   /** Token + ID de caja configurados (RPC); si es false, no se pide QR a MP. */
   mercadoPagoQrReady?: boolean;
   fiscalConfig?: PosFiscalConfig;
+  issueFiscal?: boolean;
   onClose: () => void;
   onConfirm: (p: {
     payment_method: PaymentMethodOrMixed;
@@ -93,6 +94,7 @@ type Props = {
     print_ticket?: boolean;
     customer_id?: string | null;
     fiscal_customer?: FiscalCustomerData | null;
+    issue_fiscal?: boolean;
   }) => void;
   /** Cuando MP confirma el pago por webhook y el servidor ya registró la venta. */
   onMercadoPagoAutoPaid?: (p: {
@@ -143,15 +145,18 @@ function mercadopagoAmountInPayload(
     payment_method: PaymentMethodOrMixed;
     payment_details?: { split: Array<{ method: PaymentMethod; amount: number }> };
   },
-  saleTotal: number
+  saleTotal: number,
+  paymentMethods: BusinessPaymentMethodRow[] = [],
+  splitScale = 1
 ): number {
   if (p.payment_method === "mercadopago") {
     return round2(saleTotal);
   }
   if (p.payment_method === "mixed" && p.payment_details?.split) {
+    const percent = Number(paymentMethods.find((row) => row.method_code === "mercadopago")?.surcharge_percent ?? 0);
     const sum = p.payment_details.split
       .filter((s) => s.method === "mercadopago")
-      .reduce((acc, s) => acc + (Number(s.amount) || 0), 0);
+      .reduce((acc, s) => acc + (Number(s.amount) || 0) * splitScale * (1 + percent / 100), 0);
     return round2(sum);
   }
   return 0;
@@ -169,6 +174,7 @@ export function PaymentModal({
   customers = [],
   mercadoPagoQrReady = false,
   fiscalConfig = null,
+  issueFiscal = true,
   onClose,
   onConfirm,
   onMercadoPagoAutoPaid,
@@ -214,6 +220,13 @@ export function PaymentModal({
   const [cashReceivedInput, setCashReceivedInput] = React.useState<string>(String(total));
   const cashReceived = React.useMemo(() => parseMoneyLoose(cashReceivedInput), [cashReceivedInput]);
   const [printTicket, setPrintTicket] = React.useState(true);
+  const togglePrintTicket = React.useCallback(() => {
+    setPrintTicket((current) => {
+      const next = !current;
+      window.localStorage.setItem(PRINT_TICKET_PREFERENCE_KEY, String(next));
+      return next;
+    });
+  }, []);
   const [customerId, setCustomerId] = React.useState<string>("");
   const [fiscalCustomerTaxCondition, setFiscalCustomerTaxCondition] =
     React.useState<FiscalCustomerTaxCondition>("consumidor_final");
@@ -227,6 +240,7 @@ export function PaymentModal({
       split: Array<{ method: PaymentMethod; amount: number }>;
     };
     cash_received?: number;
+    issue_fiscal?: boolean;
   } | null>(null);
   const [transferConfirmOpen, setTransferConfirmOpen] = React.useState(false);
   const [mpQrLoading, setMpQrLoading] = React.useState(false);
@@ -236,6 +250,7 @@ export function PaymentModal({
   const [mpExternalRef, setMpExternalRef] = React.useState<string | null>(null);
   const mpQrRequestRef = React.useRef(0);
   const mpAutoNotifiedRef = React.useRef(false);
+  const mpAutoStartRef = React.useRef(false);
   /** Evita resetear vista previa / QR cuando total o props del padre cambian mientras el modal sigue abierto (prod: refresh, RSC). */
   const paymentModalWasOpenRef = React.useRef(false);
 
@@ -266,6 +281,7 @@ export function PaymentModal({
     setMpQrRetryTick(0);
     setMpExternalRef(null);
     mpAutoNotifiedRef.current = false;
+    mpAutoStartRef.current = false;
     const second =
       activeSorted.find((x) => x.method_code !== initialSplitMethod)?.method_code ??
       activeSorted.find((x) => x.method_code !== activeSorted[0]?.method_code)?.method_code ??
@@ -273,7 +289,7 @@ export function PaymentModal({
     setM2(second);
     setA1Input(String(total));
     setCashReceivedInput(String(total));
-    setPrintTicket(true);
+    setPrintTicket(window.localStorage.getItem(PRINT_TICKET_PREFERENCE_KEY) !== "false");
     setCustomerId("");
     setFiscalCustomerTaxCondition("consumidor_final");
     setFiscalCustomerName("");
@@ -328,9 +344,19 @@ export function PaymentModal({
   const promo = promoPreview;
   const baseTotal = promo?.total_before ?? total;
   const netTotal = promo?.total_after ?? total;
-  const cardSurchargePercent = Number(rowFor("card")?.surcharge_percent ?? 0);
-  const cardSurchargeAmount = !mixed && method === "card" ? round2((netTotal * cardSurchargePercent) / 100) : 0;
-  const finalTotal = round2(netTotal + cardSurchargeAmount);
+  const selectedAdjustmentPercent = !mixed && method ? Number(rowFor(method)?.surcharge_percent ?? 0) : 0;
+  const splitScale = total > 0 ? netTotal / total : 0;
+  const mixedAdjustmentAmount = mixed
+    ? round2(
+        (a1 * splitScale * Number(rowFor(m1)?.surcharge_percent ?? 0)) / 100 +
+        (a2 * splitScale * Number(rowFor(m2)?.surcharge_percent ?? 0)) / 100
+      )
+    : 0;
+  const priceAdjustmentAmount = mixed
+    ? mixedAdjustmentAmount
+    : round2((netTotal * selectedAdjustmentPercent) / 100);
+  const finalTotal = round2(netTotal + priceAdjustmentAmount);
+  const adjustmentLabel = priceAdjustmentAmount > 0 ? "Recargo" : "Descuento";
 
   React.useEffect(() => {
     if (!open) return;
@@ -396,7 +422,7 @@ export function PaymentModal({
     if (!open || !previewOpen || !pendingPayload) {
       return;
     }
-    const amt = mercadopagoAmountInPayload(pendingPayload, total);
+    const amt = mercadopagoAmountInPayload(pendingPayload, finalTotal, paymentMethodConfig, splitScale);
     if (!mercadoPagoQrReady || amt <= 0) {
       setMpQrLoading(false);
       setMpQrData(null);
@@ -428,6 +454,7 @@ export function PaymentModal({
           ? { cash_received: pendingPayload.cash_received }
           : {}),
       },
+      issue_fiscal: pendingPayload.issue_fiscal !== false,
     }).then((res) => {
       if (rid !== mpQrRequestRef.current) return;
       setMpQrLoading(false);
@@ -435,20 +462,15 @@ export function PaymentModal({
         setMpQrError(String(res.error));
         return;
       }
-      if (
-        res &&
-        typeof res === "object" &&
-        "qr_data" in res &&
-        typeof (res as { qr_data?: string }).qr_data === "string"
-      ) {
-        setMpQrData((res as { qr_data: string }).qr_data);
+      if (res && typeof res === "object" && "order_id" in res) {
+        setMpQrData("static");
         const ext = (res as { external_reference?: string }).external_reference;
         if (typeof ext === "string" && ext.length > 0) {
           setMpExternalRef(ext);
         }
       }
     });
-  }, [open, previewOpen, pendingPayload, mercadoPagoQrReady, total, mpCartFingerprint, mpQrRetryTick]);
+  }, [open, previewOpen, pendingPayload, mercadoPagoQrReady, finalTotal, paymentMethodConfig, splitScale, mpCartFingerprint, mpQrRetryTick]);
 
   const change = React.useMemo(() => {
     if (!mixed) {
@@ -471,8 +493,8 @@ export function PaymentModal({
 
   const mpAmountPreview = React.useMemo(() => {
     if (!pendingPayload) return 0;
-    return mercadopagoAmountInPayload(pendingPayload, total);
-  }, [pendingPayload, total]);
+    return mercadopagoAmountInPayload(pendingPayload, finalTotal, paymentMethodConfig, splitScale);
+  }, [pendingPayload, finalTotal, paymentMethodConfig, splitScale]);
 
   React.useEffect(() => {
     if (!open || !previewOpen || !mpExternalRef || !mercadoPagoQrReady || mpAmountPreview <= 0) {
@@ -517,8 +539,7 @@ export function PaymentModal({
     printTicket,
   ]);
 
-  const mpQrFlowActive =
-    mercadoPagoQrReady && mpAmountPreview > 0 && Boolean(mpQrData) && Boolean(mpExternalRef);
+  const mpQrFlowActive = mercadoPagoQrReady && mpAmountPreview > 0 && Boolean(mpExternalRef);
 
   const selectedCc = React.useMemo(
     () => customers.find((c) => c.id === customerId),
@@ -556,7 +577,7 @@ export function PaymentModal({
     []
   );
 
-  const riFiscalFlowEnabled = Boolean(fiscalConfig?.isActive && fiscalConfig.taxCondition === "ri");
+  const riFiscalFlowEnabled = Boolean(issueFiscal && fiscalConfig?.isActive && fiscalConfig.taxCondition === "ri");
   const facturaASuggested =
     riFiscalFlowEnabled &&
     fiscalCustomerTaxCondition === "ri";
@@ -587,6 +608,27 @@ export function PaymentModal({
     fiscalCustomerReady,
     fiscalCustomerRequired,
     fiscalCustomerTaxCondition,
+  ]);
+
+  React.useEffect(() => {
+    if (!open || preselectedMethod !== "mercadopago" || !mercadoPagoQrReady) return;
+    if (mpAutoStartRef.current || previewOpen || pendingPayload) return;
+    if (!fiscalCustomerReady) return;
+
+    mpAutoStartRef.current = true;
+    const id = window.setTimeout(() => {
+      setPendingPayload({ payment_method: "mercadopago", issue_fiscal: issueFiscal });
+      setPreviewOpen(true);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [
+    fiscalCustomerReady,
+    mercadoPagoQrReady,
+    issueFiscal,
+    open,
+    pendingPayload,
+    preselectedMethod,
+    previewOpen,
   ]);
 
   React.useEffect(() => {
@@ -652,10 +694,10 @@ export function PaymentModal({
                       </div>
                     </div>
                   ) : null}
-                  {cardSurchargeAmount > 0 ? (
-                    <div className="mt-1 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
-                      <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
-                      <span>+${cardSurchargeAmount.toFixed(2)}</span>
+                  {priceAdjustmentAmount !== 0 ? (
+                    <div className={cn("mt-1 flex items-center justify-between text-xs", priceAdjustmentAmount > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+                      <span>{adjustmentLabel} {mixed ? "por medios de pago" : resolveLabel(method ?? "cash")} {!mixed ? `(${Math.abs(selectedAdjustmentPercent).toFixed(2).replace(/\.00$/, "")}%)` : ""}</span>
+                      <span>{priceAdjustmentAmount > 0 ? "+" : "−"}${Math.abs(priceAdjustmentAmount).toFixed(2)}</span>
                     </div>
                   ) : null}
                   {promoLoading ? (
@@ -704,10 +746,10 @@ export function PaymentModal({
                         </div>
                       </>
                     ) : null}
-                    {cardSurchargeAmount > 0 ? (
+                    {priceAdjustmentAmount !== 0 ? (
                       <div className="flex justify-between gap-3">
-                        <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
-                        <span>+${cardSurchargeAmount.toFixed(2)}</span>
+                        <span>{adjustmentLabel} por medio de pago</span>
+                        <span>{priceAdjustmentAmount > 0 ? "+" : "−"}${Math.abs(priceAdjustmentAmount).toFixed(2)}</span>
                       </div>
                     ) : null}
                     <div className="mt-1 flex justify-between gap-3 border-t border-dashed border-black/50 pt-1 text-sm font-bold">
@@ -718,13 +760,17 @@ export function PaymentModal({
                       <span>Pago</span>
                       <span>{resolveLabel(effectivePaymentMethod)}</span>
                     </div>
-                  {fiscalConfig?.isActive ? (
+                  {fiscalConfig?.isActive && issueFiscal ? (
                     <div className="mt-2 border-t border-dashed border-black/50 pt-2 text-center">
                       <div className="font-bold">
                         {fiscalConfig.documentOutputMode === "factura" ? "Factura electrónica" : "Comprobante fiscal electrónico"}
                       </div>
                       <div>CAE y QR fiscal ARCA</div>
                       <div className="text-[9px]">Se emiten al confirmar el cobro</div>
+                    </div>
+                  ) : fiscalConfig?.isActive ? (
+                    <div className="mt-2 border-t border-dashed border-black/50 pt-2 text-center font-bold">
+                      Ticket no fiscal
                     </div>
                   ) : null}
                     {!mixed && method === "cash" ? (
@@ -926,7 +972,7 @@ export function PaymentModal({
                     type="button"
                     role="switch"
                     aria-checked={printTicket}
-                    onClick={() => setPrintTicket((v) => !v)}
+                    onClick={togglePrintTicket}
                     className={
                       "relative h-7 w-12 rounded-full border transition " +
                       (printTicket
@@ -1138,12 +1184,14 @@ export function PaymentModal({
                         split: Array<{ method: PaymentMethod; amount: number }>;
                       };
                       cash_received?: number;
+                      issue_fiscal?: boolean;
                     };
                     if (!mixed) {
                       if (!method) return;
                       nextPayload = {
                         payment_method: method,
                         cash_received: method === "cash" ? received : undefined,
+                        issue_fiscal: issueFiscal,
                       };
                     } else {
                       nextPayload = {
@@ -1155,6 +1203,7 @@ export function PaymentModal({
                           ],
                         },
                         cash_received: (m1 === "cash" && a1 > 0) || (m2 === "cash" && a2 > 0) ? cashReceived : undefined,
+                        issue_fiscal: issueFiscal,
                       };
                     }
 
@@ -1163,7 +1212,19 @@ export function PaymentModal({
                       setTransferConfirmOpen(true);
                       return;
                     }
-                    setPreviewOpen(true);
+                    const needsMercadoPagoWaitingScreen =
+                      mercadoPagoQrReady &&
+                      mercadopagoAmountInPayload(nextPayload, finalTotal, paymentMethodConfig, splitScale) > 0;
+                    if (needsMercadoPagoWaitingScreen) {
+                      setPreviewOpen(true);
+                      return;
+                    }
+                    onConfirm({
+                      ...nextPayload,
+                      print_ticket: printTicket,
+                      customer_id: payloadUsesCuentaCorriente(nextPayload) ? customerId || null : null,
+                      fiscal_customer: fiscalCustomerPayload,
+                    });
                   }}
                 >
                   {pending ? "Procesando..." : "CONFIRMAR COBRO (ENTER)"}
@@ -1253,11 +1314,11 @@ export function PaymentModal({
                       <div className="my-1 border-b border-dashed" />
                     </>
                   ) : null}
-                  {cardSurchargeAmount > 0 ? (
+                  {priceAdjustmentAmount !== 0 ? (
                     <>
-                      <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
-                        <span>Recargo tarjeta ({cardSurchargePercent.toFixed(2).replace(/\.00$/, "")}%)</span>
-                        <span>+${cardSurchargeAmount.toFixed(2)}</span>
+                      <div className={cn("flex items-center justify-between text-xs", priceAdjustmentAmount > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+                        <span>{adjustmentLabel} por medio de pago</span>
+                        <span>{priceAdjustmentAmount > 0 ? "+" : "−"}${Math.abs(priceAdjustmentAmount).toFixed(2)}</span>
                       </div>
                       <div className="my-1 border-b border-dashed" />
                     </>
@@ -1357,7 +1418,7 @@ export function PaymentModal({
                       </p>
                     ) : mpQrLoading ? (
                       <div className="mt-4 flex justify-center py-8 text-sm text-muted-foreground">
-                        Generando código QR…
+                          Enviando el importe al QR fijo…
                       </div>
                     ) : mpQrError ? (
                       <div className="mt-4 space-y-3 text-center">
@@ -1374,12 +1435,13 @@ export function PaymentModal({
                       </div>
                     ) : mpQrData ? (
                       <div className="mt-4 flex flex-col items-center gap-3">
-                        <div className="rounded-xl bg-white p-3 shadow-md">
-                          <QRCode value={mpQrData} size={196} />
+                        <div className="flex size-16 items-center justify-center rounded-full border-4 border-sky-500/25 border-t-sky-500 text-2xl animate-spin" aria-hidden="true" />
+                        <div className="text-center">
+                          <p className="text-base font-semibold">Esperando el pago</p>
+                          <p className="mt-1 max-w-xs text-xs leading-snug text-muted-foreground">
+                            Pedile al cliente que escanee el QR fijo de la caja. Verá el importe de ${mpAmountPreview.toFixed(2)} en su teléfono.
+                          </p>
                         </div>
-                        <p className="max-w-xs text-center text-[11px] leading-snug text-muted-foreground">
-                          Mostrá este código al cliente para que pague con Mercado Pago u otra app compatible.
-                        </p>
                         {onMercadoPagoAutoPaid ? (
                           <p className="max-w-xs text-center text-[11px] font-medium leading-snug text-sky-900/90 dark:text-sky-100/90">
                             Cuando el pago se acredita, la venta se registra sola (notificación de Mercado Pago). No hace
@@ -1397,7 +1459,7 @@ export function PaymentModal({
                     type="button"
                     role="switch"
                     aria-checked={printTicket}
-                    onClick={() => setPrintTicket((v) => !v)}
+                    onClick={togglePrintTicket}
                     className={
                       "relative h-7 w-12 rounded-full border transition " +
                       (printTicket
@@ -1498,7 +1560,7 @@ export function PaymentModal({
                   </div>
                   <p className="text-sm leading-snug text-muted-foreground">
                     Verificá en tu banco o app que el importe de{" "}
-                    <span className="font-semibold text-foreground">${total.toFixed(2)}</span> ya ingresó. Recién
+                    <span className="font-semibold text-foreground">${finalTotal.toFixed(2)}</span> ya ingresó. Recién
                     entonces registramos la venta.
                   </p>
                 </div>

@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "crypto";
+
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { emitFiscalVoucherForRecordedSale } from "@/lib/fiscal-sale-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -160,6 +162,58 @@ async function cancelMercadoPagoPosCheckoutImpl(externalReference: string) {
     return { error: "Falta referencia" as const };
   }
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "No autorizado" };
+
+  try {
+    const admin = createAdminClient();
+    const { data: pending } = await admin
+      .from("mercado_pago_pos_pending_sales")
+      .select("business_id,mp_order_id,status")
+      .eq("external_reference", ref)
+      .maybeSingle();
+    if (pending?.status === "pending" && pending.mp_order_id) {
+      const { data: membership } = await supabase
+        .from("memberships")
+        .select("business_id")
+        .eq("business_id", pending.business_id)
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (membership) {
+        const { data: access } = await admin
+          .from("business_mercadopago_access")
+          .select("access_token")
+          .eq("business_id", pending.business_id)
+          .maybeSingle();
+        const token = String(access?.access_token ?? "").trim();
+        if (token) {
+          const cancelRes = await fetch(
+            `https://api.mercadopago.com/v1/orders/${encodeURIComponent(String(pending.mp_order_id))}/cancel`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+                "X-Idempotency-Key": randomUUID(),
+              },
+            }
+          );
+          if (!cancelRes.ok && cancelRes.status !== 409) {
+            console.warn("[mp-pos-cancel] Mercado Pago no canceló la order", {
+              order_id: String(pending.mp_order_id).slice(0, 20),
+              status: cancelRes.status,
+            });
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[mp-pos-cancel] No se pudo cancelar la order remota", error);
+  }
+
   const { data, error } = await supabase.rpc("cancel_mercadopago_pos_checkout", {
     p_external_reference: ref,
   });

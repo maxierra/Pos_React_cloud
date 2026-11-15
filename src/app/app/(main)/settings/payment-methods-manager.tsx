@@ -184,7 +184,7 @@ export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) 
                   Nombre en el POS
                 </th>
                 <th className="w-[120px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recargo tarjeta
+                  Ajuste de precio
                 </th>
                 <th className="w-[250px] px-4 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Ícono
@@ -240,26 +240,27 @@ export function PaymentMethodsManager({ initialRows, canEdit, onSaved }: Props) 
                     />
                   </td>
                   <td className="px-4 py-3 align-middle">
-                    {r.method_code === "card" ? (
+                    <div>
                       <div className="flex items-center gap-1.5">
                         <Input
                           type="number"
-                          min={0}
+                          min={-100}
                           max={100}
                           step="0.01"
                           value={r.surcharge_percent}
                           disabled={!canEdit}
                           onChange={(e) =>
-                            updateRow(r.id, { surcharge_percent: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })
+                            updateRow(r.id, { surcharge_percent: Math.min(100, Math.max(-100, Number(e.target.value) || 0)) })
                           }
                           className="h-10 w-[5rem] rounded-lg border-border/80 bg-background text-right shadow-sm"
-                          aria-label="Porcentaje de recargo para tarjeta"
+                          aria-label={`Ajuste porcentual para ${r.label}`}
                         />
                         <span className="text-muted-foreground">%</span>
                       </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No aplica</span>
-                    )}
+                      <div className={cn("mt-1 text-[10px] font-medium", r.surcharge_percent > 0 ? "text-amber-600" : r.surcharge_percent < 0 ? "text-emerald-600" : "text-muted-foreground")}>
+                        {r.surcharge_percent > 0 ? "Recargo" : r.surcharge_percent < 0 ? "Descuento" : "Sin ajuste"}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2.5">

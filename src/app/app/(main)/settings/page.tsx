@@ -15,6 +15,8 @@ export default async function SettingsPage() {
   let canEditPaymentMethods = false;
   let mercadoPagoPosExternalId: string | null = null;
   let mercadoPagoQrReady = false;
+  let mercadoPagoQrTemplateDocumentUrl: string | null = null;
+  let mercadoPagoQrTemplateImageUrl: string | null = null;
   const fiscalConfigured = Boolean(
     (process.env.FISCAL_API_URL ?? "").trim() && (process.env.FISCAL_API_KEY ?? "").trim()
   );
@@ -44,7 +46,7 @@ export default async function SettingsPage() {
     const { data } = await supabase
       .from("businesses")
       .select(
-        "name,business_type,scale_barcode_mode,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,report_daily_enabled,report_daily_email,report_daily_time,mercadopago_pos_external_id"
+        "name,business_type,scale_barcode_mode,gastronomy_counter_enabled,gastronomy_delivery_enabled,gastronomy_tables_enabled,address,phone,cuit,ticket_header,ticket_footer,report_daily_enabled,report_daily_email,report_daily_time,mercadopago_pos_external_id,mercadopago_qr_template_document_url,mercadopago_qr_template_image_url"
       )
       .eq("id", businessId)
       .single();
@@ -79,6 +81,10 @@ export default async function SettingsPage() {
       mercadoPagoPosExternalId =
         ((data as { mercadopago_pos_external_id?: string | null }).mercadopago_pos_external_id as string | null) ??
         null;
+      mercadoPagoQrTemplateDocumentUrl =
+        (data as { mercadopago_qr_template_document_url?: string | null }).mercadopago_qr_template_document_url ?? null;
+      mercadoPagoQrTemplateImageUrl =
+        (data as { mercadopago_qr_template_image_url?: string | null }).mercadopago_qr_template_image_url ?? null;
     }
 
     const { data: mpReady, error: mpRpcErr } = await supabase.rpc("business_mercadopago_qr_ready", {
@@ -145,6 +151,8 @@ export default async function SettingsPage() {
           canEditPaymentMethods={canEditPaymentMethods}
           mercadoPagoPosExternalId={mercadoPagoPosExternalId}
           mercadoPagoQrReady={mercadoPagoQrReady}
+          mercadoPagoQrTemplateDocumentUrl={mercadoPagoQrTemplateDocumentUrl}
+          mercadoPagoQrTemplateImageUrl={mercadoPagoQrTemplateImageUrl}
           fiscalSettings={fiscalSettings}
           fiscalConfigured={fiscalConfigured}
         />

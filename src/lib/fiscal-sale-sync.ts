@@ -19,7 +19,7 @@ export async function emitFiscalVoucherForRecordedSale(params: {
 }) {
   const admin = createAdminClient();
 
-  const [{ data: config }, { data: existingVoucher }, { data: saleItems, error: itemsError }] = await Promise.all([
+  const [{ data: config }, { data: existingVoucher }, { data: sale }, { data: saleItems, error: itemsError }] = await Promise.all([
     admin.from("business_fiscal_config").select("*").eq("business_id", params.businessId).maybeSingle(),
     admin
       .from("fiscal_vouchers")
@@ -29,11 +29,22 @@ export async function emitFiscalVoucherForRecordedSale(params: {
       .eq("status", "approved")
       .maybeSingle(),
     admin
+      .from("sales")
+      .select("payment_details")
+      .eq("business_id", params.businessId)
+      .eq("id", params.saleId)
+      .maybeSingle(),
+    admin
       .from("sale_items")
       .select("name,quantity,unit_price")
       .eq("business_id", params.businessId)
       .eq("sale_id", params.saleId),
   ]);
+
+  const paymentDetails = sale?.payment_details as Record<string, unknown> | null | undefined;
+  if (paymentDetails?.fiscal_enabled === false) {
+    return { skipped: "disabled_for_sale" as const };
+  }
 
   if (!config?.is_active || config.billing_mode !== "per_sale") {
     return null;

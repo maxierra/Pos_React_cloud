@@ -65,7 +65,7 @@ export type TicketData = {
     total_after: number;
   } | null;
   surcharge?: {
-    method: "card";
+    method: string;
     percent: number;
     amount: number;
   } | null;
@@ -184,8 +184,10 @@ export function formatSaleTicketPlainText(data: TicketData): string {
     lines.push(`Subtotal: $${baseTotal.toFixed(2)}`);
     lines.push(`Promo ${promo.name} (${promo.percent.toFixed(1)}%): -$${promo.amount.toFixed(2)}`);
   }
-  if (surcharge && surcharge.amount > 0) {
-    lines.push(`Recargo tarjeta (${surcharge.percent.toFixed(2).replace(/\.00$/, "")}%): +$${surcharge.amount.toFixed(2)}`);
+  if (surcharge && surcharge.amount !== 0) {
+    const adjustmentName = surcharge.amount > 0 ? "Recargo" : "Descuento";
+    const percentLabel = surcharge.percent ? ` (${Math.abs(surcharge.percent).toFixed(2).replace(/\.00$/, "")}%)` : "";
+    lines.push(`${adjustmentName} por medio de pago${percentLabel}: ${surcharge.amount > 0 ? "+" : "-"}$${Math.abs(surcharge.amount).toFixed(2)}`);
   }
   lines.push(`TOTAL: $${finalTotal.toFixed(2)}`);
   if (paymentMethod) {
@@ -421,10 +423,10 @@ export function generateTicketHtml(data: TicketData) {
           : ""
       }
       ${
-        surcharge && surcharge.amount > 0
-          ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:#d97706;">
-          <span>Recargo tarjeta (${surcharge.percent.toFixed(2).replace(/\.00$/, "")}%)</span>
-          <span>+$${surcharge.amount.toFixed(2)}</span>
+        surcharge && surcharge.amount !== 0
+          ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:${surcharge.amount > 0 ? "#d97706" : "#059669"};">
+          <span>${surcharge.amount > 0 ? "Recargo" : "Descuento"} por medio de pago${surcharge.percent ? ` (${Math.abs(surcharge.percent).toFixed(2).replace(/\.00$/, "")}%)` : ""}</span>
+          <span>${surcharge.amount > 0 ? "+" : "-"}$${Math.abs(surcharge.amount).toFixed(2)}</span>
         </div>`
           : ""
       }

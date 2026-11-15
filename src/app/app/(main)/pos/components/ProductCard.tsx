@@ -56,7 +56,7 @@ export function ProductCard({ name, imageUrl, price, stockLabel, stockState, dis
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/12 to-transparent" />
           <div className="absolute left-3 top-3">
             <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", stockClass[stockState])}>
-              {disabled ? "Sin stock" : stockLabel}
+              {stockState === "out" ? "Sin stock" : stockLabel}
             </span>
           </div>
         </div>
@@ -88,7 +88,7 @@ export function ProductCard({ name, imageUrl, price, stockLabel, stockState, dis
           )}
         >
           <ShoppingCart className="size-4" />
-          {disabled ? "Sin stock" : "Agregar al carrito"}
+          {stockState === "out" ? "Actualizar stock" : "Agregar al carrito"}
         </div>
       </div>
     </motion.button>

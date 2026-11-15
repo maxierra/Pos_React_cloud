@@ -6,7 +6,7 @@ function sanitizeExternalRef(ref: string, max = 64): string {
 }
 
 export type MercadoPagoQrOrderResult =
-  | { ok: true; qr_data: string; order_id?: string }
+  | { ok: true; order_id: string }
   | { ok: false; message: string; status?: number };
 
 function mpOrdersErrorsDetail(json: Record<string, unknown>): string {
@@ -32,10 +32,10 @@ function mpOrdersErrorsDetail(json: Record<string, unknown>): string {
 }
 
 /**
- * Crea una orden QR modelo dinámico (Mercado Pago AR).
+ * Crea una orden asociada al QR fijo de la caja (Mercado Pago AR).
  * Requiere access token de producción del vendedor y external_pos_id de la caja MP.
  */
-export async function createMercadoPagoDynamicQrOrder(input: {
+export async function createMercadoPagoStaticQrOrder(input: {
   accessToken: string;
   externalPosId: string;
   amountArs: number;
@@ -67,7 +67,7 @@ export async function createMercadoPagoDynamicQrOrder(input: {
     config: {
       qr: {
         external_pos_id: posId,
-        mode: "dynamic",
+        mode: "static",
       },
     },
     transactions: {
@@ -75,6 +75,7 @@ export async function createMercadoPagoDynamicQrOrder(input: {
     },
   };
 
+  const requestStartedAt = Date.now();
   const res = await fetch(MP_ORDERS_URL, {
     method: "POST",
     headers: {
@@ -86,6 +87,7 @@ export async function createMercadoPagoDynamicQrOrder(input: {
   });
 
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const durationMs = Date.now() - requestStartedAt;
 
   if (!res.ok) {
     const msg =
@@ -103,6 +105,7 @@ export async function createMercadoPagoDynamicQrOrder(input: {
       http_status: res.status,
       external_pos_id: posId,
       message: finalMsg,
+      duration_ms: durationMs,
       mp_body_keys: json && typeof json === "object" ? Object.keys(json) : [],
     });
     if (process.env.NODE_ENV === "development") {
@@ -115,16 +118,18 @@ export async function createMercadoPagoDynamicQrOrder(input: {
     };
   }
 
-  const typeResponse = json.type_response as { qr_data?: string } | undefined;
-  const qr_data = typeResponse?.qr_data?.trim();
-  if (!qr_data) {
+  const order_id = typeof json.id === "string" ? json.id.trim() : "";
+  if (!order_id) {
     return {
       ok: false,
-      message: "Mercado Pago no devolvió datos de QR. Revisá el ID de caja y las credenciales.",
+      message: "Mercado Pago no devolvió el identificador de la orden.",
       status: res.status,
     };
   }
-
-  const order_id = typeof json.id === "string" ? json.id : undefined;
-  return { ok: true, qr_data, order_id };
+  console.info("[mp-qr] Orden QR publicada", {
+    order_id: order_id.slice(0, 24),
+    external_pos_id: posId,
+    duration_ms: durationMs,
+  });
+  return { ok: true, order_id };
 }

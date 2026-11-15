@@ -21,6 +21,7 @@ type Props = {
   onLoadMore: () => void;
   hasMore: boolean;
   mode?: "table" | "catalog";
+  viewMode?: "grid" | "list";
   lastAddedProductId?: string | null;
   onConsumeLastAdded?: () => void;
   page?: number;
@@ -35,6 +36,7 @@ export function ProductGrid({
   onLoadMore,
   hasMore,
   mode = "table",
+  viewMode = "grid",
   lastAddedProductId,
   onConsumeLastAdded,
   page,
@@ -72,13 +74,48 @@ export function ProductGrid({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-blue-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(37,99,235,.55)] dark:border-blue-300/20 dark:bg-[var(--pos-surface)]">
-      {mode === "catalog" ? (
+      {viewMode === "list" ? (
+        <div className="min-h-0 flex-1 overflow-auto bg-white dark:bg-[#0a1629]">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-100/95 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500 backdrop-blur dark:bg-slate-900/95 dark:text-slate-400">
+              <tr>
+                <th className="px-3 py-2.5">Producto</th>
+                <th className="px-3 py-2.5">Código / categoría</th>
+                <th className="px-3 py-2.5 text-right">Stock</th>
+                <th className="px-3 py-2.5 text-right">Precio</th>
+                <th className="w-28 px-3 py-2.5 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {products.map((p) => {
+                const stockValue = p.sold_by_weight ? p.stock_decimal : p.stock;
+                const disabled = stockValue <= 0;
+                const highlight = lastAddedProductId === p.id;
+                return (
+                  <tr key={p.id} className={cn("transition-colors hover:bg-blue-50/70 dark:hover:bg-blue-950/25", highlight && "bg-emerald-50 dark:bg-emerald-950/25", disabled && "opacity-50")}>
+                    <td className="max-w-[320px] px-3 py-2.5 font-semibold"><span className="line-clamp-2">{p.name}</span></td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground"><div className="font-mono">{p.barcode || "Sin código"}</div>{p.category ? <div className="mt-0.5">{p.category}</div> : null}</td>
+                    <td className={cn("px-3 py-2.5 text-right font-semibold tabular-nums", stockValue < 5 && !disabled ? "text-amber-600" : "", disabled ? "text-rose-600" : "")}>
+                      {p.sold_by_weight ? `${p.stock_decimal} kg` : `${p.stock} u.`}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-base font-black tabular-nums">${p.price.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button type="button" onClick={() => onAdd(p)} className={cn("h-8 rounded-lg px-3 text-xs font-extrabold text-white shadow-sm transition", disabled ? "bg-amber-500 hover:bg-amber-400" : "bg-blue-600 hover:bg-blue-500")}>
+                        {disabled ? "Actualizar" : "Agregar"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : mode === "catalog" ? (
         <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-3">
           {products.map((p) => {
             const highlight = lastAddedProductId === p.id;
             const stockValue = p.sold_by_weight ? p.stock_decimal : p.stock;
             const stockState = stockValue <= 0 ? "out" : stockValue < 5 ? "low" : "ok";
-            const disabled = stockValue <= 0;
             return (
               <ProductCard
                 key={p.id}
@@ -87,7 +124,7 @@ export function ProductGrid({
                 price={p.price}
                 stockLabel={p.sold_by_weight ? `${p.stock_decimal} kg` : `${p.stock} u.`}
                 stockState={stockState}
-                disabled={disabled}
+                disabled={false}
                 highlight={highlight}
                 onClick={() => onAdd(p)}
               />
@@ -106,12 +143,11 @@ export function ProductGrid({
               <button
                 key={p.id}
                 type="button"
-                disabled={disabled}
                 onClick={() => onAdd(p)}
                 className={cn(
                   "pos-product-tile group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400",
                   neonTones[index % neonTones.length],
-                  disabled && "cursor-not-allowed opacity-45 grayscale",
+                  disabled && "border-amber-400/70 opacity-70",
                   highlight && "ring-2 ring-emerald-400 shadow-[0_0_28px_-5px_rgba(52,211,153,.95)]"
                 )}
               >
@@ -126,7 +162,7 @@ export function ProductGrid({
                 </div>
                 <div className="relative mt-2 flex items-end justify-between gap-2 border-t border-blue-200/70 pt-2 dark:border-blue-300/20">
                   <div><div className="pos-product-meta text-[8px] font-bold uppercase tracking-[0.14em]">Precio</div><div className="pos-product-price text-lg font-black tabular-nums">${p.price.toLocaleString("es-AR")}</div></div>
-                  <span className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-[9px] font-extrabold text-white shadow-md transition group-hover:bg-cyan-500">Agregar</span>
+                  <span className={cn("rounded-lg px-2.5 py-1.5 text-[9px] font-extrabold text-white shadow-md transition", disabled ? "bg-amber-500 group-hover:bg-amber-400" : "bg-blue-600 group-hover:bg-cyan-500")}>{disabled ? "Actualizar" : "Agregar"}</span>
                 </div>
               </button>
             );

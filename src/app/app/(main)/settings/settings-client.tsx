@@ -54,6 +54,8 @@ type Props = {
   canEditPaymentMethods: boolean;
   mercadoPagoPosExternalId: string | null;
   mercadoPagoQrReady: boolean;
+  mercadoPagoQrTemplateDocumentUrl: string | null;
+  mercadoPagoQrTemplateImageUrl: string | null;
   fiscalSettings: FiscalSettingsProps;
   fiscalConfigured: boolean;
 };
@@ -271,6 +273,8 @@ export function SettingsClient({
   canEditPaymentMethods,
   mercadoPagoPosExternalId,
   mercadoPagoQrReady,
+  mercadoPagoQrTemplateDocumentUrl,
+  mercadoPagoQrTemplateImageUrl,
   fiscalSettings,
   fiscalConfigured,
 }: Props) {
@@ -358,7 +362,7 @@ export function SettingsClient({
           title="Mercado Pago (QR)"
           description="Cobro con QR en el POS."
           hint={mercadoPagoQrReady ? "QR activo" : "Pendiente de configurar"}
-          tooltip="Cargá el token y la caja de Mercado Pago para mostrar el QR al cobrar desde el POS."
+          tooltip="Cargá el token, creá la caja y descargá el QR fijo para colocarlo en el local."
           onClick={() => setMpPosOpen(true)}
         />
         <SettingsCard
@@ -454,7 +458,7 @@ export function SettingsClient({
       <ModalShell
         open={mpPosOpen}
         title="Mercado Pago QR"
-        description="Token de producción + caja en MP para mostrar el QR al cobrar."
+        description="Creá la caja y descargá el QR fijo que escanearán tus clientes."
         onClose={() => setMpPosOpen(false)}
         maxWidthClass="max-w-lg"
         accent="cyan"
@@ -462,6 +466,8 @@ export function SettingsClient({
         <MercadoPagoPosForm
           posExternalId={mercadoPagoPosExternalId}
           qrReady={mercadoPagoQrReady}
+          qrTemplateDocumentUrl={mercadoPagoQrTemplateDocumentUrl}
+          qrTemplateImageUrl={mercadoPagoQrTemplateImageUrl}
           canEdit={canEditPaymentMethods}
         />
       </ModalShell>

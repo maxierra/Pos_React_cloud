@@ -17,6 +17,8 @@ type CheckoutItem = {
   unit_price: number;
 };
 
+type QuickStockUpdateInput = { productId: string; stock: number };
+
 type AppliedPromotion = {
   ruleId: string;
   name: string;
@@ -86,6 +88,50 @@ function normalizePhoneDigits(phone: string): string {
 
 function getActiveBusinessId(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   return cookieStore.get("active_business_id")?.value ?? null;
+}
+
+async function quickUpdateProductStockImpl(input: QuickStockUpdateInput) {
+  const businessId = getActiveBusinessId(await cookies());
+  if (!businessId) throw new Error("missing_active_business_id");
+  const nextStock = Number(input.stock);
+  if (!input.productId || !Number.isFinite(nextStock) || nextStock < 0) throw new Error("invalid_stock");
+
+  const supabase = await createClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw new Error("unauthorized");
+  const { data: membership } = await supabase.from("memberships").select("role,permissions")
+    .eq("user_id", userData.user.id).eq("business_id", businessId).is("deleted_at", null).maybeSingle();
+  const permissions = (membership?.permissions ?? {}) as Record<string, unknown>;
+  if (membership?.role !== "owner" && permissions.products_edit_stock !== true) throw new Error("forbidden_edit_stock");
+
+  const { data: product, error: productError } = await supabase.from("products")
+    .select("id,name,sold_by_weight,stock,stock_decimal").eq("id", input.productId)
+    .eq("business_id", businessId).eq("active", true).maybeSingle();
+  if (productError) throw new Error(productError.message);
+  if (!product) throw new Error("product_not_found");
+
+  const soldByWeight = Boolean(product.sold_by_weight);
+  const normalizedStock = soldByWeight
+    ? Math.round((nextStock + Number.EPSILON) * 1_000_000) / 1_000_000
+    : Math.floor(nextStock);
+  const stockPatch = soldByWeight ? { stock_decimal: normalizedStock } : { stock: normalizedStock };
+  const { data: updated, error: updateError } = await supabase.from("products")
+    .update({ ...stockPatch, updated_at: new Date().toISOString() }).eq("id", input.productId)
+    .eq("business_id", businessId).select("id,sold_by_weight,stock,stock_decimal").single();
+  if (updateError) throw new Error(updateError.message);
+
+  const { error: activityError } = await supabase.rpc("record_product_change_activity", {
+    p_product_id: input.productId,
+    p_before: product as Record<string, unknown>,
+    p_after: updated as Record<string, unknown>,
+  });
+  if (activityError) console.warn("[quickUpdateProductStock] activity:", activityError.message);
+  revalidatePath("/app/pos");
+  revalidatePath("/app/products");
+  return {
+    productId: String(updated.id), stock: Number(updated.stock) || 0,
+    stockDecimal: Number(updated.stock_decimal) || 0, soldByWeight,
+  };
 }
 
 async function evaluatePromotionForCart(params: {
@@ -299,6 +345,7 @@ async function checkoutSaleImpl(input: {
   cash_received?: number;
   customer_id?: string | null;
   fiscal_customer?: FiscalCustomerData | null;
+  issue_fiscal?: boolean;
   items: CheckoutItem[];
 }) {
   const cookieStore = await cookies();
@@ -334,22 +381,38 @@ async function checkoutSaleImpl(input: {
     0,
     Math.round((totalBeforeDiscount - (appliedPromotion?.discountAmount ?? 0)) * 100) / 100
   );
-  const { data: cardMethod } = await supabase
+  const { data: paymentMethodRows } = await supabase
     .from("business_payment_methods")
-    .select("surcharge_percent")
-    .eq("business_id", businessId)
-    .eq("method_code", "card")
-    .maybeSingle();
-  const cardSurchargePercent =
-    input.payment_method === "card"
-      ? Math.min(100, Math.max(0, Number(cardMethod?.surcharge_percent) || 0))
-      : 0;
-  const cardSurchargeAmount =
-    Math.round((netTotalBeforeSurcharge * cardSurchargePercent) + Number.EPSILON) / 100;
+    .select("method_code,surcharge_percent")
+    .eq("business_id", businessId);
+  const adjustmentByMethod = new Map(
+    (paymentMethodRows ?? []).map((row) => [
+      String(row.method_code),
+      Math.min(100, Math.max(-100, Number(row.surcharge_percent) || 0)),
+    ])
+  );
+  const baseSplit = input.payment_method === "mixed" ? (input.payment_details?.split ?? []) : [];
+  const splitBaseTotal = baseSplit.reduce((sum, part) => sum + Math.max(0, Number(part.amount) || 0), 0);
+  const splitScale = splitBaseTotal > 0 ? netTotalBeforeSurcharge / splitBaseTotal : 0;
+  const adjustmentParts = input.payment_method === "mixed"
+    ? baseSplit.map((part) => {
+        const baseAmount = Math.round((Math.max(0, Number(part.amount) || 0) * splitScale + Number.EPSILON) * 100) / 100;
+        const percent = adjustmentByMethod.get(String(part.method)) ?? 0;
+        const amount = Math.round((baseAmount * percent + Number.EPSILON)) / 100;
+        return { method: String(part.method), percent, base_amount: baseAmount, amount };
+      })
+    : [{
+        method: input.payment_method,
+        percent: adjustmentByMethod.get(input.payment_method) ?? 0,
+        base_amount: netTotalBeforeSurcharge,
+        amount: Math.round((netTotalBeforeSurcharge * (adjustmentByMethod.get(input.payment_method) ?? 0) + Number.EPSILON)) / 100,
+      }];
+  const priceAdjustmentAmount = Math.round((adjustmentParts.reduce((sum, part) => sum + part.amount, 0) + Number.EPSILON) * 100) / 100;
 
   const basePaymentDetails = (input.payment_details ?? null) as CheckoutPaymentDetails | null;
   const checkoutDetails = {
     ...(basePaymentDetails ?? {}),
+    fiscal_enabled: input.issue_fiscal !== false,
     ...(appliedPromotion
       ? {
         promotion: {
@@ -363,13 +426,14 @@ async function checkoutSaleImpl(input: {
         },
       }
       : {}),
-    ...(cardSurchargeAmount > 0
+    ...(priceAdjustmentAmount !== 0
       ? {
-          surcharge: {
-            method: "card",
-            percent: cardSurchargePercent,
-            amount: cardSurchargeAmount,
+          price_adjustment: {
+            method: input.payment_method,
+            percent: input.payment_method === "mixed" ? null : adjustmentParts[0]?.percent ?? 0,
+            amount: priceAdjustmentAmount,
             base_amount: netTotalBeforeSurcharge,
+            parts: adjustmentParts,
           },
         }
       : {}),
@@ -435,7 +499,7 @@ async function checkoutSaleImpl(input: {
   revalidatePath("/app/onboarding");
   revalidatePath("/app/facturacion");
 
-  const saleTotal = Math.round((netTotalBeforeSurcharge + cardSurchargeAmount) * 100) / 100;
+  const saleTotal = Math.round((netTotalBeforeSurcharge + priceAdjustmentAmount) * 100) / 100;
 
   let fiscal: Awaited<ReturnType<typeof emitFiscalVoucherForSale>> = null;
 
@@ -445,7 +509,7 @@ async function checkoutSaleImpl(input: {
     .eq("business_id", businessId)
     .maybeSingle();
 
-  if (fiscalConfig?.is_active) {
+  if (fiscalConfig?.is_active && input.issue_fiscal !== false) {
     if (fiscalConfig.billing_mode === "consolidated") {
       const period = new Date().toISOString().slice(0, 7);
       try {
@@ -477,8 +541,8 @@ async function checkoutSaleImpl(input: {
       ((fiscalConfig as { document_output_mode?: "ticket" | "factura" | null } | null)?.document_output_mode ??
         "factura") as "ticket" | "factura",
     total: saleTotal,
-    surcharge: cardSurchargeAmount > 0
-      ? { method: "card", percent: cardSurchargePercent, amount: cardSurchargeAmount }
+    surcharge: priceAdjustmentAmount !== 0
+      ? { method: input.payment_method, percent: input.payment_method === "mixed" ? 0 : adjustmentParts[0]?.percent ?? 0, amount: priceAdjustmentAmount }
       : null,
     promotion: appliedPromotion
       ? {
@@ -496,6 +560,7 @@ async function checkoutSaleImpl(input: {
 }
 
 export const checkoutSale = createMonitoredAction(checkoutSaleImpl, "pos/checkoutSale");
+export const quickUpdateProductStock = createMonitoredAction(quickUpdateProductStockImpl, "pos/quickUpdateProductStock");
 
 async function previewPromotionImpl(input: {
   payment_method: string;

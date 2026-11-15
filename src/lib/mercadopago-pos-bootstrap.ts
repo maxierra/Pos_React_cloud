@@ -7,25 +7,42 @@ export type MercadoPagoPosBootstrapResult = {
   storeExternalId: string;
   posNumericId: number;
   posExternalId: string;
+  qrImageUrl: string | null;
+  qrTemplateImageUrl: string | null;
+  qrTemplateDocumentUrl: string | null;
+  qrCode: string;
 };
 
 function extractMpMessage(json: unknown): string | null {
   if (!json || typeof json !== "object") return null;
   const o = json as Record<string, unknown>;
-  if (typeof o.message === "string" && o.message.trim()) return o.message.trim();
   const cause = o.cause;
   if (typeof cause === "string" && cause.trim()) return cause.trim();
+  if (Array.isArray(cause) && cause[0] && typeof cause[0] === "object") {
+    const firstCause = cause[0] as { message?: string; detail?: string; description?: string; code?: string };
+    const causeText = firstCause.message ?? firstCause.detail ?? firstCause.description ?? firstCause.code;
+    if (typeof causeText === "string" && causeText.trim()) return causeText.trim();
+  }
   const errors = o.errors;
+  if (typeof errors === "string" && errors.trim()) return errors.trim();
   if (Array.isArray(errors) && errors[0] && typeof errors[0] === "object") {
-    const m = (errors[0] as { message?: string }).message;
+    const firstError = errors[0] as { message?: string; detail?: string; description?: string };
+    const m = firstError.message ?? firstError.detail ?? firstError.description;
     if (typeof m === "string" && m.trim()) return m.trim();
   }
+  const error = o.error;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  const detail = o.detail;
+  if (typeof detail === "string" && detail.trim()) return detail.trim();
+  const description = o.description;
+  if (typeof description === "string" && description.trim()) return description.trim();
+  if (typeof o.message === "string" && o.message.trim()) return o.message.trim();
   return null;
 }
 
 /**
  * Crea sucursal + caja (POS) en la cuenta del vendedor asociada al access token.
- * Store + POST /pos con store_id, fixed_amount true (QR integrado), sin external_store_id en el body.
+ * Store + POST /v2/pos en modo PDV. La respuesta incluye el QR fijo imprimible.
  */
 export async function mercadoPagoBootstrapStoreAndPos(
   accessToken: string
@@ -90,32 +107,46 @@ export async function mercadoPagoBootstrapStoreAndPos(
     throw new Error("Mercado Pago no devolvió el store_id numérico");
   }
 
-  // fixed_amount: true es obligatorio para modelo integrado (QR por orden / monto desde el POS).
-  // Sin esto, POST /v1/orders en modo dynamic suele responder 400 "Invalid value for property".
-  // No enviamos external_store_id: en varias cuentas falla con "External store id does not refer any store".
   const posBody = {
     name: `Caja ${posExternalId}`,
     external_id: posExternalId,
-    store_id: storeId,
-    category: 621102,
-    fixed_amount: true,
+    // El schema vigente de /v2/pos declara store_id como string.
+    store_id: String(storeId),
+    config: {
+      qr: {
+        operating_mode: "pdv",
+      },
+    },
   };
 
-  const posRes = await fetch("https://api.mercadopago.com/pos", {
+  const posRes = await fetch("https://api.mercadopago.com/v2/pos", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      "X-Idempotency-Key": randomBytes(16).toString("hex"),
     },
     body: JSON.stringify(posBody),
   });
-  const posData = (await posRes.json().catch(() => ({}))) as { id?: number };
+  const posData = (await posRes.json().catch(() => ({}))) as {
+    id?: number;
+    qr_response?: {
+      image?: string;
+      template_image?: string;
+      template_document?: string;
+      qr_code?: string;
+    };
+  };
   if (!posRes.ok) {
     throw new Error(extractMpMessage(posData) || `No se pudo crear la caja (${posRes.status})`);
   }
   const posNumericId = Number(posData.id);
   if (!Number.isFinite(posNumericId)) {
     throw new Error("Mercado Pago no devolvió el id de la caja");
+  }
+  const qrCode = String(posData.qr_response?.qr_code ?? "").trim();
+  if (!qrCode) {
+    throw new Error("Mercado Pago creó la caja pero no devolvió el QR fijo");
   }
 
   return {
@@ -125,5 +156,9 @@ export async function mercadoPagoBootstrapStoreAndPos(
     storeExternalId,
     posNumericId,
     posExternalId,
+    qrImageUrl: String(posData.qr_response?.image ?? "").trim() || null,
+    qrTemplateImageUrl: String(posData.qr_response?.template_image ?? "").trim() || null,
+    qrTemplateDocumentUrl: String(posData.qr_response?.template_document ?? "").trim() || null,
+    qrCode,
   };
 }

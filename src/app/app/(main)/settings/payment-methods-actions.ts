@@ -115,7 +115,7 @@ export async function savePaymentMethods(rows: PaymentMethodPayload[]): Promise<
     const icon_url = (r.icon_url ?? "").trim() || null;
     const icon_key = (r.icon_key ?? "banknote").trim() || "banknote";
     const sort_order = Number.isFinite(r.sort_order) ? Math.round(r.sort_order) : 0;
-    const surcharge_percent = Math.min(100, Math.max(0, Number(r.surcharge_percent) || 0));
+    const surcharge_percent = Math.min(100, Math.max(-100, Number(r.surcharge_percent) || 0));
 
     const { error } = await supabase
       .from("business_payment_methods")

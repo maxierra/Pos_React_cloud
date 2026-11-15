@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { shouldCelebrateOnboardingAfterSale } from "@/app/app/(main)/onboarding/actions";
 import { ONBOARDING_GUIDE_TOTAL_STEPS } from "@/app/app/(main)/onboarding/onboarding-guide-constants";
 import { OnboardingSpotlight } from "@/app/app/(main)/onboarding/onboarding-spotlight";
-import { checkoutSale, closeServiceOrder, getTodayDeliveryOrders, saveServiceOrder, updateTableOrderStatus, updateDeliveryOrderStatus } from "@/app/app/(main)/pos/actions";
+import { checkoutSale, closeServiceOrder, getTodayDeliveryOrders, quickUpdateProductStock, saveServiceOrder, updateTableOrderStatus, updateDeliveryOrderStatus } from "@/app/app/(main)/pos/actions";
 import type { TodayDeliveryOrderRow } from "@/app/app/(main)/pos/actions";
 import { CartPanel } from "@/app/app/(main)/pos/components/CartPanel";
 import { POSLayout } from "@/app/app/(main)/pos/components/POSLayout";
@@ -17,11 +17,20 @@ import { DeliveryHistoryTable } from "@/app/app/(main)/pos/components/DeliveryHi
 import { DeliveryOrderModal } from "@/app/app/(main)/pos/components/DeliveryOrderModal";
 import type { DeliveryOrderFields } from "@/app/app/(main)/pos/components/DeliveryOrderModal";
 import { PaymentModal } from "@/app/app/(main)/pos/components/payment-modal";
+import { HeldSalesModal } from "@/app/app/(main)/pos/components/held-sales-modal";
+import { StockProtectionModal } from "@/app/app/(main)/pos/components/stock-protection-modal";
+import {
+  deleteHeldSale,
+  holdSale,
+  listHeldSales,
+  takeHeldSale,
+  type HeldSaleRow,
+} from "@/app/app/(main)/pos/held-sales-actions";
 import { ProductGrid } from "@/app/app/(main)/pos/components/product-grid";
 import { SearchBar } from "@/app/app/(main)/pos/components/SearchBar";
 import { TableOrderView } from "@/app/app/(main)/pos/components/TableOrderView";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
-import { useCart } from "@/app/app/(main)/pos/hooks/use-cart";
+import { useCart, type CartItem } from "@/app/app/(main)/pos/hooks/use-cart";
 import { useProducts, type PosProduct } from "@/app/app/(main)/pos/hooks/use-products";
 import { parseScaleBarcode } from "@/app/app/(main)/pos/utils/scale-barcode";
 import { beep } from "@/app/app/(main)/pos/utils/beep";
@@ -35,7 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { BusinessType } from "@/lib/business-types";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Bike, CheckCircle2, ChevronDown, Columns3, DollarSign, History, NotebookPen, Plus, Save, ScanLine, Store, Tags, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, Bike, CheckCircle2, ChevronDown, Columns3, DollarSign, Grid2X2, History, List, NotebookPen, Plus, Save, ScanLine, Store, Tags, UtensilsCrossed } from "lucide-react";
 import type { QuickSaleCategoryRow } from "@/app/app/(main)/settings/quick-sale-categories-manager";
 import { voucherTypeLabel, type FiscalCustomerData, type TaxCondition } from "@/features/billing/types";
 
@@ -126,6 +135,7 @@ export function PosClient({
   gastronomyTables = [],
   serviceOrders = [],
   guidePosStep = false,
+  canEditStock = false,
 }: {
   products: PosProduct[];
   business: PosBusinessInfo;
@@ -143,6 +153,7 @@ export function PosClient({
   serviceOrders?: ServiceOrder[];
   /** Recorrido inicial: foco en escaneo/búsqueda y luego Cobrar. */
   guidePosStep?: boolean;
+  canEditStock?: boolean;
 }) {
   const router = useRouter();
   const isMobilePos = useIsMobilePos();
@@ -153,6 +164,9 @@ export function PosClient({
   const cobrarGuideRef = React.useRef<HTMLDivElement>(null);
   const [pending, startTransition] = React.useTransition();
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [heldSalesOpen, setHeldSalesOpen] = React.useState(false);
+  const [heldSalesLoading, setHeldSalesLoading] = React.useState(false);
+  const [heldSales, setHeldSales] = React.useState<HeldSaleRow[]>([]);
   const [saleSuccess, setSaleSuccess] = React.useState<{
     total: number;
     paymentLabel: string;
@@ -188,7 +202,7 @@ export function PosClient({
     const timeoutId = window.setTimeout(() => {
       setSaleSuccess(null);
       window.setTimeout(() => searchRef.current?.focus(), 0);
-    }, 2000);
+    }, 1000);
     return () => window.clearTimeout(timeoutId);
   }, [saleSuccess]);
 
@@ -199,7 +213,52 @@ export function PosClient({
   // Destructure stable useCallback refs so useEffects don't depend on the
   // plain object that useCart() recreates on every render.
   const { clear: cartClear, replace: cartReplace } = cart;
-  const prod = useProducts(products);
+
+  const [stockOverrides, setStockOverrides] = React.useState<Record<string, number>>({});
+  const effectiveProducts = React.useMemo(() => products.map((product) => {
+    const override = stockOverrides[product.id];
+    if (override === undefined) return product;
+    return product.sold_by_weight ? { ...product, stock_decimal: override } : { ...product, stock: override };
+  }), [products, stockOverrides]);
+  const prod = useProducts(effectiveProducts);
+  const [stockRequest, setStockRequest] = React.useState<{ product: PosProduct; requestedQuantity: number } | null>(null);
+  const [stockUpdating, setStockUpdating] = React.useState(false);
+  const consumeLocalStockAfterSale = React.useCallback((soldItems: CartItem[]) => {
+    const soldByProduct = new Map<string, number>();
+    for (const item of soldItems) {
+      if (!item.product_id) continue;
+      soldByProduct.set(item.product_id, (soldByProduct.get(item.product_id) ?? 0) + Number(item.quantity));
+    }
+    if (soldByProduct.size === 0) return;
+    setStockOverrides((current) => {
+      const next = { ...current };
+      for (const [productId, soldQuantity] of soldByProduct) {
+        const product = effectiveProducts.find((entry) => entry.id === productId);
+        if (!product) continue;
+        const available = product.sold_by_weight ? product.stock_decimal : product.stock;
+        const remaining = Math.max(0, Math.round((available - soldQuantity + Number.EPSILON) * 1_000_000) / 1_000_000);
+        next[productId] = remaining;
+      }
+      return next;
+    });
+  }, [effectiveProducts]);
+  const focusScannerAfterSale = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus({ preventScroll: true });
+      searchRef.current?.select();
+    }, 0);
+  }, []);
+  const [productViewMode, setProductViewMode] = React.useState<"grid" | "list">("grid");
+  React.useEffect(() => {
+    const saved = window.localStorage.getItem("pos-product-view-mode");
+    if (saved !== "grid" && saved !== "list") return;
+    const id = window.setTimeout(() => setProductViewMode(saved), 0);
+    return () => window.clearTimeout(id);
+  }, []);
+  const changeProductViewMode = React.useCallback((mode: "grid" | "list") => {
+    setProductViewMode(mode);
+    window.localStorage.setItem("pos-product-view-mode", mode);
+  }, []);
   const catalogMode = businessType === "fashion" || businessType === "gastronomy";
   const {
     query,
@@ -229,6 +288,69 @@ export function PosClient({
   const paymentLabelMap = React.useMemo(() => buildPaymentLabelMap(paymentMethodConfig), [paymentMethodConfig]);
   const defaultPaymentMethod = activePaymentMethods[0]?.method_code ?? "cash";
   const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState(defaultPaymentMethod);
+  const [issueFiscal, setIssueFiscal] = React.useState(Boolean(fiscalConfig?.isActive));
+
+  const refreshHeldSales = React.useCallback(async () => {
+    setHeldSalesLoading(true);
+    try {
+      const res = await listHeldSales();
+      if ("error" in res) {
+        toast.error("No se pudieron cargar las ventas en espera", { description: res.error });
+        return;
+      }
+      setHeldSales(res.rows);
+    } finally {
+      setHeldSalesLoading(false);
+    }
+  }, []);
+
+  const putCurrentSaleOnHold = React.useCallback(async () => {
+    if (cart.items.length === 0) return;
+    const res = await holdSale({ items: cart.items, total: cart.total, paymentMethod: selectedPaymentMethod });
+    if ("error" in res) {
+      toast.error("No se pudo poner la venta en espera", { description: res.error });
+      return;
+    }
+    cartClear();
+    toast.success("Venta puesta en espera");
+    await refreshHeldSales();
+  }, [cart.items, cart.total, cartClear, refreshHeldSales, selectedPaymentMethod]);
+
+  const openHeldSales = React.useCallback(() => {
+    setHeldSalesOpen(true);
+    void refreshHeldSales();
+  }, [refreshHeldSales]);
+
+  const resumeHeldSale = React.useCallback(async (row: HeldSaleRow) => {
+    if (cart.items.length > 0) {
+      toast.error("El carrito actual no está vacío", {
+        description: "Ponelo en espera o terminalo antes de retomar otra venta.",
+      });
+      return;
+    }
+    const res = await takeHeldSale(row.id);
+    if ("error" in res) {
+      toast.error("No se pudo retomar la venta", { description: res.error });
+      return;
+    }
+    cartReplace(res.sale.items);
+    if (res.sale.payment_method && activePaymentMethods.some((m) => m.method_code === res.sale.payment_method)) {
+      setSelectedPaymentMethod(res.sale.payment_method);
+    }
+    setHeldSales((current) => current.filter((item) => item.id !== row.id));
+    setHeldSalesOpen(false);
+    toast.success(`${res.sale.label} retomada`);
+  }, [activePaymentMethods, cart.items.length, cartReplace]);
+
+  const removeHeldSale = React.useCallback(async (row: HeldSaleRow) => {
+    if (!window.confirm(`¿Eliminar ${row.label}? Esta acción no se puede deshacer.`)) return;
+    const res = await deleteHeldSale(row.id);
+    if ("error" in res) {
+      toast.error("No se pudo eliminar", { description: res.error });
+      return;
+    }
+    setHeldSales((current) => current.filter((item) => item.id !== row.id));
+  }, []);
   const numpadPaymentArmedRef = React.useRef(false);
   const gastronomyModes = React.useMemo(
     () =>
@@ -280,8 +402,18 @@ export function PosClient({
   }, []);
 
   const addProduct = React.useCallback(
-    (p: PosProduct, opts?: { silentToast?: boolean }) => {
-      cart.add(p);
+    (p: PosProduct, opts?: { silentToast?: boolean; quantity?: number }) => {
+      const currentQuantity = cart.items.find((item) => item.product_id === p.id)?.quantity ?? 0;
+      const quantityToAdd = opts?.quantity ?? (p.sold_by_weight ? 0.05 : 1);
+      const requestedQuantity = Math.round((currentQuantity + quantityToAdd + Number.EPSILON) * 1_000_000) / 1_000_000;
+      const availableStock = p.sold_by_weight ? p.stock_decimal : p.stock;
+      if (requestedQuantity > availableStock + 0.000001) {
+        setQuery("");
+        setStockRequest({ product: p, requestedQuantity });
+        toast.warning("Stock insuficiente", { description: `${p.name}: disponible ${availableStock}, solicitado ${requestedQuantity}` });
+        return false;
+      }
+      cart.add(p, { quantity: quantityToAdd });
       beep();
       setQuery("");
       if (!opts?.silentToast) {
@@ -302,9 +434,47 @@ export function PosClient({
       } else if (shouldAutoFocusInputs) {
         searchRef.current?.focus();
       }
+      return true;
     },
-    [cart, isMobilePos, scannerOpen, searchRef, setQuery]
+    [cart, isMobilePos, scannerOpen, setQuery]
   );
+
+  const requestCartQuantity = React.useCallback((lineId: string, requestedQuantity: number) => {
+    const item = cart.items.find((entry) => entry.line_id === lineId);
+    if (!item || !item.product_id) { cart.setQty(lineId, requestedQuantity); return; }
+    const product = effectiveProducts.find((entry) => entry.id === item.product_id);
+    if (!product) { cart.setQty(lineId, requestedQuantity); return; }
+    const availableStock = product.sold_by_weight ? product.stock_decimal : product.stock;
+    if (requestedQuantity > availableStock + 0.000001) {
+      setStockRequest({ product, requestedQuantity });
+      toast.warning("Stock insuficiente", { description: `${product.name}: disponible ${availableStock}, solicitado ${requestedQuantity}` });
+      return;
+    }
+    cart.setQty(lineId, requestedQuantity);
+  }, [cart, effectiveProducts]);
+
+  const increaseCartItem = React.useCallback((item: CartItem) => {
+    requestCartQuantity(item.line_id, item.quantity + (item.sold_by_weight ? 0.05 : 1));
+  }, [requestCartQuantity]);
+
+  const saveQuickStock = React.useCallback(async (nextStock: number) => {
+    if (!stockRequest) return;
+    setStockUpdating(true);
+    try {
+      const result = await quickUpdateProductStock({ productId: stockRequest.product.id, stock: nextStock });
+      const savedStock = result.soldByWeight ? result.stockDecimal : result.stock;
+      setStockOverrides((current) => ({ ...current, [result.productId]: savedStock }));
+      const existing = cart.items.find((item) => item.product_id === result.productId);
+      if (existing) cart.setQty(existing.line_id, stockRequest.requestedQuantity);
+      else cart.add(stockRequest.product, { quantity: stockRequest.requestedQuantity });
+      beep();
+      toast.success("Stock actualizado", { description: `${stockRequest.product.name}: ${savedStock}` });
+      setStockRequest(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el stock";
+      toast.error("No se pudo actualizar el stock", { description: message === "forbidden_edit_stock" ? "No tenés permiso para editar stock." : message });
+    } finally { setStockUpdating(false); }
+  }, [cart, stockRequest]);
 
   const addQuickSaleToCart = React.useCallback(() => {
     const category = quickSaleCategories.find((row) => row.id === quickSaleCategoryId) ?? null;
@@ -356,7 +526,8 @@ export function PosClient({
 
       const found = findByBarcodeOrName(q);
       if (found) {
-        addProduct(found, { silentToast: opts?.silentToast });
+        const added = addProduct(found, { silentToast: opts?.silentToast });
+        if (!added) return { ok: false };
         if (typeof console !== "undefined") console.log("[POS] Código procesado:", q);
         return {
           ok: true,
@@ -371,7 +542,7 @@ export function PosClient({
       for (const candidateMode of candidateModes) {
         const parsed = parseScaleBarcode(q, candidateMode);
         if (!parsed) continue;
-        const byScaleCode = products.find(
+        const byScaleCode = effectiveProducts.find(
           (p) => normalizeScaleCode(p.scale_code) === normalizeScaleCode(parsed.scaleCode)
         );
         const quantityKg =
@@ -382,8 +553,8 @@ export function PosClient({
               : 0;
 
         if (byScaleCode && byScaleCode.sold_by_weight && quantityKg > 0) {
-          cart.add(byScaleCode, { quantity: quantityKg });
-          beep();
+          const added = addProduct(byScaleCode, { quantity: quantityKg, silentToast: true });
+          if (!added) return { ok: false };
           if (!opts?.silentToast) {
             toast.success("Producto agregado", {
               description: `${byScaleCode.name} · ${quantityKg} kg`,
@@ -404,7 +575,7 @@ export function PosClient({
       toast.error("No se encontró el producto");
       return { ok: false };
     },
-    [addProduct, findByBarcodeOrName, products, cart, scaleBarcodeMode, setQuery]
+    [addProduct, findByBarcodeOrName, effectiveProducts, scaleBarcodeMode, setQuery]
   );
 
   const onSearchKeyDown = React.useCallback(
@@ -431,7 +602,7 @@ export function PosClient({
       parseScaleBarcode(normalized, "weight") || parseScaleBarcode(normalized, "price")
     );
 
-    const exactBarcodeMatch = products.some((p) => {
+    const exactBarcodeMatch = effectiveProducts.some((p) => {
       const barcode = String(p.barcode ?? "").replace(/\s+/g, "");
       return barcode.length >= 8 && barcode === normalized;
     });
@@ -444,7 +615,7 @@ export function PosClient({
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [procesarCodigo, products, query]);
+  }, [effectiveProducts, procesarCodigo, query]);
 
   const getCartQuantityForProduct = React.useCallback(
     (productId: string) => cart.items.find((i) => i.product_id === productId)?.quantity ?? 0,
@@ -456,8 +627,7 @@ export function PosClient({
       const item = cart.items.find((i) => i.product_id === productId);
       if (!item) return;
       if (direction === "inc") {
-        cart.inc(item);
-        beep();
+        increaseCartItem(item);
         return;
       }
       if (item.sold_by_weight) {
@@ -467,7 +637,7 @@ export function PosClient({
       }
       cart.dec(item);
     },
-    [cart]
+    [cart, increaseCartItem]
   );
 
   const onAdvanceKanbanStatus = React.useCallback(
@@ -912,6 +1082,7 @@ export function PosClient({
       print_ticket?: boolean;
       customer_id?: string | null;
       fiscal_customer?: FiscalCustomerData | null;
+      issue_fiscal?: boolean;
     }) => {
       if (cart.items.length === 0) return;
 
@@ -936,6 +1107,7 @@ export function PosClient({
               cash_received: p.cash_received,
               customer_id: p.customer_id ?? null,
               fiscal_customer: p.fiscal_customer ?? null,
+              issue_fiscal: p.issue_fiscal !== false,
               items: cart.items.map((it) => ({
                 product_id: it.product_id,
                 name: it.name,
@@ -1058,8 +1230,11 @@ export function PosClient({
               printWin.close();
             }
 
+            consumeLocalStockAfterSale(cart.items);
             cart.clear();
+            setIssueFiscal(Boolean(fiscalConfig?.isActive));
             closePayment();
+            focusScannerAfterSale();
             setSaleSuccess({
               total: Number.isFinite(chargedTotal) ? chargedTotal : promo?.total_after ?? cart.total,
               paymentLabel: paymentLabelMap[p.payment_method] ?? (p.payment_method === "mixed" ? "Pago mixto" : p.payment_method),
@@ -1094,6 +1269,8 @@ export function PosClient({
       business,
       cart,
       closePayment,
+      consumeLocalStockAfterSale,
+      focusScannerAfterSale,
       paymentLabelMap,
       router,
       serviceMode,
@@ -1143,8 +1320,11 @@ export function PosClient({
               : undefined,
           }
         : null;
+      consumeLocalStockAfterSale(cart.items);
       cart.clear();
+      setIssueFiscal(Boolean(fiscalConfig?.isActive));
       closePayment();
+      focusScannerAfterSale();
       if (activeOrderId && (serviceMode === "delivery" || serviceMode === "tables")) {
         void closeServiceOrder({ id: activeOrderId });
         setServiceOrdersState((prev) => prev.filter((order) => order.id !== activeOrderId));
@@ -1219,7 +1399,7 @@ export function PosClient({
         router.refresh();
       })();
     },
-    [activeOrderId, business, cart, closePayment, paymentLabelMap, refreshDeliveryHistory, router, serviceMode]
+    [activeOrderId, business, cart, closePayment, consumeLocalStockAfterSale, fiscalConfig?.documentOutputMode, fiscalConfig?.isActive, focusScannerAfterSale, paymentLabelMap, refreshDeliveryHistory, router, serviceMode]
   );
 
   const posGuideActive = Boolean(guidePosStep && cashOpen && !paymentOpen);
@@ -1740,8 +1920,14 @@ export function PosClient({
             ) : null}
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="text-sm font-semibold">{catalogMode ? "Catálogo" : "Productos"}</div>
-              <div className="text-xs text-muted-foreground">
-                Mostrando {Math.min((productPage - 1) * productPageSize + 1, filteredCount)}–{Math.min(productPage * productPageSize, filteredCount)} de {filteredCount}
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-lg border border-[var(--pos-border)] bg-[var(--pos-surface-2)] p-0.5" aria-label="Vista de productos">
+                  <button type="button" onClick={() => changeProductViewMode("grid")} aria-pressed={productViewMode === "grid"} className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold transition", productViewMode === "grid" ? "bg-blue-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}><Grid2X2 className="size-3.5" /> Cuadrícula</button>
+                  <button type="button" onClick={() => changeProductViewMode("list")} aria-pressed={productViewMode === "list"} className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold transition", productViewMode === "list" ? "bg-blue-600 text-white shadow-sm" : "text-muted-foreground hover:text-foreground")}><List className="size-3.5" /> Tabla</button>
+                </div>
+                <div className="hidden text-xs text-muted-foreground sm:block">
+                  Mostrando {Math.min((productPage - 1) * productPageSize + 1, filteredCount)}–{Math.min(productPage * productPageSize, filteredCount)} de {filteredCount}
+                </div>
               </div>
             </div>
             <ProductGrid
@@ -1754,6 +1940,7 @@ export function PosClient({
               totalCount={filteredCount}
               onPageChange={setProductPage}
               mode={catalogMode ? "catalog" : "table"}
+              viewMode={productViewMode}
               lastAddedProductId={cart.lastAddedProductId}
               onConsumeLastAdded={cart.consumeLastAdded}
             />
@@ -1768,14 +1955,20 @@ export function PosClient({
               total={cart.total}
               contextLabel={cartContextLabel}
               pending={pending}
-              onInc={cart.inc}
+              onInc={increaseCartItem}
               onDec={cart.dec}
-              onSetQty={cart.setQty}
+              onSetQty={requestCartQuantity}
               onRemove={cart.remove}
               onOpenPayment={openPayment}
+              onHoldSale={() => void putCurrentSaleOnHold()}
+              onOpenHeldSales={openHeldSales}
+              heldSalesCount={heldSales.length}
               paymentMethods={activePaymentMethods}
               selectedPaymentMethod={selectedPaymentMethod}
               onSelectPaymentMethod={setSelectedPaymentMethod}
+              fiscalAvailable={Boolean(fiscalConfig?.isActive)}
+              issueFiscal={issueFiscal}
+              onIssueFiscalChange={setIssueFiscal}
               onFocusScanner={() => searchRef.current?.focus()}
               lastAddedProductId={cart.lastAddedProductId}
             />
@@ -1794,6 +1987,16 @@ export function PosClient({
         onDecoded={(code) => procesarCodigo(code, { silentToast: isMobilePos })}
       />
 
+      {stockRequest ? <StockProtectionModal
+        key={`${stockRequest.product.id}:${stockRequest.requestedQuantity}`}
+        product={stockRequest.product}
+        requestedQuantity={stockRequest.requestedQuantity}
+        canEditStock={canEditStock}
+        pending={stockUpdating}
+        onClose={() => setStockRequest(null)}
+        onSave={(stock) => void saveQuickStock(stock)}
+      /> : null}
+
       <PaymentModal
         open={paymentOpen}
         total={cart.total}
@@ -1806,9 +2009,19 @@ export function PosClient({
         customers={posCustomers}
         mercadoPagoQrReady={mercadoPagoQrReady}
         fiscalConfig={fiscalConfig}
+        issueFiscal={issueFiscal}
         onClose={closePayment}
         onConfirm={onConfirmPayment}
         onMercadoPagoAutoPaid={onMercadoPagoAutoPaid}
+      />
+
+      <HeldSalesModal
+        open={heldSalesOpen}
+        rows={heldSales}
+        loading={heldSalesLoading}
+        onClose={() => setHeldSalesOpen(false)}
+        onResume={(row) => void resumeHeldSale(row)}
+        onDelete={(row) => void removeHeldSale(row)}
       />
 
       {saleSuccess ? (

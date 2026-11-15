@@ -27,6 +27,11 @@ export interface Database {
           email: string | null
           logo_url: string | null
           mercadopago_pos_external_id: string | null
+          mercadopago_pos_numeric_id: number | null
+          mercadopago_qr_image_url: string | null
+          mercadopago_qr_template_image_url: string | null
+          mercadopago_qr_template_document_url: string | null
+          mercadopago_qr_code: string | null
           created_at: string
           updated_at: string
         }
@@ -43,6 +48,11 @@ export interface Database {
           email?: string | null
           logo_url?: string | null
           mercadopago_pos_external_id?: string | null
+          mercadopago_pos_numeric_id?: number | null
+          mercadopago_qr_image_url?: string | null
+          mercadopago_qr_template_image_url?: string | null
+          mercadopago_qr_template_document_url?: string | null
+          mercadopago_qr_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -59,6 +69,11 @@ export interface Database {
           email?: string | null
           logo_url?: string | null
           mercadopago_pos_external_id?: string | null
+          mercadopago_pos_numeric_id?: number | null
+          mercadopago_qr_image_url?: string | null
+          mercadopago_qr_template_image_url?: string | null
+          mercadopago_qr_template_document_url?: string | null
+          mercadopago_qr_code?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, CreditCard, Minus, Plus, ScanLine, Trash2 } from "lucide-react";
+import { Check, Clock3, CreditCard, Minus, Pause, Plus, ScanLine, Trash2 } from "lucide-react";
 
 import type { CartItem } from "@/app/app/(main)/pos/hooks/use-cart";
 import { PaymentMethodGlyph } from "@/app/app/(main)/pos/components/payment-method-glyph";
@@ -21,9 +21,15 @@ type Props = {
   onSetQty: (lineId: string, qty: number) => void;
   onRemove: (lineId: string) => void;
   onOpenPayment: () => void;
+  onHoldSale: () => void;
+  onOpenHeldSales: () => void;
+  heldSalesCount?: number;
   paymentMethods: BusinessPaymentMethodRow[];
   selectedPaymentMethod: string;
   onSelectPaymentMethod: (method: string) => void;
+  fiscalAvailable?: boolean;
+  issueFiscal?: boolean;
+  onIssueFiscalChange?: (enabled: boolean) => void;
   onFocusScanner: () => void;
   lastAddedProductId?: string | null;
   guidePanelRef?: React.RefObject<HTMLDivElement | null>;
@@ -58,9 +64,15 @@ export function CartPanel({
   onSetQty,
   onRemove,
   onOpenPayment,
+  onHoldSale,
+  onOpenHeldSales,
+  heldSalesCount = 0,
   paymentMethods,
   selectedPaymentMethod,
   onSelectPaymentMethod,
+  fiscalAvailable = false,
+  issueFiscal = false,
+  onIssueFiscalChange,
   onFocusScanner,
   lastAddedProductId,
   guidePanelRef,
@@ -70,7 +82,7 @@ export function CartPanel({
   const [amountDraftById, setAmountDraftById] = React.useState<Record<string, string>>({});
   const [entryModeById, setEntryModeById] = React.useState<Record<string, WeightEntryMode>>({});
   const selectedPayment = paymentMethods.find((method) => method.method_code === selectedPaymentMethod);
-  const surchargePercent = selectedPaymentMethod === "card" ? Number(selectedPayment?.surcharge_percent ?? 0) : 0;
+  const surchargePercent = Number(selectedPayment?.surcharge_percent ?? 0);
   const chargeTotal = round2(total + (total * surchargePercent) / 100);
 
   React.useEffect(() => {
@@ -154,15 +166,55 @@ export function CartPanel({
   return (
     <div ref={guidePanelRef} className="flex h-full flex-col group-data-[cart-expanded=true]/cart:lg:grid group-data-[cart-expanded=true]/cart:lg:grid-cols-[minmax(0,1fr)_520px] group-data-[cart-expanded=true]/cart:lg:grid-rows-[auto_minmax(0,1fr)]">
       {/* Header: Total centralizado y destacado */}
-      <div className="relative shrink-0 overflow-hidden border-b border-emerald-400/30 bg-[radial-gradient(circle_at_50%_120%,rgba(57,255,20,0.18),transparent_48%),radial-gradient(circle_at_92%_0%,rgba(16,185,129,0.16),transparent_34%),linear-gradient(135deg,#101814_0%,#111c18_52%,#0b1210_100%)] px-3 py-3 text-white shadow-[inset_0_-1px_0_rgba(57,255,20,0.12)] lg:p-5 group-data-[cart-expanded=true]/cart:lg:col-start-2 group-data-[cart-expanded=true]/cart:lg:row-start-1">
+      <div className="relative shrink-0 overflow-hidden border-b border-emerald-400/30 bg-[radial-gradient(circle_at_50%_120%,rgba(57,255,20,0.18),transparent_48%),radial-gradient(circle_at_92%_0%,rgba(16,185,129,0.16),transparent_34%),linear-gradient(135deg,#101814_0%,#111c18_52%,#0b1210_100%)] px-3 py-2 text-white shadow-[inset_0_-1px_0_rgba(57,255,20,0.12)] lg:px-4 lg:py-2 group-data-[cart-expanded=true]/cart:lg:col-start-2 group-data-[cart-expanded=true]/cart:lg:row-start-1">
         <div aria-hidden="true" className="pointer-events-none absolute -right-5 -top-8 size-24 rounded-full border border-[#39ff14]/25 shadow-[0_0_30px_rgba(57,255,20,0.12)]" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-12 -left-8 size-28 rounded-full border-[18px] border-emerald-400/10" />
+        <div className="absolute left-2 top-2 z-10 flex gap-1">
+          <button
+            type="button"
+            disabled={pending || items.length === 0}
+            onClick={onHoldSale}
+            title="Poner venta en espera"
+            aria-label="Poner venta en espera"
+            className="flex h-7 items-center gap-1 rounded-lg border border-amber-400/35 bg-amber-400/10 px-2 text-[10px] font-bold text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-40"
+          >
+            <Pause className="size-3" /> Espera
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={onOpenHeldSales}
+            title="Ver ventas en espera"
+            aria-label="Ver ventas en espera"
+            className="flex h-7 items-center gap-1 rounded-lg border border-indigo-400/35 bg-indigo-400/10 px-2 text-[10px] font-bold text-indigo-200 transition hover:bg-indigo-400/20 disabled:opacity-40"
+          >
+            <Clock3 className="size-3" /> Retomar{heldSalesCount > 0 ? ` (${heldSalesCount})` : ""}
+          </button>
+        </div>
+        {fiscalAvailable ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={issueFiscal}
+            onClick={() => onIssueFiscalChange?.(!issueFiscal)}
+            title={issueFiscal ? "ARCA activada para esta venta" : "ARCA desactivada para esta venta"}
+            className={cn(
+              "absolute right-2 top-2 z-10 flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[10px] font-bold transition",
+              issueFiscal
+                ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-200"
+                : "border-slate-500/50 bg-slate-500/15 text-slate-300"
+            )}
+          >
+            <span className={cn("size-2 rounded-full", issueFiscal ? "bg-emerald-400" : "bg-slate-500")} />
+            ARCA {issueFiscal ? "Sí" : "No"}
+          </button>
+        ) : null}
         <div className="text-center">
           <div className="relative text-[9px] font-bold uppercase tracking-[0.22em] text-emerald-300 lg:text-[11px]">
             Total a cobrar
           </div>
           {contextLabel ? <div className="mt-1 text-xs font-medium text-muted-foreground">{contextLabel}</div> : null}
-          <div className="relative font-numeric text-3xl font-black tracking-tight text-[#57ff35] drop-shadow-[0_0_10px_rgba(57,255,20,0.65)] lg:text-5xl lg:drop-shadow-[0_0_18px_rgba(57,255,20,0.62)]">
+          <div className="relative font-numeric text-3xl font-black tracking-tight text-[#57ff35] drop-shadow-[0_0_10px_rgba(57,255,20,0.65)] lg:leading-none lg:drop-shadow-[0_0_18px_rgba(57,255,20,0.62)]">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={`${selectedPaymentMethod}-${chargeTotal}`}
@@ -176,11 +228,11 @@ export function CartPanel({
               </motion.span>
             </AnimatePresence>
           </div>
-          {surchargePercent > 0 ? (
-            <div className="mt-1 flex items-center justify-center gap-2 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+          {surchargePercent !== 0 ? (
+            <div className={cn("mt-1 flex items-center justify-center gap-2 text-[11px] font-medium", surchargePercent > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
               <span>Subtotal ${total}</span>
               <span aria-hidden="true">·</span>
-              <span>Recargo tarjeta ({surchargePercent}%): +${round2(chargeTotal - total)}</span>
+              <span>{surchargePercent > 0 ? "Recargo" : "Descuento"} {selectedPayment?.label} ({Math.abs(surchargePercent)}%): {surchargePercent > 0 ? "+" : "−"}${Math.abs(round2(chargeTotal - total))}</span>
             </div>
           ) : null}
           <div className="relative mt-0.5 text-[9px] font-medium text-slate-300 lg:mt-1 lg:text-xs">{items.length} {items.length === 1 ? "producto" : "productos"}</div>
@@ -215,7 +267,7 @@ export function CartPanel({
                 <div
                   key={item.line_id}
                   className={cn(
-                    "grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-2.5 py-2 transition-shadow lg:grid-cols-[minmax(0,1fr)_auto_84px_36px] lg:gap-3 lg:px-4 lg:py-3 group-data-[cart-expanded=true]/cart:lg:grid-cols-[minmax(220px,1fr)_auto_100px_36px]",
+                    "grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-xl border border-[var(--pos-border)] bg-[var(--pos-surface-2)] px-2.5 py-2 transition-shadow lg:grid-cols-[minmax(0,1fr)_auto_84px_36px] lg:gap-2 lg:px-3 lg:py-2 group-data-[cart-expanded=true]/cart:lg:grid-cols-[minmax(220px,1fr)_auto_100px_36px]",
                     highlight
                       ? "border-emerald-300 shadow-md shadow-emerald-100 dark:border-emerald-700 dark:shadow-emerald-900/30"
                       : ""
@@ -359,19 +411,19 @@ export function CartPanel({
       </div>
 
       {/* Footer: medio seleccionado + botón Cobrar */}
-      <div className="shrink-0 space-y-2 border-t border-[var(--pos-border)] p-2 lg:space-y-3 lg:p-4 group-data-[cart-expanded=true]/cart:lg:col-start-2 group-data-[cart-expanded=true]/cart:lg:row-start-2 group-data-[cart-expanded=true]/cart:lg:overflow-y-auto">
+      <div className="shrink-0 space-y-1.5 border-t border-[var(--pos-border)] p-2 lg:p-2.5 group-data-[cart-expanded=true]/cart:lg:col-start-2 group-data-[cart-expanded=true]/cart:lg:row-start-2 group-data-[cart-expanded=true]/cart:lg:overflow-y-auto">
         <div>
-          <div className="mb-1.5 flex items-center justify-between lg:mb-3">
+          <div className="mb-1.5 flex items-center justify-between">
             <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-700 lg:text-sm lg:normal-case lg:tracking-normal dark:text-slate-200">
               <span className="hidden size-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm lg:flex"><CreditCard className="size-4" /></span>
               Medios de pago
             </span>
             <span className="hidden text-[11px] text-muted-foreground lg:inline">Elegí la forma de cobro</span>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 lg:grid lg:grid-cols-3 lg:gap-2 lg:overflow-visible">
+          <div className="grid grid-cols-4 gap-1.5">
             {paymentMethods.map((method, methodIndex) => {
               const selected = selectedPaymentMethod === method.method_code;
-              const percent = method.method_code === "card" ? Number(method.surcharge_percent ?? 0) : 0;
+              const percent = Number(method.surcharge_percent ?? 0);
               const tone = PAYMENT_TONES[methodIndex % PAYMENT_TONES.length];
               return (
                 <button
@@ -380,25 +432,25 @@ export function CartPanel({
                   onClick={() => onSelectPaymentMethod(method.method_code)}
                   aria-pressed={selected}
                   className={cn(
-                    "group relative flex min-h-11 min-w-[7rem] items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-br px-2 py-1.5 text-left shadow-sm transition-all duration-200 lg:min-h-[5.25rem] lg:min-w-0 lg:gap-2.5 lg:rounded-2xl lg:px-3 lg:py-2.5",
+                    "group relative flex min-h-[3.25rem] min-w-0 items-center gap-1.5 overflow-hidden rounded-xl border bg-gradient-to-br px-2 py-1.5 text-left shadow-sm transition-all duration-200",
                     tone.card,
                     selected ? cn(tone.border, "-translate-y-1 scale-[1.02] text-slate-900 shadow-[0_0_22px_rgba(57,255,20,.72)] ring-2 ring-[#57ff35] dark:text-white") : "border-slate-200/80 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-blue-300/20 dark:text-slate-200 dark:hover:border-blue-300/40"
                   )}
                 >
                   <span aria-hidden="true" className="absolute -bottom-8 -right-5 h-14 w-24 rotate-[-12deg] rounded-[50%] bg-white/45 dark:bg-white/[0.05]" />
-                  <kbd className="absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-md border border-white/70 bg-slate-950/75 font-mono text-[10px] font-black text-white shadow-sm">
+                  <kbd className="absolute left-1 top-1 z-10 flex size-4 items-center justify-center rounded border border-white/70 bg-slate-950/75 font-mono text-[9px] font-black text-white shadow-sm">
                     {methodIndex + 1}
                   </kbd>
-                  {selected ? <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm lg:size-5"><Check className="size-3" strokeWidth={3} /></span> : null}
-                  <span className={cn("relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-lg lg:size-11 lg:rounded-xl", tone.icon)}>
-                    <PaymentMethodGlyph iconKey={method.icon_key} iconUrl={method.icon_url} className="size-4 lg:size-5" imgClassName="size-4 brightness-0 invert lg:size-5" />
+                  {selected ? <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm"><Check className="size-3" strokeWidth={3} /></span> : null}
+                  <span className={cn("relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-lg", tone.icon)}>
+                    <PaymentMethodGlyph iconKey={method.icon_key} iconUrl={method.icon_url} className="size-4" imgClassName="size-4 brightness-0 invert" />
                   </span>
                   <span className="relative min-w-0">
-                    <span className="block text-[11px] font-extrabold leading-tight text-current lg:text-xs">{method.label}</span>
-                    {percent > 0 ? (
-                      <span className="hidden w-fit rounded-md bg-orange-100 px-1.5 py-0.5 text-[9px] font-extrabold text-orange-600 lg:block dark:bg-orange-500/15 dark:text-orange-300">+{percent}% recargo</span>
+                    <span className="block line-clamp-2 text-[10px] font-extrabold leading-tight text-current">{method.label}</span>
+                    {percent !== 0 ? (
+                      <span className={cn("block w-fit rounded px-1 py-0.5 text-[8px] font-extrabold", percent > 0 ? "bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300")}>{percent > 0 ? "+" : ""}{percent}%</span>
                     ) : (
-                      <span className="hidden text-[10px] opacity-70 lg:block">Sin recargo</span>
+                      <span className="block text-[8px] opacity-70">Sin ajuste</span>
                     )}
                   </span>
                 </button>
@@ -409,7 +461,7 @@ export function CartPanel({
               onClick={() => onSelectPaymentMethod("mixed")}
               aria-pressed={selectedPaymentMethod === "mixed"}
               className={cn(
-                "group relative flex min-h-11 min-w-[7rem] items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-br from-orange-50 via-white to-amber-100/90 px-2 py-1.5 text-left shadow-sm transition-all duration-200 lg:min-h-[5.25rem] lg:min-w-0 lg:gap-2.5 lg:rounded-2xl lg:px-3 lg:py-2.5 dark:from-[#382515] dark:via-[#252336] dark:to-[#49301c]",
+                "group relative flex min-h-[3.25rem] min-w-0 items-center gap-1.5 overflow-hidden rounded-xl border bg-gradient-to-br from-orange-50 via-white to-amber-100/90 px-2 py-1.5 text-left shadow-sm transition-all duration-200 dark:from-[#382515] dark:via-[#252336] dark:to-[#49301c]",
                 selectedPaymentMethod === "mixed"
                   ? "-translate-y-1 scale-[1.02] border-[#57ff35] text-slate-900 shadow-[0_0_22px_rgba(57,255,20,.72)] ring-2 ring-[#57ff35] dark:text-white"
                   : "border-slate-200/80 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-blue-300/20 dark:text-slate-200 dark:hover:border-blue-300/40"
@@ -417,17 +469,17 @@ export function CartPanel({
             >
               <span aria-hidden="true" className="absolute -bottom-8 -right-5 h-14 w-24 rotate-[-12deg] rounded-[50%] bg-white/45 dark:bg-white/[0.05]" />
               {paymentMethods.length < 9 ? (
-                <kbd className="absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-md border border-white/70 bg-slate-950/75 font-mono text-[10px] font-black text-white shadow-sm">
+                <kbd className="absolute left-1 top-1 z-10 flex size-4 items-center justify-center rounded border border-white/70 bg-slate-950/75 font-mono text-[9px] font-black text-white shadow-sm">
                   {paymentMethods.length + 1}
                 </kbd>
               ) : null}
               {selectedPaymentMethod === "mixed" ? <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm lg:size-5"><Check className="size-3" strokeWidth={3} /></span> : null}
-              <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-lg shadow-orange-500/25 lg:size-11 lg:rounded-xl">
-                <PaymentMethodGlyph iconKey="wallet" className="size-4 lg:size-5" />
+              <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-lg shadow-orange-500/25">
+                <PaymentMethodGlyph iconKey="wallet" className="size-4" />
               </span>
               <span className="relative min-w-0">
-                <span className="block text-[11px] font-extrabold leading-tight text-current lg:text-xs">Pago mixto</span>
-                <span className="hidden text-[10px] opacity-70 lg:block">Combinar medios</span>
+                <span className="block text-[10px] font-extrabold leading-tight text-current">Pago mixto</span>
+                <span className="block text-[8px] opacity-70">Combinar</span>
               </span>
             </button>
           </div>
@@ -436,7 +488,7 @@ export function CartPanel({
           <Button
             type="button"
             className={cn(
-              "relative h-11 w-full rounded-xl text-sm font-extrabold lg:h-14 lg:rounded-2xl lg:text-lg lg:font-bold",
+              "relative h-11 w-full rounded-xl text-sm font-extrabold lg:h-12 lg:text-base lg:font-bold",
               "bg-gradient-to-r from-[#075dcc] via-[#176ee1] to-[#4b45cf] text-white hover:brightness-105 lg:bg-emerald-600 lg:hover:bg-emerald-700",
               "shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40",
               "disabled:bg-zinc-300 disabled:shadow-none dark:disabled:bg-zinc-700"

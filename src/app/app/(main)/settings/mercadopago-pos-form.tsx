@@ -9,7 +9,7 @@ import {
   bootstrapMercadoPagoPos,
   saveMercadoPagoPos,
 } from "@/app/app/(main)/settings/mercadopago-pos-actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -18,18 +18,28 @@ type Props = {
   posExternalId: string | null;
   qrReady: boolean;
   canEdit: boolean;
+  qrTemplateDocumentUrl: string | null;
+  qrTemplateImageUrl: string | null;
 };
 
 function posFormServerKey(posExternalId: string | null, qrReady: boolean) {
   return `${posExternalId ?? ""}\u0000${qrReady ? "1" : "0"}`;
 }
 
-export function MercadoPagoPosForm({ posExternalId, qrReady, canEdit }: Props) {
+export function MercadoPagoPosForm({
+  posExternalId,
+  qrReady,
+  canEdit,
+  qrTemplateDocumentUrl,
+  qrTemplateImageUrl,
+}: Props) {
   const router = useRouter();
   const formRef = React.useRef<HTMLFormElement>(null);
   const [saving, setSaving] = React.useState(false);
   const [bootstrapping, setBootstrapping] = React.useState(false);
   const [clearToken, setClearToken] = React.useState(false);
+  const [documentUrl, setDocumentUrl] = React.useState(qrTemplateDocumentUrl);
+  const [imageUrl, setImageUrl] = React.useState(qrTemplateImageUrl);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +104,8 @@ export function MercadoPagoPosForm({ posExternalId, qrReady, canEdit }: Props) {
         if (posEl) posEl.value = String(res.pos_external_id);
         if (tokEl) tokEl.value = "";
         setClearToken(false);
+        setDocumentUrl((res as { qr_template_document_url?: string | null }).qr_template_document_url ?? null);
+        setImageUrl((res as { qr_template_image_url?: string | null }).qr_template_image_url ?? null);
         toast.success("Caja creada y guardada", { description: res.pos_external_id });
         router.refresh();
       }
@@ -119,6 +131,41 @@ export function MercadoPagoPosForm({ posExternalId, qrReady, canEdit }: Props) {
       >
         {qrReady ? "QR activo en el POS." : "Falta token o ID de caja."}
       </div>
+
+      {documentUrl || imageUrl ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4">
+          <div className="text-sm font-semibold">QR fijo listo para el local</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Imprimilo y dejalo visible en la caja. El importe se actualiza al iniciar cada cobro.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {documentUrl ? (
+              <a
+                href={documentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ className: "rounded-xl" })}
+              >
+                Descargar cartel PDF
+              </a>
+            ) : null}
+            {imageUrl ? (
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ variant: "outline", className: "rounded-xl" })}
+              >
+                Abrir imagen del QR
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : qrReady ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] p-3 text-xs text-amber-950 dark:text-amber-100">
+          Esta caja fue creada con la integración anterior y no tiene cartel guardado. Creá una caja nueva para obtener el QR fijo.
+        </p>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="mercadopago_access_token">Access token (producción)</Label>

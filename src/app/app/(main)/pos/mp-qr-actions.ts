@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 import { createMonitoredAction } from "@/lib/action-wrapper";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createMercadoPagoDynamicQrOrder } from "@/lib/mercadopago-instore-order";
+import { createMercadoPagoStaticQrOrder } from "@/lib/mercadopago-instore-order";
 import { buildMercadoPagoPosExternalReference } from "@/lib/mp-pos-external-ref";
 
 function round2(n: number) {
@@ -46,7 +46,9 @@ async function createMercadoPagoPosQrImpl(input: {
   payment_details?: {
     split?: Array<{ method: string; amount: number }>;
     cash_received?: number;
+    fiscal_enabled?: boolean;
   };
+  issue_fiscal?: boolean;
 }) {
   const cookieStore = await cookies();
   const businessId = cookieStore.get("active_business_id")?.value;
@@ -139,7 +141,10 @@ async function createMercadoPagoPosQrImpl(input: {
       unit_price: it.unit_price,
     })),
     payment_method: input.payment_method,
-    payment_details: (input.payment_details as Record<string, unknown> | undefined) ?? null,
+    payment_details: {
+      ...((input.payment_details as Record<string, unknown> | undefined) ?? {}),
+      fiscal_enabled: input.issue_fiscal !== false,
+    },
     expected_total: round2(input.amountArs),
     expires_at: expiresAt,
     status: "pending",
@@ -153,7 +158,7 @@ async function createMercadoPagoPosQrImpl(input: {
   const idempotencyKey = randomUUID();
 
   const tokenTail = accessToken.length > 8 ? accessToken.slice(-8) : "****";
-  console.info("[mp-qr] Llamando a Mercado Pago /v1/orders (QR dinámico)", {
+  console.info("[mp-qr] Llamando a Mercado Pago /v1/orders (QR fijo)", {
     business_id: businessId,
     external_pos_id: posId,
     external_pos_id_length: posId.length,
@@ -161,7 +166,7 @@ async function createMercadoPagoPosQrImpl(input: {
     token_suffix: `…${tokenTail}`,
   });
 
-  const result = await createMercadoPagoDynamicQrOrder({
+  const result = await createMercadoPagoStaticQrOrder({
     accessToken,
     externalPosId: posId,
     amountArs: input.amountArs,
@@ -193,7 +198,6 @@ async function createMercadoPagoPosQrImpl(input: {
   }
 
   return {
-    qr_data: result.qr_data,
     order_id: result.order_id,
     external_reference: externalReference,
   };

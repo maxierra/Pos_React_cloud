@@ -109,6 +109,11 @@ async function bootstrapMercadoPagoPosImpl(formData: FormData) {
     .from("businesses")
     .update({
       mercadopago_pos_external_id: boot.posExternalId,
+      mercadopago_pos_numeric_id: boot.posNumericId,
+      mercadopago_qr_image_url: boot.qrImageUrl,
+      mercadopago_qr_template_image_url: boot.qrTemplateImageUrl,
+      mercadopago_qr_template_document_url: boot.qrTemplateDocumentUrl,
+      mercadopago_qr_code: boot.qrCode,
       updated_at: new Date().toISOString(),
     })
     .eq("id", businessId);
@@ -147,6 +152,9 @@ async function bootstrapMercadoPagoPosImpl(formData: FormData) {
     pos_numeric_id: boot.posNumericId,
     mp_user_id: boot.mpUserId,
     nickname: boot.nickname,
+    qr_image_url: boot.qrImageUrl,
+    qr_template_image_url: boot.qrTemplateImageUrl,
+    qr_template_document_url: boot.qrTemplateDocumentUrl,
   };
 }
 
