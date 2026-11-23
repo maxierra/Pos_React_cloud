@@ -53,23 +53,25 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   /** Clase Tailwind para el color principal del ítem (icono/texto activo). */
   colorClass: string;
+  /** Fondo móvil para distinguir visualmente cada acceso. */
+  mobileToneClass: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard, colorClass: "text-emerald-500" },
-  { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart, colorClass: "text-emerald-500" },
-  { href: "/app/inventory", label: "Inventario", icon: Boxes, colorClass: "text-sky-500" },
-  { href: "/app/products", label: "Productos", icon: Package, colorClass: "text-violet-500" },
-  { href: "/app/clientes", label: "Clientes", icon: Users, colorClass: "text-cyan-500" },
-  { href: "/app/proveedores", label: "Proveedores", icon: Truck, colorClass: "text-amber-500" },
-  { href: "/app/empleados", label: "Empleados", icon: UserCircle2, colorClass: "text-rose-500" },
-  { href: "/app/etiquetas", label: "Etiquetas", icon: Tag, colorClass: "text-fuchsia-500" },
-  { href: "/app/sales", label: "Ventas", icon: Receipt, colorClass: "text-indigo-500" },
-  { href: "/app/facturacion", label: "Facturación", icon: FileText, colorClass: "text-teal-500" },
-  { href: "/app/cash", label: "Caja", icon: Wallet, colorClass: "text-emerald-500" },
-  { href: "/app/reports", label: "Reportes", icon: BarChart3, colorClass: "text-sky-500" },
-  { href: "/app/subscription", label: "Suscripción", icon: CreditCard, colorClass: "text-purple-500" },
-  { href: "/app/settings", label: "Configuración", icon: Settings, colorClass: "text-slate-500" },
+  { href: "/app", label: "Dashboard", icon: LayoutDashboard, colorClass: "text-emerald-500", mobileToneClass: "border-emerald-400/30 bg-emerald-500/10 dark:bg-emerald-400/10" },
+  { href: "/app/pos", label: "Punto de venta", icon: ShoppingCart, colorClass: "text-blue-500", mobileToneClass: "border-blue-400/30 bg-blue-500/10 dark:bg-blue-400/10" },
+  { href: "/app/inventory", label: "Inventario", icon: Boxes, colorClass: "text-sky-500", mobileToneClass: "border-sky-400/30 bg-sky-500/10 dark:bg-sky-400/10" },
+  { href: "/app/products", label: "Productos", icon: Package, colorClass: "text-violet-500", mobileToneClass: "border-violet-400/35 bg-violet-500/12 dark:bg-violet-400/12" },
+  { href: "/app/clientes", label: "Clientes", icon: Users, colorClass: "text-cyan-500", mobileToneClass: "border-cyan-400/30 bg-cyan-500/10 dark:bg-cyan-400/10" },
+  { href: "/app/proveedores", label: "Proveedores", icon: Truck, colorClass: "text-amber-500", mobileToneClass: "border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10" },
+  { href: "/app/empleados", label: "Empleados", icon: UserCircle2, colorClass: "text-rose-500", mobileToneClass: "border-rose-400/30 bg-rose-500/10 dark:bg-rose-400/10" },
+  { href: "/app/etiquetas", label: "Etiquetas", icon: Tag, colorClass: "text-fuchsia-500", mobileToneClass: "border-fuchsia-400/30 bg-fuchsia-500/10 dark:bg-fuchsia-400/10" },
+  { href: "/app/sales", label: "Ventas", icon: Receipt, colorClass: "text-indigo-500", mobileToneClass: "border-indigo-400/30 bg-indigo-500/10 dark:bg-indigo-400/10" },
+  { href: "/app/facturacion", label: "Facturación", icon: FileText, colorClass: "text-teal-500", mobileToneClass: "border-teal-400/30 bg-teal-500/10 dark:bg-teal-400/10" },
+  { href: "/app/cash", label: "Caja", icon: Wallet, colorClass: "text-emerald-500", mobileToneClass: "border-emerald-400/30 bg-emerald-500/10 dark:bg-emerald-400/10" },
+  { href: "/app/reports", label: "Reportes", icon: BarChart3, colorClass: "text-sky-500", mobileToneClass: "border-sky-400/30 bg-sky-500/10 dark:bg-sky-400/10" },
+  { href: "/app/subscription", label: "Suscripción", icon: CreditCard, colorClass: "text-purple-500", mobileToneClass: "border-purple-400/30 bg-purple-500/10 dark:bg-purple-400/10" },
+  { href: "/app/settings", label: "Configuración", icon: Settings, colorClass: "text-slate-500", mobileToneClass: "border-slate-400/30 bg-slate-500/10 dark:bg-slate-400/10" },
 ];
 
 const QUICK_ACCESS_ITEMS = [
@@ -353,7 +355,8 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
   );
 
   const businessLabel = business.name ?? (business.id ? `${business.id.slice(0, 8)}…` : "Sin negocio");
-  const mobilePrimaryHrefs = ["/app", "/app/products", "/app/pos", "/app/cash"];
+  // Productos también queda dentro de "Más" como acceso alternativo en celulares.
+  const mobilePrimaryHrefs = ["/app", "/app/pos", "/app/cash"];
   const mobileMoreItems = navItems.filter((item) => !mobilePrimaryHrefs.includes(item.href));
 
   return (
@@ -412,11 +415,12 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
                     href={item.href}
                     onClick={() => setMobileMoreOpen(false)}
                     className={cn(
-                      "flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--pos-border)] bg-[var(--pos-surface)] px-2 py-3 text-center text-xs font-semibold shadow-sm transition active:scale-[.97]",
-                      active && "border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                      "flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center text-xs font-semibold shadow-sm transition active:scale-[.97]",
+                      item.mobileToneClass,
+                      active && "ring-2 ring-blue-500/70 ring-offset-2 ring-offset-[var(--pos-bg)] text-blue-700 dark:text-blue-200"
                     )}
                   >
-                    <span className="flex size-10 items-center justify-center rounded-2xl bg-[var(--pos-surface-2)]">
+                    <span className="flex size-10 items-center justify-center rounded-2xl bg-white/80 shadow-sm dark:bg-slate-950/45">
                       <Icon className={cn("size-5", item.colorClass)} />
                     </span>
                     <span className="line-clamp-2">{item.label}</span>
@@ -722,26 +726,26 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
 
           <nav className={cn("fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 items-end border-t border-slate-200/80 bg-white/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-12px_35px_rgba(15,23,42,.14)] backdrop-blur-xl md:hidden dark:border-slate-800 dark:bg-slate-950/95", focusMode && "hidden")} aria-label="Navegación principal móvil">
             {[
-              { href: "/app", label: "Inicio", Icon: LayoutDashboard },
-              { href: "/app/products", label: "Productos", Icon: Package },
-            ].map(({ href, label, Icon }) => {
+              { href: "/app", label: "Inicio", Icon: LayoutDashboard, tone: "text-emerald-600 dark:text-emerald-300", activeTone: "bg-emerald-500/12 ring-1 ring-emerald-500/25 dark:bg-emerald-400/15" },
+              { href: "/app/products", label: "Productos", Icon: Package, tone: "text-violet-600 dark:text-violet-300", activeTone: "bg-violet-500/15 ring-1 ring-violet-500/30 dark:bg-violet-400/20" },
+            ].map(({ href, label, Icon, tone, activeTone }) => {
               const active = pathname === href || (href !== "/app" && pathname.startsWith(href));
               return (
-                <Link key={href} href={href} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold text-muted-foreground transition active:scale-95", active && "text-blue-600 dark:text-blue-400")}>
-                  <Icon className="size-5" />
+                <Link key={href} href={href} prefetch={false} onClick={(event) => { event.preventDefault(); window.location.assign(href); }} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-bold transition active:scale-95", tone, active && activeTone)}>
+                  <span className={cn("grid size-8 place-items-center rounded-xl", active ? "bg-white/75 shadow-sm dark:bg-slate-950/35" : "bg-current/10")}><Icon className="size-5" /></span>
                   <span>{label}</span>
                 </Link>
               );
             })}
 
-            <Link href="/app/pos" className="group -mt-5 flex flex-col items-center gap-1 text-[10px] font-bold text-blue-700 dark:text-blue-300" aria-label="Abrir punto de venta">
+            <Link href="/app/pos" prefetch={false} onClick={(event) => { event.preventDefault(); window.location.assign("/app/pos"); }} className="group -mt-5 flex flex-col items-center gap-1 text-[10px] font-bold text-blue-700 dark:text-blue-300" aria-label="Abrir punto de venta">
               <span className={cn("flex size-14 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_8px_24px_rgba(37,99,235,.4)] transition group-active:scale-95 dark:border-slate-950", pathname.startsWith("/app/pos") && "ring-4 ring-blue-500/20")}>
                 <ShoppingCart className="size-6" />
               </span>
               <span>Vender</span>
             </Link>
 
-            <Link href="/app/cash" className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold text-muted-foreground transition active:scale-95", pathname.startsWith("/app/cash") && "text-blue-600 dark:text-blue-400")}>
+            <Link href="/app/cash" prefetch={false} onClick={(event) => { event.preventDefault(); window.location.assign("/app/cash"); }} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-bold text-amber-600 transition active:scale-95 dark:text-amber-300", pathname.startsWith("/app/cash") && "bg-amber-500/15 ring-1 ring-amber-500/30 dark:bg-amber-400/20")}>
               <span className="relative">
                 <Wallet className="size-5" />
                 <span className={cn("absolute -right-1 -top-1 size-2.5 rounded-full border-2 border-white dark:border-slate-950", cash.open ? "bg-emerald-500" : "bg-rose-500")} />
@@ -749,7 +753,7 @@ export function AppShell({ children, business, user, cash, access, plan }: Props
               <span>Caja</span>
             </Link>
 
-            <button type="button" onClick={() => setMobileMoreOpen(true)} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold text-muted-foreground transition active:scale-95", mobileMoreItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) && "text-blue-600 dark:text-blue-400")} aria-label="Abrir más opciones" aria-expanded={mobileMoreOpen}>
+            <button type="button" onClick={() => setMobileMoreOpen(true)} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-bold text-fuchsia-600 transition active:scale-95 dark:text-fuchsia-300", (mobileMoreOpen || mobileMoreItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))) && "bg-fuchsia-500/15 ring-1 ring-fuchsia-500/30 dark:bg-fuchsia-400/20")} aria-label="Abrir más opciones" aria-expanded={mobileMoreOpen}>
               <Menu className="size-5" />
               <span>Más</span>
             </button>

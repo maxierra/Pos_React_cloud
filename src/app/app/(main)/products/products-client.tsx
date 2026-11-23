@@ -460,6 +460,7 @@ export function ProductsClient({
   const [barcodeQuery, setBarcodeQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
   const barcodeSearchRef = React.useRef<HTMLInputElement>(null);
+  const mobileResultsRef = React.useRef<HTMLDivElement>(null);
   const knownProducts = React.useMemo(() => [...recentlyCreatedProducts, ...products], [products, recentlyCreatedProducts]);
   const notifyDuplicateBarcode = React.useCallback(
     (raw: string) => {
@@ -483,7 +484,13 @@ export function ProductsClient({
     const bq = normCode(barcodeQuery);
 
     return products.filter((p) => {
-      if (nq && !p.name.toLowerCase().includes(nq)) return false;
+      if (nq) {
+        const searchableText = [p.name, p.category, p.barcode, p.scale_code, p.variant_group, p.size, p.color]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!searchableText.includes(nq)) return false;
+      }
       if (bq) {
         const b = normCode(p.barcode ?? "");
         const sc = normCode(p.scale_code ?? "");
@@ -504,6 +511,14 @@ export function ProductsClient({
 
   const showingFrom = filtered.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
   const showingTo = filtered.length === 0 ? 0 : Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length);
+
+  const revealMobileResults = React.useCallback(() => {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement) focused.blur();
+    window.setTimeout(() => {
+      mobileResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }, []);
 
   const onCreate = React.useCallback(
     async (formData: FormData) => {
@@ -899,10 +914,10 @@ export function ProductsClient({
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-2xl bg-gradient-to-br from-[#075dcc] to-[#176ee1] p-3 text-white shadow-md shadow-blue-500/15"><span className="flex size-8 items-center justify-center rounded-lg bg-white/15"><Package className="size-4 text-cyan-200" /></span><p className="mt-2 text-[9px] font-bold text-blue-100">Total</p><p className="text-xl font-extrabold">{products.length}</p></div>
-          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-sm dark:border-emerald-900 dark:bg-slate-900"><span className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950"><Boxes className="size-4 text-emerald-600" /></span><p className="mt-2 text-[9px] font-bold text-slate-500">Activos</p><p className="text-xl font-extrabold text-emerald-600">{products.filter((p) => p.active).length}</p></div>
-          <div className="rounded-2xl border border-amber-200 bg-white p-3 shadow-sm dark:border-amber-900 dark:bg-slate-900"><span className="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950"><AlertTriangle className="size-4 text-amber-600" /></span><p className="mt-2 text-[9px] font-bold text-slate-500">Stock bajo</p><p className="text-xl font-extrabold text-amber-600">{products.filter(isLowStock).length}</p></div>
+          <div className="rounded-2xl border border-emerald-200 bg-white p-3 shadow-sm dark:border-emerald-400/25 dark:bg-[#101a2e]"><span className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-400/15"><Boxes className="size-4 text-emerald-600 dark:text-emerald-300" /></span><p className="mt-2 text-[9px] font-bold text-slate-500 dark:text-slate-300">Activos</p><p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-300">{products.filter((p) => p.active).length}</p></div>
+          <div className="rounded-2xl border border-amber-200 bg-white p-3 shadow-sm dark:border-amber-400/25 dark:bg-[#101a2e]"><span className="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-400/15"><AlertTriangle className="size-4 text-amber-600 dark:text-amber-300" /></span><p className="mt-2 text-[9px] font-bold text-slate-500 dark:text-slate-300">Stock bajo</p><p className="text-xl font-extrabold text-amber-600 dark:text-amber-300">{products.filter(isLowStock).length}</p></div>
         </div>
-        <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="mt-3 h-11 w-full gap-2 rounded-xl bg-white dark:bg-slate-900">
+        <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="mt-3 h-11 w-full gap-2 rounded-xl border-slate-200 bg-white text-slate-900 dark:border-blue-300/25 dark:bg-[#101a2e] dark:text-slate-100 dark:hover:bg-blue-400/10">
           <Upload className="size-4" /> Importar productos desde Excel
         </Button>
       </section>
@@ -966,30 +981,44 @@ export function ProductsClient({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 md:gap-3">
-        <div className="space-y-1.5">
+      <div className="sticky top-0 z-20 -mx-4 mt-4 grid gap-2 border-y border-blue-100/80 bg-[#f5f8fc]/95 px-4 py-3 shadow-[0_12px_26px_-22px_rgba(15,23,42,.7)] backdrop-blur-xl sm:grid-cols-2 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none md:backdrop-blur-none md:gap-3 dark:border-blue-300/15 dark:bg-slate-950/95 md:dark:bg-transparent">
+        <form
+          className="space-y-1.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            revealMobileResults();
+          }}
+        >
           <Label htmlFor="product-search-name" className="sr-only md:not-sr-only md:text-xs md:text-muted-foreground">
-            Buscar por nombre
+            Buscar producto
           </Label>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-blue-500 dark:text-blue-300" />
             <Input
               id="product-search-name"
               type="search"
-              placeholder="Ej: oreo, leche…"
+              enterKeyHint="search"
+              placeholder="Buscar por nombre, categoría o código"
               value={nameQuery}
               onChange={(e) => {
                 setNameQuery(e.target.value);
                 setPage(1);
               }}
-              className="h-12 rounded-xl border-slate-300 bg-white pl-10 shadow-sm md:h-11 dark:border-blue-300/35 dark:bg-[#17243a] dark:text-white dark:placeholder:text-slate-400 dark:focus-visible:border-blue-400 dark:focus-visible:ring-blue-500/30"
+              className="h-13 rounded-2xl border-blue-200 bg-white pl-11 pr-24 text-base font-medium text-slate-950 shadow-[0_8px_24px_-16px_rgba(37,99,235,.65)] placeholder:text-slate-400 md:h-11 md:rounded-xl md:pl-10 md:pr-4 md:text-sm dark:border-blue-300/35 dark:bg-[#17243a] dark:text-white dark:placeholder:text-slate-400 dark:focus-visible:border-blue-400 dark:focus-visible:ring-blue-500/30"
               autoComplete="off"
             />
+            <Button
+              type="submit"
+              size="sm"
+              className="absolute right-2 top-1/2 h-9 -translate-y-1/2 rounded-xl bg-blue-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-blue-500 md:hidden"
+            >
+              Ver lista
+            </Button>
           </div>
-        </div>
-        <div className="space-y-1.5">
+        </form>
+        <div className="hidden space-y-1.5 md:block">
           <Label htmlFor="product-search-barcode" className="sr-only md:not-sr-only md:text-xs md:text-muted-foreground">
-            CÃ³digo de barras
+            Código de barras
           </Label>
           <div className="relative">
             <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -1020,14 +1049,14 @@ export function ProductsClient({
           <Button
             type="button"
             variant="outline"
-            className="h-12 w-full gap-2 rounded-xl border-emerald-600/40 bg-[var(--pos-surface)] font-semibold"
+            className="h-12 w-full gap-2 rounded-xl border-emerald-600/40 bg-[var(--pos-surface)] font-semibold text-slate-900 dark:border-emerald-300/40 dark:text-emerald-100 dark:hover:bg-emerald-400/10"
             onClick={() => setScannerSearchOpen(true)}
           >
             <ScanLine className="size-5" />
             Escanear para buscar y editar
           </Button>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Lee el cÃ³digo de un producto ya cargado y se abre el formulario para ajustar stock y precios.
+            Lee el código de un producto ya cargado y se abre el formulario para ajustar stock y precios.
           </p>
         </div>
       ) : null}
@@ -1164,12 +1193,12 @@ export function ProductsClient({
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-3 md:hidden">
+      <div ref={mobileResultsRef} className="mt-4 scroll-mt-24 grid gap-3 md:hidden">
         <div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-600 dark:text-slate-300">{hasActiveFilters ? `${filtered.length} resultados` : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length}`}</p><Button type="button" variant="ghost" size="sm" onClick={exportProductsPdf} disabled={exportingPdf || filtered.length === 0} className="h-8 gap-1 rounded-lg text-[10px] text-blue-600"><Download className="size-3.5" />PDF</Button></div>
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900">{products.length === 0 ? "No hay productos cargados." : "Ningún producto coincide con la búsqueda."}</div>
         ) : paginatedProducts.map((p) => (
-          <article key={`mobile-${p.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_5px_18px_rgba(15,23,42,.06)] dark:border-slate-800 dark:bg-slate-900">
+          <article key={`mobile-${p.id}`} className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-[0_8px_24px_-18px_rgba(37,99,235,.55)] dark:border-blue-300/20 dark:bg-[#101a2e] dark:shadow-[0_12px_30px_-20px_rgba(37,99,235,.65)]">
             <div className="flex gap-3 p-3">
               <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
                 {p.image_url ? (
@@ -1178,11 +1207,11 @@ export function ProductsClient({
                 ) : <Package className="size-6 text-slate-300 dark:text-slate-600" />}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-extrabold">{p.name}</h2><p className="mt-0.5 truncate text-[10px] text-slate-500">{[formatVariant(p) || p.category, p.barcode ? `EAN ${p.barcode}` : null].filter(Boolean).join(" · ") || "Sin código"}</p></div><span className={cn("shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold", p.active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-slate-100 text-slate-500 dark:bg-slate-800")}>{p.active ? "Activo" : "Inactivo"}</span></div>
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="truncate text-sm font-extrabold text-slate-950 dark:text-white">{p.name}</h2><p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-300">{[formatVariant(p) || p.category, p.barcode ? `EAN ${p.barcode}` : null].filter(Boolean).join(" · ") || "Sin código"}</p></div><span className={cn("shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold", p.active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-200")}>{p.active ? "Activo" : "Inactivo"}</span></div>
                 <div className="mt-3 flex items-end justify-between gap-2"><div><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Precio</p><p className="text-lg font-extrabold text-blue-600 tabular-nums">${p.price}</p></div><div className="text-right"><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Stock</p><p className={cn("text-sm font-extrabold", isLowStock(p) ? "text-amber-600" : "text-slate-700 dark:text-slate-200")}>{formatStock(p)}</p></div></div>
               </div>
             </div>
-            <div className="grid grid-cols-[1fr_auto] border-t border-slate-100 dark:border-slate-800"><button type="button" onClick={() => openEdit(p)} className="flex h-11 items-center justify-center gap-2 text-xs font-extrabold text-blue-600 transition hover:bg-blue-50 dark:hover:bg-blue-950/30"><Pencil className="size-3.5" />Editar producto</button><button type="button" onClick={() => onDelete(p.id)} className="flex h-11 w-12 items-center justify-center border-l border-slate-100 text-rose-500 dark:border-slate-800" aria-label={`Eliminar ${p.name}`}><Trash2 className="size-4" /></button></div>
+            <div className="grid grid-cols-[1fr_auto] border-t border-blue-100 dark:border-blue-300/15"><button type="button" onClick={() => openEdit(p)} className="flex h-12 items-center justify-center gap-2 text-xs font-extrabold text-blue-700 transition hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-400/10"><Pencil className="size-3.5" />Editar producto</button><button type="button" onClick={() => onDelete(p.id)} className="flex h-12 w-12 items-center justify-center border-l border-blue-100 text-rose-500 dark:border-blue-300/15 dark:text-rose-300" aria-label={`Eliminar ${p.name}`}><Trash2 className="size-4" /></button></div>
           </article>
         ))}
 
