@@ -431,7 +431,7 @@ export function PosClient({
             input.select();
           }
         }, 50);
-      } else if (shouldAutoFocusInputs) {
+      } else if (shouldAutoFocusInputs && !isMobilePos) {
         searchRef.current?.focus();
       }
       return true;
@@ -1768,8 +1768,62 @@ export function PosClient({
                   value={query}
                   onChange={setQuery}
                   onKeyDown={onSearchKeyDown}
-                  placeholder={catalogMode ? "Buscar por nombre o categoría..." : undefined}
+                  placeholder={catalogMode ? "Buscar por nombre o categoría..." : "Buscar producto por nombre o código..."}
                 />
+                {isMobilePos && query.trim() ? (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-cyan-300/35 bg-[#07172f]/95 shadow-[0_18px_45px_-20px_rgba(2,12,50,.95)] backdrop-blur-xl lg:hidden">
+                    <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-[11px] font-semibold text-blue-100/80">
+                      <span>{filteredCount === 1 ? "1 producto encontrado" : `${filteredCount} productos encontrados`}</span>
+                      <span>Tocá para agregar</span>
+                    </div>
+                    {visible.length > 0 ? (
+                      <div className="max-h-[min(32dvh,16rem)] divide-y divide-white/10 overflow-y-auto overscroll-contain">
+                        {visible.slice(0, 8).map((product) => {
+                          const availableStock = product.sold_by_weight ? product.stock_decimal : product.stock;
+                          const stockLabel = product.sold_by_weight ? `${availableStock} kg` : `${availableStock} u.`;
+                          return (
+                            <button
+                              key={`mobile-search-${product.id}`}
+                              type="button"
+                              onClick={() => {
+                                searchRef.current?.blur();
+                                addProduct(product);
+                              }}
+                              className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition active:bg-cyan-300/15"
+                            >
+                              <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/10">
+                                {product.image_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={product.image_url} alt="" className="size-full object-cover" />
+                                ) : (
+                                  <Tags className="size-4 text-cyan-300" />
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-bold text-white">{product.name}</span>
+                                <span className="block truncate text-[11px] text-blue-100/65">
+                                  {[product.category, stockLabel].filter(Boolean).join(" · ")}
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-right">
+                                <span className="block text-sm font-extrabold text-emerald-300">
+                                  {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(product.price)}
+                                </span>
+                                <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-cyan-200">
+                                  <Plus className="size-3" /> Agregar
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-5 text-center text-sm text-blue-100/70">
+                        No encontramos productos con “{query.trim()}”.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               {quickSaleCategories.length > 0 ? (

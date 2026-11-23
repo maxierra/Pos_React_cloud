@@ -644,7 +644,8 @@ export function PaymentModal({
       <AnimatePresence>
         {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#030817]/75 p-2 backdrop-blur-md sm:p-4"
+          data-payment-flow-modal
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#030817]/75 p-2 backdrop-blur-md sm:p-4"
           role="dialog"
           aria-modal="true"
           initial={{ opacity: 0 }}
@@ -1165,7 +1166,7 @@ export function PaymentModal({
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-blue-300/15 bg-[#0b1220]/95 p-3 backdrop-blur-sm sm:p-4">
+              <div className="shrink-0 border-t border-blue-300/15 bg-[#0b1220]/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-4">
                 <Button
                   ref={confirmButtonRef}
                   type="button"
@@ -1239,7 +1240,8 @@ export function PaymentModal({
       <AnimatePresence>
         {open && previewOpen && pendingPayload ? (
           <motion.div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+            data-payment-flow-modal
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm sm:p-4"
             role="dialog"
             aria-modal="true"
             initial={{ opacity: 0 }}
@@ -1254,13 +1256,13 @@ export function PaymentModal({
             }}
           >
             <motion.div
-              className="w-full max-w-md rounded-2xl border bg-card shadow-xl"
+              className="flex max-h-[calc(100dvh-1rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border bg-card shadow-xl sm:max-h-[calc(100dvh-2rem)]"
               initial={{ y: 14, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 14, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18 }}
             >
-              <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-4">
                 <div>
                   <div className="text-sm font-semibold tracking-tight">Vista previa del ticket</div>
                   <div className="text-xs text-muted-foreground">Confirmá si querés imprimir</div>
@@ -1279,8 +1281,8 @@ export function PaymentModal({
                 </Button>
               </div>
 
-              <div className="p-5">
-                <div className="max-h-[420px] overflow-auto rounded-xl border bg-background p-4 text-center font-mono text-xs">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
+                <div className="max-h-[min(48dvh,420px)] overflow-auto rounded-xl border bg-background p-3 text-center font-mono text-xs sm:p-4">
                   <div className="font-bold">{business?.name ?? "Mi Negocio"}</div>
                   {business?.address ? <div>{business.address}</div> : null}
                   {business?.phone ? <div>Tel: {business.phone}</div> : null}
@@ -1476,7 +1478,9 @@ export function PaymentModal({
                   </button>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
+              </div>
+
+                <div className="grid shrink-0 grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] gap-2 border-t bg-card/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] shadow-[0_-14px_35px_-24px_rgba(15,23,42,.8)] backdrop-blur sm:p-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -1486,6 +1490,7 @@ export function PaymentModal({
                       setPreviewOpen(false);
                     }}
                     disabled={pending}
+                    className="h-12 rounded-xl"
                   >
                     Volver
                   </Button>
@@ -1515,15 +1520,18 @@ export function PaymentModal({
                       !fiscalCustomerReady
                     }
                     variant={mpQrFlowActive ? "outline" : "default"}
+                    className={cn(
+                      "h-12 rounded-xl px-3 text-sm font-extrabold shadow-lg",
+                      !mpQrFlowActive && "bg-gradient-to-r from-emerald-600 to-blue-600 text-white hover:from-emerald-500 hover:to-blue-500"
+                    )}
                   >
                     {pending
                       ? "Procesando..."
                       : mpQrFlowActive
                         ? "Registrar sin esperar notificación"
-                        : "Confirmar cobro"}
+                        : "CONFIRMAR VENTA"}
                   </Button>
                 </div>
-              </div>
             </motion.div>
           </motion.div>
         ) : null}
@@ -1532,7 +1540,8 @@ export function PaymentModal({
       <AnimatePresence>
         {open && transferConfirmOpen && pendingPayload ? (
           <motion.div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
+            data-payment-flow-modal
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur-[1px] sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="transfer-confirm-title"
