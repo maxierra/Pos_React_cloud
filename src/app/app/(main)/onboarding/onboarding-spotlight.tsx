@@ -19,6 +19,8 @@ type Props = {
   remeasureSignal?: number;
   /** Si false, no oscurece el fondo; solo resalta el objetivo y muestra la ayuda. */
   dimBackground?: boolean;
+  /** Ubicación de la tarjeta: fija abajo o junto al elemento resaltado. */
+  placement?: "bottom" | "target";
 };
 
 /**
@@ -35,13 +37,14 @@ export function OnboardingSpotlight({
   stackBase = 80,
   remeasureSignal = 0,
   dimBackground = true,
+  placement = "bottom",
 }: Props) {
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(
+    React.useCallback(() => () => undefined, []),
+    React.useCallback(() => true, []),
+    React.useCallback(() => false, [])
+  );
   const [box, setBox] = React.useState<{ top: number; left: number; width: number; height: number } | null>(null);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const measure = React.useCallback(() => {
     const el = targetRef.current;
@@ -65,17 +68,19 @@ export function OnboardingSpotlight({
 
   React.useLayoutEffect(() => {
     measure();
+    const frame = window.requestAnimationFrame(measure);
     const el = targetRef.current;
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
     if (el && ro) ro.observe(el as Element);
     window.addEventListener("scroll", measure, true);
     window.addEventListener("resize", measure);
     return () => {
+      window.cancelAnimationFrame(frame);
       ro?.disconnect();
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
     };
-  }, [measure, active, remeasureSignal]);
+  }, [measure, active, remeasureSignal, targetRef]);
 
   if (!active || !mounted || typeof document === "undefined") return null;
 
@@ -87,6 +92,15 @@ export function OnboardingSpotlight({
 
   const zOverlay = stackBase;
   const zHint = stackBase + 1;
+  const targetHintWidth = Math.min(Math.max(280, vw - 32), 400);
+  const targetHintLeft = box
+    ? Math.min(Math.max(16, box.left + box.width - targetHintWidth), Math.max(16, vw - targetHintWidth - 16))
+    : 16;
+  const targetHintTop = box
+    ? box.top + box.height + 12 + 190 <= vh
+      ? box.top + box.height + 12
+      : Math.max(16, box.top - 202)
+    : 16;
 
   const portalTarget = document.body;
 
@@ -151,8 +165,11 @@ export function OnboardingSpotlight({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22 }}
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 w-[min(92vw,440px)] -translate-x-1/2 rounded-2xl border-2 border-emerald-400/50 bg-card/98 p-4 shadow-2xl shadow-black/25 backdrop-blur-md"
-        style={{ zIndex: zHint }}
+        className={cn(
+          "fixed rounded-2xl border-2 border-emerald-400/50 bg-card/98 p-4 shadow-2xl shadow-black/25 backdrop-blur-md",
+          placement === "bottom" && "bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 w-[min(92vw,440px)] -translate-x-1/2"
+        )}
+        style={placement === "target" ? { zIndex: zHint, top: targetHintTop, left: targetHintLeft, width: targetHintWidth } : { zIndex: zHint }}
         role="status"
       >
         <div className="mb-2 flex items-center justify-between gap-2">

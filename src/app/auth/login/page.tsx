@@ -25,16 +25,19 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  searchParams?: Promise<{ error?: string; success?: string; redirect?: string }>;
+  searchParams?: Promise<{ error?: string; success?: string; redirect?: string; from?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: Props) {
   const sp = (await searchParams) ?? {};
+  const fromSaas = sp.from === "saas";
+  const homeHref = fromSaas ? "/saas" : "/";
+  const registerHref = fromSaas ? "/auth/register?from=saas" : "/auth/register";
 
   return (
     <div className={authPageBackgroundClass}>
       <div className="hidden lg:block">
-        <AuthSiteHeader secondaryHref="/auth/register" secondaryLabel="Crear cuenta" />
+        <AuthSiteHeader homeHref={homeHref} secondaryHref={registerHref} secondaryLabel="Crear cuenta" />
       </div>
 
       <main className="flex w-full flex-1 lg:mx-auto lg:max-w-7xl lg:items-center lg:px-4 lg:py-12">
@@ -44,7 +47,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
           <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.1rem,env(safe-area-inset-top))]">
             <header className="flex items-center justify-between pt-2">
-              <Link href="/" className="flex items-center gap-2.5 text-white">
+              <Link href={homeHref} className="flex items-center gap-2.5 text-white">
                 <span className="flex size-10 items-center justify-center rounded-[14px] border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,.2),0_10px_28px_rgba(0,0,0,.2)] backdrop-blur">
                   <ShoppingCart className="size-5" />
                 </span>
@@ -114,7 +117,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </form>
 
             <div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" /><span>o</span><span className="h-px flex-1 bg-slate-200" /></div>
-            <Link href="/auth/register" className="flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-50 text-sm font-bold text-blue-600 transition active:scale-[.99]">
+            <Link href={registerHref} className="flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-blue-50 text-sm font-bold text-blue-600 transition active:scale-[.99]">
               <Store className="size-4" /> Crear una cuenta
             </Link>
             <div className="mt-5 border-t border-slate-200 pt-4 text-center">
@@ -208,7 +211,7 @@ export default async function LoginPage({ searchParams }: Props) {
                 <p className="text-sm text-slate-600">
                   ¿No tenés cuenta?{" "}
                   <Link
-                    href="/auth/register"
+                    href={registerHref}
                     className="font-semibold text-sky-800 underline-offset-4 hover:text-sky-950 hover:underline"
                   >
                     Crear cuenta

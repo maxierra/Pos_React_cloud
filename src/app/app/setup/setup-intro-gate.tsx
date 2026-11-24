@@ -8,15 +8,16 @@ import { SetupPreBusinessIntro } from "@/app/app/setup/setup-pre-business-intro"
 type Props = {
   /** Si true, el usuario ya pasó el intro o hay que mostrar el formulario directo (ej. error). */
   showForm: boolean;
+  selectedPlan?: string;
   children: React.ReactNode;
 };
 
-export function SetupIntroGate({ showForm, children }: Props) {
+export function SetupIntroGate({ showForm, selectedPlan = "", children }: Props) {
   const router = useRouter();
 
   const onContinue = React.useCallback(() => {
-    router.replace("/app/setup?form=1");
-  }, [router]);
+    router.replace(`/app/setup?form=1${selectedPlan ? `&plan=${selectedPlan}` : ""}`);
+  }, [router, selectedPlan]);
 
   if (!showForm) {
     return <SetupPreBusinessIntro onContinue={onContinue} />;

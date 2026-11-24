@@ -5,13 +5,14 @@ import Link from "next/link";
 type Props = {
   secondaryHref: string;
   secondaryLabel: string;
+  homeHref?: string;
 };
 
-export function AuthSiteHeader({ secondaryHref, secondaryLabel }: Props) {
+export function AuthSiteHeader({ secondaryHref, secondaryLabel, homeHref = "/" }: Props) {
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-cyan-300/15 bg-[#071326]/75 text-white shadow-[0_12px_35px_-24px_rgba(34,211,238,.55)] backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
+        <Link href={homeHref} className="flex items-center gap-2 transition-opacity hover:opacity-90">
           <span className="size-2 rounded-full bg-cyan-400 shadow-[0_0_14px_rgba(34,211,238,.85)]" />
           <span className="text-sm font-semibold tracking-tight text-white">Tienda360 · POS SaaS</span>
         </Link>

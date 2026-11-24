@@ -24,11 +24,14 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  searchParams?: Promise<{ error?: string; check_email?: string; email?: string }>;
+  searchParams?: Promise<{ error?: string; check_email?: string; email?: string; from?: string; plan?: string }>;
 };
 
 export default async function RegisterPage({ searchParams }: Props) {
   const sp = (await searchParams) ?? {};
+  const fromSaas = sp.from === "saas";
+  const selectedPlan = ["monthly", "semester", "annual"].includes(sp.plan ?? "") ? sp.plan! : "";
+  const setupRedirect = selectedPlan ? `/app/setup?plan=${selectedPlan}` : "/app/setup";
   const signupOpen = isPublicSignupEnabled();
   const showCheckEmail = sp.check_email === "1";
   const checkEmailAddress =
@@ -36,7 +39,7 @@ export default async function RegisterPage({ searchParams }: Props) {
 
   return (
     <div className={authPageBackgroundClass}>
-      <AuthSiteHeader secondaryHref="/auth/login" secondaryLabel="Ingresar" />
+      <AuthSiteHeader homeHref={fromSaas ? "/saas" : "/"} secondaryHref={fromSaas ? `/auth/login?from=saas&redirect=${encodeURIComponent(setupRedirect)}` : "/auth/login"} secondaryLabel="Ingresar" />
       <main className="mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-8 md:py-12">
         <div className="grid w-full gap-10 lg:grid-cols-2 lg:items-stretch lg:gap-12">
           <AuthMarketingPanel
@@ -70,6 +73,8 @@ export default async function RegisterPage({ searchParams }: Props) {
               <AuthFormBody>
                 {signupOpen ? (
                 <form action={signUp} className="grid gap-5">
+                  <input type="hidden" name="plan" value={selectedPlan} />
+                  <input type="hidden" name="from" value={fromSaas ? "saas" : ""} />
                   <div className="grid gap-2">
                     <Label htmlFor="email" className={authLabelClassName}>
                       Email

@@ -27,6 +27,9 @@ async function createBusinessImpl(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const requestedSlug = slugify(String(formData.get("slug") ?? "") || name);
   const businessType = normalizeBusinessType(String(formData.get("business_type") ?? ""));
+  const requestedPlan = String(formData.get("plan") ?? "");
+  const selectedPlan = ["monthly", "semester", "annual"].includes(requestedPlan) ? requestedPlan : "";
+  const setupQuery = selectedPlan ? `&plan=${selectedPlan}` : "";
 
   const demoEnabled = process.env.DEMO_AUTH_ENABLED === "1";
   const hasSupabaseEnv =
@@ -34,7 +37,7 @@ async function createBusinessImpl(formData: FormData) {
     (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim().length > 0;
 
   if (!name) {
-    redirect("/app/setup?error=Nombre requerido");
+    redirect(`/app/setup?error=Nombre requerido${setupQuery}`);
   }
 
   if (demoEnabled && !hasSupabaseEnv) {
@@ -45,7 +48,7 @@ async function createBusinessImpl(formData: FormData) {
       sameSite: "lax",
       path: "/",
     });
-    redirect("/app/products?ob=product");
+    redirect(selectedPlan ? `/app/subscription?plan=${selectedPlan}&autostart=1` : "/app/products?ob=product");
   }
 
   const supabase = await createClient();
@@ -76,7 +79,7 @@ async function createBusinessImpl(formData: FormData) {
   }
 
   if (error) {
-    redirect(`/app/setup?error=${encodeURIComponent(error.message)}`);
+    redirect(`/app/setup?error=${encodeURIComponent(error.message)}${setupQuery}`);
   }
 
   const businessId = data as string;
@@ -90,7 +93,7 @@ async function createBusinessImpl(formData: FormData) {
     .eq("id", businessId);
 
   if (businessUpdateError) {
-    redirect(`/app/setup?error=${encodeURIComponent(businessUpdateError.message)}`);
+    redirect(`/app/setup?error=${encodeURIComponent(businessUpdateError.message)}${setupQuery}`);
   }
 
   const cookieStore = await cookies();
@@ -109,7 +112,7 @@ async function createBusinessImpl(formData: FormData) {
     });
   }
 
-  redirect("/app/products?ob=product");
+  redirect(selectedPlan ? `/app/subscription?plan=${selectedPlan}&autostart=1` : "/app/products?ob=product");
 }
 
 export const createBusiness = createMonitoredAction(createBusinessImpl, "setup/createBusiness");

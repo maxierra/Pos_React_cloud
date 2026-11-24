@@ -135,6 +135,7 @@ export function SubscriptionClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPlan, setLoadingPlan] = React.useState<PlanKey | null>(null);
+  const autoCheckoutStarted = React.useRef(false);
 
   const { mpAlias, phoneDisplay, whatsappDigits, cbu, transferHolder, transferNote } = manualContact;
   const hasManualDetails = Boolean(
@@ -219,7 +220,7 @@ export function SubscriptionClient({
     });
   }, [plans]);
 
-  const onPayPlan = async (planKey: PlanKey) => {
+  const onPayPlan = React.useCallback(async (planKey: PlanKey) => {
     setLoadingPlan(planKey);
     try {
       const res = await startMercadoPagoCheckout(planKey);
@@ -231,7 +232,23 @@ export function SubscriptionClient({
     } finally {
       setLoadingPlan(null);
     }
-  };
+  }, []);
+
+  React.useEffect(() => {
+    if (autoCheckoutStarted.current || searchParams?.get("autostart") !== "1") return;
+    const requestedPlan = searchParams.get("plan");
+    if (requestedPlan !== "monthly" && requestedPlan !== "semester" && requestedPlan !== "annual") return;
+    autoCheckoutStarted.current = true;
+    router.replace("/app/subscription");
+    if (!mercadoPagoConfigured) {
+      toast.error("Mercado Pago no está configurado", {
+        description: "Podés usar las opciones de pago asistido que aparecen en esta página.",
+      });
+      return;
+    }
+    const timer = window.setTimeout(() => void onPayPlan(requestedPlan), 0);
+    return () => window.clearTimeout(timer);
+  }, [mercadoPagoConfigured, onPayPlan, router, searchParams]);
 
   return (
     <div className="flex flex-col gap-7">

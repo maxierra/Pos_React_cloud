@@ -114,6 +114,19 @@ export default async function AppHomePage(props: { searchParams: Promise<{ date?
     : demoEmail;
 
   if (!businessId) {
+    if (hasSupabaseEnv) {
+      const supabase = await createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user?.id) {
+        const { data: memberships } = await supabase
+          .from("memberships")
+          .select("business_id")
+          .eq("user_id", authData.user.id)
+          .is("deleted_at", null)
+          .limit(1);
+        if (!memberships?.length) redirect("/app/setup");
+      }
+    }
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
         <div className="rounded-2xl border bg-card p-6">

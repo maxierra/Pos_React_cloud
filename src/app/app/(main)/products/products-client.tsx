@@ -55,7 +55,7 @@ type Props = {
   businessType?: BusinessType;
   canEditPrice?: boolean;
   canEditStock?: boolean;
-  /** Recorrido inicial: resaltar Â«Nuevo productoÂ» y llevar a Caja al guardar. */
+  /** Recorrido inicial: resaltar «Nuevo producto» y llevar a Caja al guardar. */
   guideProductStep?: boolean;
 };
 
@@ -320,67 +320,67 @@ function productCreateGuideHints(phase: CreateGuidePhase): { title: string; desc
   switch (phase) {
     case "barcode":
       return {
-        title: "EscaneÃ¡ el producto",
+        title: "Escaneá el producto",
         description: (
           <>
-            EscaneÃ¡ o escribÃ­ el <span className="font-semibold text-foreground">cÃ³digo de barras</span>. Si existe en la
+            Escaneá o escribí el <span className="font-semibold text-foreground">código de barras</span>. Si existe en la
             base, se autocompletan los datos.
           </>
         ),
       };
     case "name":
       return {
-        title: "RevisÃ¡ el nombre sugerido",
+        title: "Revisá el nombre sugerido",
         description: (
           <>
-            ConfirmÃ¡ el <span className="font-semibold text-foreground">nombre</span> (si no vino completo, ajustalo).
+            Confirmá el <span className="font-semibold text-foreground">nombre</span> (si no vino completo, ajustalo).
           </>
         ),
       };
     case "cost":
       return {
-        title: "AjustÃ¡ precio de compra",
+        title: "Ajustá precio de compra",
         description: (
           <>
-            RevisÃ¡ el <span className="font-semibold text-foreground">precio de compra</span> para que el margen quede
+            Revisá el <span className="font-semibold text-foreground">precio de compra</span> para que el margen quede
             correcto.
           </>
         ),
       };
     case "price":
       return {
-        title: "AjustÃ¡ precio de venta",
+        title: "Ajustá precio de venta",
         description: (
           <>
-            ConfirmÃ¡ el <span className="font-semibold text-foreground">precio de venta</span> sugerido y corregilo si hace
+            Confirmá el <span className="font-semibold text-foreground">precio de venta</span> sugerido y corregilo si hace
             falta.
           </>
         ),
       };
     case "stock":
       return {
-        title: "CargÃ¡ cantidad inicial",
+        title: "Cargá cantidad inicial",
         description: (
           <>
-            IndicÃ¡ cuÃ¡nto <span className="font-semibold text-foreground">stock inicial</span> entra (unidades o kg).
+            Indicá cuánto <span className="font-semibold text-foreground">stock inicial</span> entra (unidades o kg).
           </>
         ),
       };
     case "lowStock":
       return {
-        title: "DefinÃ­ stock mÃ­nimo",
+        title: "Definí stock mínimo",
         description: (
           <>
-            MarcÃ¡ el <span className="font-semibold text-foreground">stock mÃ­nimo</span> para alertas de reposiciÃ³n.
+            Marcá el <span className="font-semibold text-foreground">stock mínimo</span> para alertas de reposición.
           </>
         ),
       };
     default:
       return {
-        title: "GuardÃ¡ el producto",
+        title: "Guardá el producto",
         description: (
           <>
-            TocÃ¡ <span className="font-semibold text-foreground">Â«Guardar productoÂ»</span> para crearlo y seguir con la
+            Tocá <span className="font-semibold text-foreground">«Guardar producto»</span> para crearlo y seguir con la
             caja.
           </>
         ),
@@ -390,8 +390,8 @@ function productCreateGuideHints(phase: CreateGuidePhase): { title: string; desc
 
 function formatStock(p: ProductRow) {
   return p.sold_by_weight
-    ? `Stock: ${p.stock_decimal} | MÃ­n: ${p.low_stock_threshold_decimal}`
-    : `Stock: ${p.stock} | MÃ­n: ${p.low_stock_threshold}`;
+    ? `Stock: ${p.stock_decimal} | Mín: ${p.low_stock_threshold_decimal}`
+    : `Stock: ${p.stock} | Mín: ${p.low_stock_threshold}`;
 }
 
 function isLowStock(p: ProductRow) {
@@ -402,7 +402,7 @@ function isLowStock(p: ProductRow) {
 
 function formatVariant(p: ProductRow) {
   const parts = [p.category, p.size ? `Talle ${p.size}` : null, p.color ? `Color ${p.color}` : null].filter(Boolean);
-  return parts.join(" Â· ");
+  return parts.join(" · ");
 }
 
 function normCode(s: string) {
@@ -597,7 +597,7 @@ export function ProductsClient({
 
   const onDelete = React.useCallback(
     async (id: string) => {
-      const ok = window.confirm("Â¿Borrar este producto? Esta acciÃ³n no se puede deshacer.");
+      const ok = window.confirm("¿Borrar este producto? Esta acción no se puede deshacer.");
       if (!ok) return;
 
       startTransition(() => {
@@ -652,7 +652,7 @@ export function ProductsClient({
     iframe.onload = () => {
       const frameWindow = iframe.contentWindow;
       if (!frameWindow) {
-        toast.error("No se pudo abrir la vista de impresiÃƒÂ³n");
+        toast.error("No se pudo abrir la vista de impresión");
         cleanup();
         return;
       }
@@ -663,7 +663,7 @@ export function ProductsClient({
         try {
           frameWindow.print();
         } catch {
-          toast.error("No se pudo iniciar la impresiÃƒÂ³n");
+          toast.error("No se pudo iniciar la impresión");
         } finally {
           cleanup();
         }
@@ -754,8 +754,8 @@ export function ProductsClient({
         openEdit(found);
         setBarcodeQuery("");
       } else {
-        toast.error("No hay producto con ese cÃ³digo", {
-          description: "VerificÃ¡ el cÃ³digo o cargalo en el producto.",
+        toast.error("No hay producto con ese código", {
+          description: "Verificá el código o cargalo en el producto.",
         });
       }
     },
@@ -878,13 +878,14 @@ export function ProductsClient({
         targetRef={newProductHighlightRef}
         stackBase={88}
         dimBackground={false}
+        placement="target"
         stepIndex={2}
         totalSteps={ONBOARDING_GUIDE_TOTAL_STEPS}
         title="Tu primer producto"
         description={
           <>
-            <span className="font-semibold text-foreground">TocÃ¡ el botÃ³n verde Â«Nuevo productoÂ»</span> arriba a la
-            derecha: es lo Ãºnico que se ve nÃ­tido y titila. El resto queda borroso a propÃ³sito.
+            <span className="font-semibold text-foreground">Creá tu primer producto</span> para comenzar a controlar
+            stock y realizar ventas. Presioná el botón resaltado.
           </>
         }
       />
@@ -957,8 +958,8 @@ export function ProductsClient({
           )}
           >
           {showProductSpotlight ? (
-            <span className="pointer-events-none rounded-full bg-emerald-600 px-3 py-1.5 text-center text-[11px] font-bold uppercase leading-none tracking-wide text-white shadow-lg shadow-emerald-900/30 ring-2 ring-white/80 ring-offset-2 ring-offset-transparent animate-pulse">
-              Paso 1 Â· TocÃ¡ acÃ¡
+            <span className="pointer-events-none rounded-full bg-emerald-600 px-3 py-1.5 text-center text-[11px] font-bold uppercase leading-none tracking-wide text-white shadow-lg shadow-emerald-900/30 ring-2 ring-white/80 ring-offset-2 ring-offset-transparent">
+              Paso 2 · Empezá acá
             </span>
           ) : null}
           <Button
@@ -970,7 +971,7 @@ export function ProductsClient({
             className={cn(
               "gap-2 rounded-2xl font-semibold",
               showProductSpotlight
-                ? "animate-onboarding-product-pulse relative min-h-12 min-w-[min(100vw-2rem,280px)] border-2 border-white/90 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 px-8 text-base font-bold text-white hover:brightness-110 hover:saturate-110 md:min-w-[260px]"
+                ? "relative min-h-12 min-w-[min(100vw-2rem,280px)] border-2 border-white/90 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 px-8 text-base font-bold text-white shadow-[0_0_0_5px_rgba(16,185,129,.22),0_16px_36px_-14px_rgba(5,150,105,.8)] hover:brightness-110 hover:saturate-110 md:min-w-[260px]"
                 : "h-10"
             )}
           >
@@ -1039,7 +1040,7 @@ export function ProductsClient({
             />
           </div>
           <p className="hidden text-[11px] text-muted-foreground lg:block">
-            EnfocÃ¡ este campo y escaneÃ¡: al terminar (Enter) se abre la ediciÃ³n.
+            Enfocá este campo y escaneá: al terminar (Enter) se abre la edición.
           </p>
         </div>
       </div>
@@ -1084,9 +1085,14 @@ export function ProductsClient({
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    {products.length === 0
-                      ? "No hay productos cargados."
-                      : "NingÃºn producto coincide con la bÃºsqueda."}
+                    {products.length === 0 ? (
+                      <div className="mx-auto flex max-w-md flex-col items-center">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><Package className="size-7" /></div>
+                        <div className="mt-3 text-base font-bold text-foreground">Todavía no cargaste productos</div>
+                        <p className="mt-1 text-sm">Empezá agregando el primer artículo de tu comercio para controlar stock y vender.</p>
+                        {guideProductStep ? <Button type="button" onClick={() => { setEditProduct(null); setOpenCreate(true); }} className="mt-4 gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"><Plus className="size-4" /> Crear mi primer producto</Button> : null}
+                      </div>
+                    ) : "Ningún producto coincide con la búsqueda."}
                   </td>
                 </tr>
               ) : (
@@ -1107,7 +1113,7 @@ export function ProductsClient({
                           <div className="text-xs text-muted-foreground">
                             {[formatVariant(p) || null, p.barcode ? `EAN: ${p.barcode}` : null, p.expires_at ? `Vence: ${p.expires_at}` : null]
                               .filter(Boolean)
-                              .join(" Â· ")}
+                              .join(" · ")}
                           </div>
                         </div>
                       </div>
@@ -1176,7 +1182,7 @@ export function ProductsClient({
                   Anterior
                 </Button>
                 <div className="min-w-[110px] text-center text-xs font-medium text-muted-foreground">
-                  PÃ¡gina {page} / {totalPages}
+                  Página {page} / {totalPages}
                 </div>
                 <Button
                   type="button"
@@ -1196,7 +1202,7 @@ export function ProductsClient({
       <div ref={mobileResultsRef} className="mt-4 scroll-mt-24 grid gap-3 md:hidden">
         <div className="flex items-center justify-between"><p className="text-xs font-bold text-slate-600 dark:text-slate-300">{hasActiveFilters ? `${filtered.length} resultados` : `Mostrando ${showingFrom}-${showingTo} de ${filtered.length}`}</p><Button type="button" variant="ghost" size="sm" onClick={exportProductsPdf} disabled={exportingPdf || filtered.length === 0} className="h-8 gap-1 rounded-lg text-[10px] text-blue-600"><Download className="size-3.5" />PDF</Button></div>
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900">{products.length === 0 ? "No hay productos cargados." : "Ningún producto coincide con la búsqueda."}</div>
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900">{products.length === 0 ? <div className="flex flex-col items-center"><div className="flex size-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700"><Package className="size-6" /></div><div className="mt-3 text-sm font-extrabold text-slate-900 dark:text-white">Todavía no cargaste productos</div><p className="mt-1 max-w-xs">Agregá el primer artículo para comenzar a controlar stock.</p><Button type="button" onClick={() => { setEditProduct(null); setOpenCreate(true); }} className="mt-4 gap-2 rounded-xl"><Plus className="size-4" /> Crear mi primer producto</Button></div> : "Ningún producto coincide con la búsqueda."}</div>
         ) : paginatedProducts.map((p) => (
           <article key={`mobile-${p.id}`} className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-[0_8px_24px_-18px_rgba(37,99,235,.55)] dark:border-blue-300/20 dark:bg-[#101a2e] dark:shadow-[0_12px_30px_-20px_rgba(37,99,235,.65)]">
             <div className="flex gap-3 p-3">
@@ -1340,10 +1346,10 @@ export function ProductsClient({
                     Editar producto
                   </div>
                   <div className="text-xs text-muted-foreground max-lg:hidden">
-                    ActualizÃ¡ precios, stock y cÃ³digo.
+                    Actualizá precios, stock y código.
                   </div>
                   <div className="text-[11px] text-muted-foreground lg:hidden">
-                    PodÃ©s escanear para cambiar el cÃ³digo o ajustar stock.
+                    Podés escanear para cambiar el código o ajustar stock.
                   </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => setEditProduct(null)}>
@@ -1457,8 +1463,8 @@ export function ProductsClient({
             toast.success("Producto encontrado", { description: found.name, duration: 1200 });
             return true;
           }
-          toast.error("No hay producto con ese cÃ³digo", {
-            description: "CreÃ¡ uno nuevo con Â«Nuevo productoÂ» o revisÃ¡ el cÃ³digo.",
+          toast.error("No hay producto con ese código", {
+            description: "Creá uno nuevo con «Nuevo producto» o revisá el código.",
           });
           return false;
         }}

@@ -154,7 +154,8 @@ async function signInImpl(formData: FormData) {
       path: "/",
       maxAge: 0,
     });
-    redirect("/app/setup");
+    const nextPath = getRedirectPath(redirectTo);
+    redirect(nextPath.startsWith("/app/setup") ? nextPath : "/app/setup");
   }
 
   const savedBusinessId = cookieStore.get("active_business_id")?.value;
@@ -187,6 +188,11 @@ async function signUpImpl(formData: FormData) {
 
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const requestedPlan = String(formData.get("plan") ?? "");
+  const selectedPlan = ["monthly", "semester", "annual"].includes(requestedPlan) ? requestedPlan : "";
+  const fromSaas = String(formData.get("from") ?? "") === "saas";
+  const setupPath = selectedPlan ? `/app/setup?plan=${selectedPlan}` : "/app/setup";
+  const registerContext = `${fromSaas ? "&from=saas" : ""}${selectedPlan ? `&plan=${selectedPlan}` : ""}`;
 
   const hasSupabaseEnv =
     (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().length > 0 &&
@@ -198,7 +204,7 @@ async function signUpImpl(formData: FormData) {
 
   const supabase = await createClient();
   const baseUrl = getAppBaseUrl();
-  const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent("/app/setup")}`;
+  const redirectUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(setupPath)}`;
   console.log("[auth] signUp redirect URL:", redirectUrl);
   
   const { data, error } = await supabase.auth.signUp({
@@ -210,7 +216,7 @@ async function signUpImpl(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/auth/register?error=${encodeURIComponent(error.message)}`);
+    redirect(`/auth/register?error=${encodeURIComponent(error.message)}${registerContext}`);
   }
 
   const registeredEmail = data.user?.email?.trim();
@@ -223,12 +229,12 @@ async function signUpImpl(formData: FormData) {
     if (data.session) {
       await supabase.auth.signOut();
     }
-    redirect(`/auth/register?check_email=1&email=${encodeURIComponent(email)}`);
+    redirect(`/auth/register?check_email=1&email=${encodeURIComponent(email)}${registerContext}`);
   }
 
   const cookieStore = await cookies();
   await syncActiveBusinessCookie(supabase, cookieStore);
-  redirect("/app/setup");
+  redirect(setupPath);
 }
 
 async function requestPasswordResetImpl(formData: FormData) {

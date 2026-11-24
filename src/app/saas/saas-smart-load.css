@@ -1,0 +1,235 @@
+.saas-smart-load {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 86% 30%, rgba(188, 27, 246, 0.2), transparent 34%),
+    radial-gradient(circle at 4% 85%, rgba(25, 195, 235, 0.14), transparent 28%),
+    #091426;
+  color: #fff;
+}
+
+.saas-smart-load-grid {
+  display: grid;
+  grid-template-columns: 0.78fr 1.22fr;
+  align-items: center;
+  gap: 76px;
+}
+
+.saas-smart-copy h2 {
+  font-size: clamp(42px, 4.7vw, 64px);
+}
+
+.saas-smart-lead {
+  margin: 25px 0 0;
+  color: #b9c8d7;
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.saas-smart-lead strong { color: #fff; }
+
+.saas-smart-number {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 31px 0;
+  padding: 20px 0;
+  border-block: 1px solid rgba(124, 160, 187, 0.24);
+}
+
+.saas-smart-number strong {
+  background: linear-gradient(100deg, #63e8f2, #bd38ff);
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(42px, 5vw, 65px);
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.saas-smart-number span {
+  color: #9fb2c2;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.saas-smart-list {
+  display: grid;
+  gap: 17px;
+  margin: 0 0 30px;
+  padding: 0;
+  list-style: none;
+}
+
+.saas-smart-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.saas-smart-list li > svg {
+  flex: none;
+  width: 19px;
+  margin-top: 1px;
+  color: #64e8b2;
+}
+
+.saas-smart-list strong,
+.saas-smart-list small {
+  display: block;
+}
+
+.saas-smart-list strong { font-size: 13px; }
+.saas-smart-list small { margin-top: 3px; color: #8fa3b5; font-size: 11px; }
+
+.saas-smart-stage {
+  position: relative;
+  padding: 35px 15px 48px;
+}
+
+.saas-smart-stage::before {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(66, 79, 255, 0.22), transparent 67%);
+  content: "";
+  filter: blur(12px);
+}
+
+.saas-smart-window {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(177, 77, 255, 0.68);
+  border-radius: 22px;
+  background: #080f21;
+  padding: 8px;
+  box-shadow: 0 48px 95px -38px #000, 0 0 55px -25px rgba(198, 45, 255, 0.9);
+  transform: perspective(1200px) rotateY(-3deg) rotateX(1deg);
+}
+
+.saas-smart-window-top {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  color: #7f91a3;
+  font-size: 8px;
+}
+
+.saas-smart-window-top i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #586575;
+}
+
+.saas-smart-window-top i:first-child { background: #ff6281; }
+.saas-smart-window-top i:nth-child(2) { background: #ffcb55; }
+.saas-smart-window-top i:nth-child(3) { background: #4ddc91; }
+.saas-smart-window-top span { margin-left: 5px; }
+
+.saas-smart-screenshot {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1633 / 1217;
+  border-radius: 14px;
+  background: #091328;
+}
+
+.saas-smart-screenshot > img { object-fit: cover; }
+
+.saas-smart-product-photo {
+  position: absolute;
+  z-index: 2;
+  top: 28.5%;
+  left: 75.2%;
+  width: 13.5%;
+  aspect-ratio: 0.67;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
+}
+
+.saas-smart-product-photo img { object-fit: contain; }
+
+.saas-smart-scan-line {
+  position: absolute;
+  z-index: 4;
+  top: 42%;
+  left: 9%;
+  width: 52%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #4dff77, transparent);
+  box-shadow: 0 0 14px #4dff77;
+}
+
+.saas-smart-found,
+.saas-smart-barcode {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(96, 255, 151, 0.35);
+  border-radius: 14px;
+  background: rgba(4, 42, 25, 0.93);
+  padding: 11px 14px;
+  box-shadow: 0 20px 45px -20px #000;
+  backdrop-filter: blur(14px);
+}
+
+.saas-smart-found { right: -10px; bottom: 13px; }
+
+.saas-smart-found > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #27dd75;
+  color: #052313;
+}
+
+.saas-smart-found svg { width: 18px; }
+.saas-smart-found small,
+.saas-smart-found strong,
+.saas-smart-barcode small,
+.saas-smart-barcode strong { display: block; }
+.saas-smart-found small,
+.saas-smart-barcode small { margin-bottom: 2px; color: #8bcaa3; font-size: 8px; text-transform: uppercase; }
+.saas-smart-found strong,
+.saas-smart-barcode strong { font-size: 11px; }
+
+.saas-smart-barcode {
+  top: 4px;
+  left: -16px;
+  border-color: rgba(101, 224, 242, 0.28);
+  background: rgba(7, 29, 48, 0.93);
+}
+
+.saas-smart-barcode > svg { width: 25px; color: #65e0f2; }
+.saas-smart-barcode small { color: #7bbdcc; }
+
+@media (max-width: 980px) {
+  .saas-smart-load-grid { grid-template-columns: 1fr; gap: 34px; }
+  .saas-smart-copy { max-width: 730px; }
+  .saas-smart-stage { width: min(780px, 100%); margin-inline: auto; }
+}
+
+@media (max-width: 650px) {
+  .saas-smart-number { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .saas-smart-number span br { display: none; }
+  .saas-smart-stage { padding: 30px 0 82px; }
+  .saas-smart-window { padding: 5px; border-radius: 14px; transform: none; }
+  .saas-smart-window-top { height: 25px; }
+  .saas-smart-screenshot { border-radius: 9px; }
+  .saas-smart-found { right: 4px; bottom: 20px; }
+  .saas-smart-barcode { top: 4px; left: 4px; }
+  .saas-smart-found > span { width: 27px; height: 27px; }
+  .saas-smart-found strong, .saas-smart-barcode strong { font-size: 9px; }
+  .saas-smart-scan-line { top: 41%; left: 7%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saas-smart-window { transform: none; }
+}

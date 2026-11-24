@@ -1,0 +1,66 @@
+@import url("./saas-pricing.css");
+@import url("./saas-hero-v2.css");
+
+.saas-benefit-poster {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 35%, rgba(70, 74, 255, 0.18), transparent 38%),
+    #030d20;
+}
+
+.saas-benefit-poster-scroll {
+  position: relative;
+}
+
+.saas-benefit-poster-frame {
+  position: relative;
+  aspect-ratio: 1561 / 1015;
+  overflow: hidden;
+  border: 1px solid rgba(132, 104, 255, 0.34);
+  border-radius: 26px;
+  background: #061126;
+  box-shadow:
+    0 42px 100px -48px rgba(74, 111, 255, 0.78),
+    0 0 70px -42px rgba(217, 54, 255, 0.8);
+}
+
+.saas-benefit-poster-frame img {
+  object-fit: cover;
+}
+
+.saas-benefit-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 700px) {
+  .saas-benefit-poster {
+    padding-block: 60px;
+  }
+
+  .saas-benefit-poster .saas-wrap {
+    width: 100%;
+  }
+
+  .saas-benefit-poster-scroll {
+    overflow-x: auto;
+    padding: 8px 14px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: #805cff #0a1730;
+    scroll-snap-type: x proximity;
+  }
+
+  .saas-benefit-poster-frame {
+    width: 760px;
+    border-radius: 18px;
+    scroll-snap-align: start;
+  }
+}
