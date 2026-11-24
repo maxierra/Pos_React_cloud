@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 
-import { CreditCard, Landmark, X } from "lucide-react";
+import { CircleDollarSign, CreditCard, Landmark, X } from "lucide-react";
 
 import { previewPromotion } from "@/app/app/(main)/pos/actions";
 import { createMercadoPagoPosQr } from "@/app/app/(main)/pos/mp-qr-actions";
@@ -1437,17 +1437,22 @@ export function PaymentModal({
                       </div>
                     ) : mpQrData ? (
                       <div className="mt-4 flex flex-col items-center gap-3">
-                        <div className="flex size-16 items-center justify-center rounded-full border-4 border-sky-500/25 border-t-sky-500 text-2xl animate-spin" aria-hidden="true" />
+                        <div
+                          className="flex size-16 items-center justify-center rounded-2xl border border-sky-400/35 bg-sky-500/10 text-sky-600 shadow-[0_12px_30px_-18px_rgba(14,165,233,.8)] dark:text-sky-300"
+                          aria-hidden="true"
+                        >
+                          <CircleDollarSign className="size-9" strokeWidth={1.8} />
+                        </div>
                         <div className="text-center">
-                          <p className="text-base font-semibold">Esperando el pago</p>
+                          <p className="text-base font-semibold">Esperando acreditación</p>
                           <p className="mt-1 max-w-xs text-xs leading-snug text-muted-foreground">
-                            Pedile al cliente que escanee el QR fijo de la caja. Verá el importe de ${mpAmountPreview.toFixed(2)} en su teléfono.
+                            El cliente debe pagar desde el QR fijo de la caja. El importe de ${mpAmountPreview.toFixed(2)} ya fue enviado a Mercado Pago.
                           </p>
                         </div>
                         {onMercadoPagoAutoPaid ? (
                           <p className="max-w-xs text-center text-[11px] font-medium leading-snug text-sky-900/90 dark:text-sky-100/90">
-                            Cuando el pago se acredita, la venta se registra sola (notificación de Mercado Pago). No hace
-                            falta tocar &quot;Confirmar&quot; salvo que quieras registrarla a mano.
+                            Podés dejar esta pantalla abierta. Cuando Mercado Pago confirme la acreditación, la venta se
+                            registrará automáticamente.
                           </p>
                         ) : null}
                       </div>
@@ -1516,6 +1521,7 @@ export function PaymentModal({
                     }}
                     disabled={
                       pending ||
+                      mpQrFlowActive ||
                       (payloadUsesCuentaCorriente(pendingPayload) && ccFirstScreenDisabled) ||
                       !fiscalCustomerReady
                     }
@@ -1528,7 +1534,7 @@ export function PaymentModal({
                     {pending
                       ? "Procesando..."
                       : mpQrFlowActive
-                        ? "Registrar sin esperar notificación"
+                        ? "ESPERANDO ACREDITACIÓN"
                         : "CONFIRMAR VENTA"}
                   </Button>
                 </div>

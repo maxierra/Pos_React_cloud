@@ -1297,6 +1297,7 @@ export function PosClient({
       } | null;
     }) => {
       if (cart.items.length === 0) return;
+      const paidTotal = cart.total;
       const ticketPayload = shouldPrint
         ? {
             kind: "sale" as const,
@@ -1325,6 +1326,11 @@ export function PosClient({
       setIssueFiscal(Boolean(fiscalConfig?.isActive));
       closePayment();
       focusScannerAfterSale();
+      setSaleSuccess({
+        total: paidTotal,
+        paymentLabel: paymentLabelMap.mercadopago ?? "Mercado Pago",
+        saleId,
+      });
       if (activeOrderId && (serviceMode === "delivery" || serviceMode === "tables")) {
         void closeServiceOrder({ id: activeOrderId });
         setServiceOrdersState((prev) => prev.filter((order) => order.id !== activeOrderId));
