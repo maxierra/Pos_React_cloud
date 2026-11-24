@@ -249,6 +249,7 @@ export function PaymentModal({
   const [mpQrRetryTick, setMpQrRetryTick] = React.useState(0);
   const [mpExternalRef, setMpExternalRef] = React.useState<string | null>(null);
   const mpQrRequestRef = React.useRef(0);
+  const mpQrStartedAttemptRef = React.useRef<number | null>(null);
   const mpAutoNotifiedRef = React.useRef(false);
   const mpAutoStartRef = React.useRef(false);
   /** Evita resetear vista previa / QR cuando total o props del padre cambian mientras el modal sigue abierto (prod: refresh, RSC). */
@@ -280,6 +281,7 @@ export function PaymentModal({
     setMpQrLoading(false);
     setMpQrRetryTick(0);
     setMpExternalRef(null);
+    mpQrStartedAttemptRef.current = null;
     mpAutoNotifiedRef.current = false;
     mpAutoStartRef.current = false;
     const second =
@@ -429,6 +431,13 @@ export function PaymentModal({
       setMpQrError(null);
       return;
     }
+    // Props como `items`, promociones o configuración pueden cambiar de identidad
+    // mientras la vista previa está abierta. Una misma tentativa debe publicar una
+    // sola orden en el QR fijo; el botón Reintentar incrementa mpQrRetryTick.
+    if (mpQrStartedAttemptRef.current === mpQrRetryTick) {
+      return;
+    }
+    mpQrStartedAttemptRef.current = mpQrRetryTick;
     const rid = ++mpQrRequestRef.current;
     setMpQrLoading(true);
     setMpQrError(null);
