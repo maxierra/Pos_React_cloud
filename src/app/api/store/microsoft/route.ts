@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const MICROSOFT_STORE_URL = "https://apps.microsoft.com/detail/9PLJGFFQ6K8R?hl=es-ar&gl=AR&ocid=pdpshare";
+const MICROSOFT_INSTALLER_URL = "https://get.microsoft.com/installer/download/9PLJGFFQ6K8R?referrer=appbadge";
 const LOCATIONS = new Set(["header", "hero", "hero_certificate", "store_band", "mobile_share", "final", "mobile_bar"]);
 const ARGENTINA_REGIONS: Record<string, string> = {
   A: "Salta", B: "Buenos Aires", C: "Ciudad Autónoma de Buenos Aires", D: "San Luis",
@@ -89,7 +89,7 @@ async function recordClick(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const location = await recordClick(request);
 
-  return NextResponse.redirect(`${MICROSOFT_STORE_URL}&cid=tienda360_landing_${location}`, { status: 307 });
+  return NextResponse.redirect(`${MICROSOFT_INSTALLER_URL}&cid=tienda360_landing_${location}`, { status: 307 });
 }
 
 export async function POST(request: NextRequest) {

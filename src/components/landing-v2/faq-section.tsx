@@ -7,7 +7,7 @@ const faqs = [
   ["¿Para cuántas PC o cajas sirve la licencia?", "Cada licencia de Tienda360 es válida para una sola PC o caja."],
   ["¿Qué pasa si no me convence?", "No pasa nada. Podés descargar y probar gratis la versión demo. Si no te gusta o no se adapta a tu comercio, la desinstalás y listo."],
   ["¿Qué requisitos tiene mi PC?", "Necesitás una PC con Windows 10 u 11 de 64 bits y al menos 4 GB de memoria RAM. Para trabajar con mayor comodidad, recomendamos 8 GB de RAM."],
-  ["¿Cómo se instala Tienda360?", "Es muy simple: desde Microsoft Store hacés un clic y la aplicación se descarga e instala automáticamente, sin configuraciones complicadas."],
+  ["¿Cómo se instala Tienda360?", "Descargás el instalador oficial en tu PC con Windows, lo abrís y seguís los pasos. Si necesitás ayuda, te acompañamos por WhatsApp."],
 ] as const;
 
 export function FaqSection() {

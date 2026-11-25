@@ -14,14 +14,18 @@ export function VideoTutorials() {
       <div className="lp-video-grid">
         {visible.map((video, index) => (
           <article className="lp-video-card" key={video.id}>
-            <div className="lp-video-frame">
-              {playing === video.id ? (
-                <iframe src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0`} title={`Tutorial: ${video.title}`} allow="encrypted-media; picture-in-picture" allowFullScreen />
-              ) : (
-                <button type="button" onClick={() => { setPlaying(video.id); trackFunnelEvent("video_started", { video: video.id, tutorial: video.title }); }} aria-label={`Reproducir tutorial: ${video.title}`} style={{ backgroundImage: `url(https://i.ytimg.com/vi/${video.id}/hqdefault.jpg)` }}>
-                  <span aria-hidden="true">▶</span>
-                </button>
-              )}
+            <div className="lp-tutorial-player">
+              <div className="lp-tutorial-player-bar"><span /><span /><span /><strong>Tutorial {String(index + 1).padStart(2, "0")} · Tienda360</strong></div>
+              <div className="lp-video-frame">
+                {playing === video.id ? (
+                  <iframe src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0`} title={`Tutorial: ${video.title}`} allow="encrypted-media; picture-in-picture" allowFullScreen />
+                ) : (
+                  <button type="button" onClick={() => { setPlaying(video.id); trackFunnelEvent("video_started", { video: video.id, tutorial: video.title }); }} aria-label={`Reproducir tutorial: ${video.title}`} style={{ backgroundImage: `url(https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg), url(https://i.ytimg.com/vi/${video.id}/hqdefault.jpg)` }}>
+                    <span aria-hidden="true">▶</span>
+                  </button>
+                )}
+              </div>
+              <div className="lp-tutorial-player-caption"><span aria-hidden="true">▶</span>Mirá cómo se hace paso a paso</div>
             </div>
             <div className="lp-video-copy"><small>Tutorial {String(index + 1).padStart(2, "0")}</small><h3>{video.title}</h3><p>{video.description}</p></div>
           </article>

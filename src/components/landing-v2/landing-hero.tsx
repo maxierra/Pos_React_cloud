@@ -1,25 +1,31 @@
-import { landingConfig } from "@/lib/landing-config";
-import { TicketAnimation } from "./ticket-animation";
+import { landingConfig, whatsappUrl } from "@/lib/landing-config";
+import { Download, KeyRound, MessageCircle, MonitorCheck, PlayCircle, ShieldCheck, UserRound } from "lucide-react";
 import { TrackedLink } from "./tracked-link";
-import { MercadoLibreMark, MicrosoftStoreMark } from "./store-marks";
-import { DemoDownloadLink } from "./demo-download-link";
 
 export function LandingHero() {
   return (
     <section className="lp-hero" id="top">
       <div className="lp-wrap lp-hero-grid">
         <div className="lp-hero-copy">
-          <p className="lp-kicker">Punto de venta para comercios argentinos</p>
-          <h1>Vendé, facturá y controlá tu stock <em>desde una sola pantalla</em></h1>
-          <p className="lp-lead">Tienda360 es el punto de venta para tu comercio. Escaneás, cobrás con QR y emitís la factura ARCA. Lo pagás una sola vez, sin abono mensual.</p>
+          <p className="lp-kicker">Tienda360 para Windows · Licencia definitiva</p>
+          <h1>Tu punto de venta completo. <em>Un solo pago.</em></h1>
+          <p className="lp-lead">Vendé, controlá stock, cerrá la caja y facturá con ARCA desde una sola pantalla. Descargá la demo, probala en tu comercio y decidí sin apuro.</p>
           <div className="lp-actions">
-            <DemoDownloadLink className="lp-button lp-button-microsoft" href={landingConfig.demoUrl("hero")} target="_blank" rel="noopener noreferrer" location="hero"><MicrosoftStoreMark /><span><small>Acceso gratuito</small>Probar la demo</span></DemoDownloadLink>
-            <TrackedLink className="lp-button lp-button-mercadolibre" href={landingConfig.purchaseUrl("hero")} target="_blank" rel="noopener noreferrer" event="mercadolibre_clicked" location="hero"><MercadoLibreMark /><span><small>Compra directa en</small>Mercado Libre</span></TrackedLink>
+            <a className="lp-button lp-download-button lp-download-primary" href={landingConfig.demoUrl("hero")}><Download aria-hidden="true" /><span><small>Instalador para Windows</small>Descargar demo gratis</span></a>
+            <TrackedLink className="lp-button lp-purchase-button" href={whatsappUrl("Hola, quiero adquirir Tienda360 por $50.000 y coordinar la instalación online.")} target="_blank" rel="noopener noreferrer" event="whatsapp_clicked" location="hero_purchase"><MessageCircle aria-hidden="true" />Quiero adquirirlo</TrackedLink>
           </div>
-          <div className="lp-demo-access"><div><strong>Demo oficial y segura</strong><span>Aplicación certificada por Microsoft · Instalación sencilla</span></div><dl><div><dt>Usuario</dt><dd>{landingConfig.demoUser}</dd></div><div><dt>Contraseña</dt><dd>{landingConfig.demoPassword}</dd></div></dl></div>
-          <p className="lp-note"><strong>Para PC con Windows 10 u 11.</strong> La demo es exclusivamente para probar el sistema. Si comprás la licencia, incluimos instalación, capacitación y soporte técnico por WhatsApp de lunes a viernes de 9 a 18 h.</p>
+          <div className="lp-demo-credentials" aria-label="Credenciales para ingresar a la demo">
+            <div className="lp-demo-credentials-title"><KeyRound aria-hidden="true" /><span><strong>Datos para ingresar a la demo</strong><small>Guardalos: los vas a necesitar al abrir el sistema</small></span></div>
+            <div className="lp-demo-credentials-values"><span><UserRound aria-hidden="true" /><small>Usuario</small><strong>admin</strong></span><span><KeyRound aria-hidden="true" /><small>Contraseña</small><strong>admin123</strong></span></div>
+          </div>
+          <div className="lp-hero-trust"><span><MonitorCheck />Windows 10 y 11</span><span><ShieldCheck />Descarga oficial</span><span><PlayCircle />3 días de prueba</span></div>
+          <p className="lp-note"><strong>Sin tarjeta y sin suscripción.</strong> Si activás la licencia, conservás los productos, ventas y configuraciones cargadas durante la prueba.</p>
         </div>
-        <TicketAnimation />
+        <div className="lp-hero-video-shell">
+          <div className="lp-video-browser"><span></span><span></span><span></span><b>Conocé Tienda360 en funcionamiento</b></div>
+          <div className="lp-hero-video"><iframe src="https://www.youtube-nocookie.com/embed/eBtBLsHQrRc?rel=0" title="Presentación de Tienda360 para Windows" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /></div>
+          <p><PlayCircle aria-hidden="true" /> Mirá cómo funciona antes de instalarlo</p>
+        </div>
       </div>
     </section>
   );

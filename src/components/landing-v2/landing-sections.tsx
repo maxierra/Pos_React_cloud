@@ -1,7 +1,7 @@
-import { landingConfig, whatsappUrl } from "@/lib/landing-config";
+import { whatsappUrl } from "@/lib/landing-config";
+import { MessageCircle } from "lucide-react";
 import { SavingsCalculator } from "./savings-calculator";
 import { TrackedLink } from "./tracked-link";
-import { MercadoLibreMark } from "./store-marks";
 
 const benefits = [
   ["01", "Vendés más rápido", "Escaneás el código de barras y el producto se agrega solo. También podés dejar una venta en espera, seguir atendiendo a otra persona y retomarla más tarde."],
@@ -17,8 +17,8 @@ export function BenefitsSection() {
 }
 
 export function StepsSection() {
-  const steps = [["Mirás una demo", "Te mostramos el sistema con ejemplos de tu rubro y resolvemos tus dudas por WhatsApp."], ["Lo instalamos y configuramos", "Dejamos Tienda360 funcionando en tu PC, con tu lector si ya lo tenés."], ["Te capacitamos y vendés", "Te enseñamos a usarlo con tu comercio en marcha y seguimos disponibles si algo se complica."]] as const;
-  return <section className="lp-section lp-dark" id="como"><div className="lp-wrap"><div className="lp-heading"><p className="lp-kicker">Simple desde el primer día</p><h2>Cómo lo empezás a usar</h2><p>No tenés que instalar nada por tu cuenta.</p></div><ol className="lp-steps">{steps.map(([title, body], index) => <li key={title}><span>{index + 1}</span><h3>{title}</h3><p>{body}</p></li>)}</ol></div></section>;
+  const steps = [["Descargá el instalador", "Abrilo en tu PC con Windows y seguí los pasos. No necesitás tarjeta para comenzar."], ["Probalo con tu comercio", "Usá Tienda360 durante 3 días con todas sus funciones y cargá información real de tu negocio."], ["Activá una sola vez", "Si te sirve, comprás la licencia definitiva y continuás trabajando con todo lo que ya cargaste."]] as const;
+  return <section className="lp-section lp-dark" id="como"><div className="lp-wrap"><div className="lp-heading"><p className="lp-kicker">Primero probalo. Después decidí.</p><h2>De la descarga a tu primera venta</h2><p>Un proceso simple, con acompañamiento si lo necesitás.</p></div><ol className="lp-steps">{steps.map(([title, body], index) => <li key={title}><span>{index + 1}</span><h3>{title}</h3><p>{body}</p></li>)}</ol></div></section>;
 }
 
 export function SupportSection() {
@@ -26,5 +26,5 @@ export function SupportSection() {
 }
 
 export function PricingSection() {
-  return <section className="lp-section lp-pricing" id="precio"><div className="lp-wrap lp-price-grid"><div><p className="lp-kicker">Licencia definitiva</p><h2>Un pago, sin sorpresas todos los meses</h2><SavingsCalculator /></div><article className="lp-price-card"><p>Tienda360 para Windows</p><div><strong>$50.000</strong><span>pago único</span></div><ul><li>Licencia definitiva</li><li>Instalación y configuración</li><li>Capacitación para empezar</li><li>Soporte remoto y actualizaciones</li></ul><TrackedLink className="lp-button lp-button-mercadolibre" href={landingConfig.purchaseUrl("price")} target="_blank" rel="noopener noreferrer" event="mercadolibre_clicked" location="price"><MercadoLibreMark /><span><small>Compra directa en</small>Mercado Libre</span></TrackedLink><small>Compra protegida por Mercado Libre.</small></article></div></section>;
+  return <section className="lp-section lp-pricing" id="precio"><div className="lp-wrap lp-price-grid"><div><p className="lp-kicker">Licencia definitiva</p><h2>Un pago, sin sorpresas todos los meses</h2><SavingsCalculator /></div><article className="lp-price-card"><p>Tienda360 para Windows</p><div><strong>$50.000</strong><span>pago único</span></div><ul><li>Licencia definitiva</li><li>Instalación y configuración online</li><li>Capacitación para empezar</li><li>Soporte remoto y actualizaciones</li></ul><TrackedLink className="lp-button lp-button-whatsapp" href={whatsappUrl("Hola, quiero adquirir Tienda360 por $50.000 y coordinar la instalación online.")} target="_blank" rel="noopener noreferrer" event="whatsapp_clicked" location="price_purchase"><MessageCircle aria-hidden="true" />Coordinar compra por WhatsApp</TrackedLink><small>Te contactamos para coordinar el pago y la instalación.</small></article></div></section>;
 }
